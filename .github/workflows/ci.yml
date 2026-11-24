@@ -291,7 +291,10 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-hack
-      - run: cargo hack check --locked -p docker-sandbox --feature-powerset --no-dev-deps
+      # Without `--no-dev-deps`, which rewrites the manifest and so the lockfile
+      # that `--locked` guards: resolver 3 already keeps the features of the
+      # dev-dependencies out of a check of the library.
+      - run: cargo hack check --locked -p docker-sandbox --feature-powerset
 
   # Guards the supply chain (deny.toml) when a manifest, a lockfile or the
   # policy changes: everything for the main workspace; licenses and sources for
