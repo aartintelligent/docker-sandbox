@@ -1,0 +1,199 @@
+{
+  "name": "kits",
+  "description": "Local kits: validation, creation with a mixin, adding a mixin to a running sandbox by container swap and in place, and replaying a compiled kit package through the socket.",
+  "scenarios": [
+    {
+      "name": "kit-validate",
+      "category": "kit",
+      "args": [
+        "kit",
+        "validate",
+        "{kits}/audit-mixin-v3"
+      ]
+    },
+    {
+      "name": "kit-inspect-shell",
+      "category": "kit",
+      "args": [
+        "kit",
+        "inspect",
+        "docker.io/sbx/shell:latest"
+      ],
+      "note": "resolved from the registry, no daemon route expected"
+    },
+    {
+      "name": "create-with-mixin",
+      "category": "kit",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-k",
+        "--kit",
+        "{kits}/audit-mixin-v3",
+        "shell"
+      ]
+    },
+    {
+      "name": "verify-mixin",
+      "category": "kit",
+      "args": [
+        "exec",
+        "audit-k",
+        "--",
+        "sh",
+        "-c",
+        "cat /home/agent/audit-mixin.txt; ls /var/log/sbx-kits"
+      ]
+    },
+    {
+      "name": "create-a-plain",
+      "category": "kit",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-a",
+        "shell"
+      ]
+    },
+    {
+      "name": "kit-add",
+      "category": "kit",
+      "mutates": true,
+      "args": [
+        "kit",
+        "add",
+        "audit-a",
+        "{kits}/audit-mixin-v3"
+      ],
+      "note": "recreates the container with swap-container"
+    },
+    {
+      "name": "verify-kit-add",
+      "category": "kit",
+      "args": [
+        "exec",
+        "audit-a",
+        "--",
+        "sh",
+        "-c",
+        "cat /home/agent/audit-mixin.txt"
+      ]
+    },
+    {
+      "name": "kit-compile",
+      "category": "kit",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-compile",
+        "{kits}/audit-mixin-v3",
+        "--out",
+        "{work}/kit-package"
+      ],
+      "note": "compiles through the CLI, then replays the package through the socket (image load, creation, deletion)"
+    },
+    {
+      "name": "create-from-kit-cache",
+      "category": "kit",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-package/create-body.json",
+        "replace": {
+          "{{name}}": "audit-r"
+        }
+      },
+      "note": "kit-compile removed the kit source image, but the assembled image stays cached: the replayed creation succeeds"
+    },
+    {
+      "name": "create-p-plain",
+      "category": "kit",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-p",
+        "shell"
+      ],
+      "note": "a sandbox of the base kit only, for the kits route"
+    },
+    {
+      "name": "load-kit-source",
+      "category": "kit",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-package/images/00.oci.tar"
+      },
+      "note": "the mixin source image, removed by kit-compile"
+    },
+    {
+      "name": "session-hold-p",
+      "category": "kit",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-p/session",
+        "hold": "audit-p"
+      }
+    },
+    {
+      "name": "kits-add-artifact",
+      "category": "kit",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-p/kits",
+        "body_file": "{work}/kit-package/create-body.json",
+        "pointer": "/kit_artifacts/1",
+        "wrap": "kit_artifact",
+        "wait_ms": 180000
+      },
+      "note": "the mixin artifact of the compiled package, sent to the route the CLI never calls"
+    },
+    {
+      "name": "verify-kits-add",
+      "category": "kit",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-p/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin.txt; ls /var/log/sbx-kits 2>&1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "inspect-p",
+      "category": "kit",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-p"
+      }
+    },
+    {
+      "name": "session-release-p",
+      "category": "kit",
+      "release": "audit-p"
+    },
+    {
+      "name": "rm-kit-sandboxes",
+      "category": "kit",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-k",
+        "audit-a",
+        "audit-r",
+        "audit-p",
+        "-f"
+      ]
+    }
+  ]
+}

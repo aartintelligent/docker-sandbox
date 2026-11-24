@@ -1,0 +1,180 @@
+{
+  "name": "agents",
+  "description": "What `sbx create` and `sbx run` send for an agent beyond its kit: workspaces (several, read-only, mounted elsewhere, a single read-only file), clone mode and the git remote of the host, agent arguments, the environment and working directory of a session, skills, environment, ports and deny rules at creation, and a governance profile. Shell kit only.",
+  "scenarios": [
+    {
+      "name": "create-w-workspaces",
+      "category": "workspaces",
+      "mutates": true,
+      "args": ["create", "--name", "audit-w", "shell", "{fixtures}/mountdir", "{fixtures}/docs:ro", "{fixtures}/data:/workspace/data", "{fixtures}/mountdir/hello.txt:ro"],
+      "note": "the primary workspace, a read-only one, one mounted elsewhere, and a single file held read-only inside the primary workspace"
+    },
+    {
+      "name": "inspect-w",
+      "category": "workspaces",
+      "args": ["inspect", "audit-w"]
+    },
+    {
+      "name": "exec-w-mounts",
+      "category": "workspaces",
+      "args": ["exec", "audit-w", "--", "sh", "-c", "pwd; grep -E 'mountdir|docs|data' /proc/mounts | cut -d' ' -f2,4; touch {fixtures}/docs/written 2>&1; echo written >> {fixtures}/mountdir/hello.txt 2>&1; echo written > /workspace/data/written 2>&1 && echo data-writable"],
+      "note": "where each workspace lands and which ones the sandbox can write"
+    },
+    {
+      "name": "rm-w",
+      "category": "workspaces",
+      "mutates": true,
+      "args": ["rm", "audit-w", "-f"]
+    },
+    {
+      "name": "git-init",
+      "category": "clone",
+      "program": "git",
+      "args": ["init", "-q", "-b", "main", "{work}/repo"],
+      "note": "a host repository for clone mode; the identity and settings of the user are kept out of its commit"
+    },
+    {
+      "name": "git-seed",
+      "category": "clone",
+      "program": "git",
+      "args": ["-C", "{work}/repo", "-c", "user.name=audit", "-c", "user.email=audit@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", "commit", "-q", "--allow-empty", "-m", "audit seed"]
+    },
+    {
+      "name": "create-c-clone",
+      "category": "clone",
+      "mutates": true,
+      "args": ["create", "--name", "audit-c", "--clone", "shell", "{work}/repo"]
+    },
+    {
+      "name": "inspect-c",
+      "category": "clone",
+      "args": ["inspect", "audit-c"]
+    },
+    {
+      "name": "git-remote-c",
+      "category": "clone",
+      "program": "git",
+      "args": ["-C", "{work}/repo", "remote", "-v"],
+      "note": "the sandbox-<name> remote the CLI adds to the host repository"
+    },
+    {
+      "name": "git-config-c",
+      "category": "clone",
+      "program": "git",
+      "args": ["-C", "{work}/repo", "config", "--get-regexp", "^remote\\."],
+      "note": "how the remote reaches the sandbox: its URL, refspecs and upload-pack command"
+    },
+    {
+      "name": "exec-c-commit",
+      "category": "clone",
+      "args": ["exec", "audit-c", "--", "sh", "-c", "pwd; git log --oneline -1; git -c user.name=agent -c user.email=agent@example.invalid -c commit.gpgsign=false commit -q --allow-empty -m 'agent work' && git log --oneline -1; grep -E 'sandbox/source' /proc/mounts | cut -d' ' -f2,4"],
+      "note": "the clone inside the sandbox: where it is, its history, a commit of the agent, and the read-only source"
+    },
+    {
+      "name": "git-fetch-c",
+      "category": "clone",
+      "program": "git",
+      "args": ["-C", "{work}/repo", "fetch", "sandbox-audit-c"],
+      "note": "the commit of the agent comes back through the remote: what the fetch sends to the daemon"
+    },
+    {
+      "name": "git-log-fetched",
+      "category": "clone",
+      "program": "git",
+      "args": ["-C", "{work}/repo", "log", "--oneline", "-2", "--all"]
+    },
+    {
+      "name": "rm-c",
+      "category": "clone",
+      "mutates": true,
+      "args": ["rm", "audit-c", "-f"]
+    },
+    {
+      "name": "git-remote-after-rm",
+      "category": "clone",
+      "program": "git",
+      "args": ["-C", "{work}/repo", "remote"],
+      "note": "whether removing the sandbox removes its remote"
+    },
+    {
+      "name": "create-r",
+      "category": "sessions",
+      "mutates": true,
+      "args": ["create", "--name", "audit-r", "shell"]
+    },
+    {
+      "name": "run-r-flag-args",
+      "category": "sessions",
+      "args": ["run", "--name", "audit-r", "--", "-c", "echo audit-flag-args"],
+      "note": "agent arguments starting with a flag: added to the default command of the kit"
+    },
+    {
+      "name": "run-r-command-args",
+      "category": "sessions",
+      "args": ["run", "--name", "audit-r", "--", "echo", "audit-command-args"],
+      "note": "agent arguments starting with a word: they replace the default command"
+    },
+    {
+      "name": "run-r-env-workdir",
+      "category": "sessions",
+      "args": ["run", "--name", "audit-r", "-e", "AUDIT_RUN_ENV=run", "-w", "/tmp", "--", "-c", "echo $AUDIT_RUN_ENV; pwd"],
+      "note": "environment and working directory of one session"
+    },
+    {
+      "name": "run-r-tty",
+      "category": "sessions",
+      "args": ["run", "--name", "audit-r", "--", "-c", "echo TERM=$TERM COLORTERM=$COLORTERM TZ=$TZ; stty size"],
+      "tty": {"rows": 30, "cols": 100},
+      "note": "a session on a terminal: what the CLI passes from the host"
+    },
+    {
+      "name": "rm-r",
+      "category": "sessions",
+      "mutates": true,
+      "args": ["rm", "audit-r", "-f"]
+    },
+    {
+      "name": "create-s-options",
+      "category": "creation",
+      "mutates": true,
+      "args": ["create", "--name", "audit-s", "--skills", "off", "-e", "AUDIT_CREATE_ENV=create", "-p", "127.0.0.1:18082:8082", "--deny-network", "audit-deny.example.com", "shell"],
+      "note": "skills, environment, a published port and a deny rule chosen at creation"
+    },
+    {
+      "name": "inspect-s",
+      "category": "creation",
+      "args": ["inspect", "audit-s"]
+    },
+    {
+      "name": "policy-ls-s",
+      "category": "creation",
+      "args": ["policy", "ls", "audit-s"]
+    },
+    {
+      "name": "rm-s",
+      "category": "creation",
+      "mutates": true,
+      "args": ["rm", "audit-s", "-f"]
+    },
+    {
+      "name": "create-k-skills-readwrite",
+      "category": "creation",
+      "mutates": true,
+      "args": ["create", "--name", "audit-k", "--skills", "readwrite", "shell"],
+      "note": "the other explicit skills mode; the shell kit has no skills directory"
+    },
+    {
+      "name": "rm-k",
+      "category": "creation",
+      "mutates": true,
+      "args": ["rm", "audit-k", "-f"]
+    },
+    {
+      "name": "create-p-profile-unknown",
+      "category": "creation",
+      "expect_error": true,
+      "args": ["create", "--name", "audit-p", "--profile", "zz-audit-none", "shell"],
+      "note": "a governance profile that does not exist: documents the field and the error"
+    }
+  ]
+}

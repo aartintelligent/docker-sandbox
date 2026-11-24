@@ -1,0 +1,8 @@
+schemaVersion: "1"
+name: audit-env
+agent: shell
+env:
+  AUDIT: "1"
+sandboxOptions:
+  memory: 2g
+  cpus: 1

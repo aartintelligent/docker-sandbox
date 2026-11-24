@@ -1,0 +1,1 @@
+Workspace mounted at /workspace/data by the agents suite.

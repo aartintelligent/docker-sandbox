@@ -1,0 +1,422 @@
+{
+  "name": "coverage",
+  "description": "The remaining CLI commands: daemon log level, diagnostics, policy profiles and approvals, skills, prune, workspaces, agent sessions, exec options, a local MCP server and a sandbox-scoped dummy secret.",
+  "scenarios": [
+    {
+      "name": "daemon-loglevel",
+      "category": "daemon",
+      "args": [
+        "daemon",
+        "log-level"
+      ]
+    },
+    {
+      "name": "diagnose",
+      "category": "daemon",
+      "args": [
+        "diagnose",
+        "--format",
+        "json"
+      ],
+      "note": "without --upload"
+    },
+    {
+      "name": "policy-profile-ls",
+      "category": "policy",
+      "args": [
+        "policy",
+        "profile",
+        "ls"
+      ]
+    },
+    {
+      "name": "policy-approval-ls",
+      "category": "policy",
+      "args": [
+        "policy",
+        "approval",
+        "ls"
+      ]
+    },
+    {
+      "name": "policy-inspect",
+      "category": "policy",
+      "args": [
+        "policy",
+        "inspect",
+        "local-policy"
+      ]
+    },
+    {
+      "name": "policy-check-http",
+      "category": "policy",
+      "args": [
+        "policy",
+        "check",
+        "http",
+        "--method",
+        "POST",
+        "https://api.anthropic.com/v1/messages"
+      ]
+    },
+    {
+      "name": "mcp-auth-status",
+      "category": "mcp",
+      "args": [
+        "mcp",
+        "auth",
+        "status",
+        "--all"
+      ]
+    },
+    {
+      "name": "kit-builder-status",
+      "category": "kit",
+      "args": [
+        "kit",
+        "builder",
+        "status"
+      ]
+    },
+    {
+      "name": "skills-ls",
+      "category": "skills",
+      "args": [
+        "skills",
+        "ls"
+      ]
+    },
+    {
+      "name": "prune-dry",
+      "category": "lifecycle",
+      "args": [
+        "prune",
+        "--dry-run"
+      ]
+    },
+    {
+      "name": "loglevel-set-same",
+      "category": "daemon",
+      "mutates": true,
+      "args": [
+        "daemon",
+        "log-level",
+        "set",
+        "proxy",
+        "info"
+      ],
+      "note": "the current value is info"
+    },
+    {
+      "name": "policy-refresh",
+      "category": "policy",
+      "mutates": true,
+      "args": [
+        "policy",
+        "refresh"
+      ]
+    },
+    {
+      "name": "create-a",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-a",
+        "shell"
+      ]
+    },
+    {
+      "name": "create-w",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-w",
+        "shell",
+        "{fixtures}"
+      ],
+      "note": "with a mounted workspace"
+    },
+    {
+      "name": "inspect-w-json",
+      "category": "lifecycle",
+      "args": [
+        "inspect",
+        "audit-w",
+        "--json"
+      ]
+    },
+    {
+      "name": "ls-json",
+      "category": "lifecycle",
+      "args": [
+        "ls",
+        "--json"
+      ]
+    },
+    {
+      "name": "run-a",
+      "category": "lifecycle",
+      "args": [
+        "run",
+        "--name",
+        "audit-a"
+      ],
+      "stdin": "exit\n",
+      "note": "agent session without a terminal"
+    },
+    {
+      "name": "exec-a-opts",
+      "category": "lifecycle",
+      "args": [
+        "exec",
+        "-e",
+        "FOO=bar",
+        "-w",
+        "/tmp",
+        "-u",
+        "0",
+        "audit-a",
+        "--",
+        "sh",
+        "-c",
+        "echo $FOO; pwd; id -u"
+      ]
+    },
+    {
+      "name": "exec-a-stdin",
+      "category": "lifecycle",
+      "args": [
+        "exec",
+        "-i",
+        "audit-a",
+        "--",
+        "cat"
+      ],
+      "stdin": "via-stdin\n"
+    },
+    {
+      "name": "port-publish-multi",
+      "category": "network",
+      "mutates": true,
+      "args": [
+        "port",
+        "publish",
+        "audit-a",
+        "18081:8081",
+        "127.0.0.1:18082:8082/tcp"
+      ]
+    },
+    {
+      "name": "port-ls",
+      "category": "network",
+      "args": [
+        "port",
+        "ls",
+        "audit-a",
+        "--json"
+      ]
+    },
+    {
+      "name": "port-unpublish-multi",
+      "category": "network",
+      "mutates": true,
+      "args": [
+        "port",
+        "unpublish",
+        "audit-a",
+        "18081:8081",
+        "127.0.0.1:18082:8082/tcp"
+      ]
+    },
+    {
+      "name": "mcp-add-local",
+      "category": "mcp",
+      "mutates": true,
+      "args": [
+        "mcp",
+        "add",
+        "audit-echo",
+        "--command",
+        "{audit}",
+        "--args",
+        "mcp-echo"
+      ],
+      "note": "local MCP server: the hidden `audit mcp-echo` subcommand"
+    },
+    {
+      "name": "mcp-ls",
+      "category": "mcp",
+      "args": [
+        "mcp",
+        "ls"
+      ]
+    },
+    {
+      "name": "mcp-inspect-local",
+      "category": "mcp",
+      "args": [
+        "mcp",
+        "inspect",
+        "audit-echo",
+        "--json"
+      ]
+    },
+    {
+      "name": "mcp-load-a",
+      "category": "mcp",
+      "mutates": true,
+      "args": [
+        "mcp",
+        "load",
+        "audit-echo",
+        "--sandbox",
+        "audit-a"
+      ]
+    },
+    {
+      "name": "mcp-unload-a",
+      "category": "mcp",
+      "mutates": true,
+      "args": [
+        "mcp",
+        "unload",
+        "audit-echo",
+        "--sandbox",
+        "audit-a"
+      ]
+    },
+    {
+      "name": "create-s-static-mcp",
+      "category": "mcp",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-s",
+        "--static-mcp",
+        "audit-echo",
+        "shell"
+      ],
+      "note": "a sandbox whose MCP set is fixed at creation to the registered audit-echo"
+    },
+    {
+      "name": "static-gateway",
+      "category": "mcp",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-s/mcp/gateway"
+      },
+      "note": "the gateway of a static sandbox and the servers it lists"
+    },
+    {
+      "name": "static-unload",
+      "category": "mcp",
+      "request": {
+        "method": "DELETE",
+        "path": "/sandbox/audit-s/mcp/gateway/servers/audit-echo"
+      },
+      "note": "unloading a server of a static set"
+    },
+    {
+      "name": "static-load",
+      "category": "mcp",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-s/mcp/gateway/servers",
+        "body": {
+          "server": "audit-echo"
+        }
+      },
+      "note": "loading a server into a static set"
+    },
+    {
+      "name": "rm-s",
+      "category": "mcp",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-s",
+        "-f"
+      ]
+    },
+    {
+      "name": "loaded-gateway",
+      "category": "mcp",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-a/mcp/gateway"
+      },
+      "note": "the gateway of a dynamic sandbox after its servers were unloaded"
+    },
+    {
+      "name": "mcp-rm-local",
+      "category": "mcp",
+      "mutates": true,
+      "args": [
+        "mcp",
+        "rm",
+        "audit-echo",
+        "-f"
+      ]
+    },
+    {
+      "name": "secret-set-sbx",
+      "category": "secrets",
+      "mutates": true,
+      "args": [
+        "secret",
+        "set",
+        "github",
+        "--sandbox",
+        "audit-a"
+      ],
+      "stdin": "dummy-github-token-not-a-secret\n"
+    },
+    {
+      "name": "secret-ls",
+      "category": "secrets",
+      "args": [
+        "secret",
+        "ls"
+      ]
+    },
+    {
+      "name": "secret-rm-sbx",
+      "category": "secrets",
+      "mutates": true,
+      "args": [
+        "secret",
+        "rm",
+        "github",
+        "--sandbox",
+        "audit-a",
+        "-f"
+      ]
+    },
+    {
+      "name": "stop-aw",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "stop",
+        "audit-a",
+        "audit-w"
+      ]
+    },
+    {
+      "name": "rm-aw",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-a",
+        "audit-w",
+        "-f"
+      ]
+    }
+  ]
+}

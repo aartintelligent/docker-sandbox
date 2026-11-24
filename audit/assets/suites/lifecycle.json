@@ -1,0 +1,477 @@
+{
+  "name": "lifecycle",
+  "description": "Discovery commands, then the life of two sandboxes: files, ports, network rules (sandbox-scoped, and a global one on a dummy host), a dummy custom secret, a remote MCP server, settings and a declarative environment.",
+  "scenarios": [
+    {
+      "name": "version",
+      "category": "discovery",
+      "args": [
+        "version"
+      ]
+    },
+    {
+      "name": "daemon-status",
+      "category": "discovery",
+      "args": [
+        "daemon",
+        "status"
+      ]
+    },
+    {
+      "name": "ls",
+      "category": "discovery",
+      "args": [
+        "ls"
+      ]
+    },
+    {
+      "name": "template-ls",
+      "category": "discovery",
+      "args": [
+        "template",
+        "ls"
+      ]
+    },
+    {
+      "name": "df",
+      "category": "discovery",
+      "args": [
+        "df"
+      ]
+    },
+    {
+      "name": "settings-ls",
+      "category": "discovery",
+      "args": [
+        "settings",
+        "ls"
+      ]
+    },
+    {
+      "name": "policy-ls",
+      "category": "discovery",
+      "args": [
+        "policy",
+        "ls"
+      ]
+    },
+    {
+      "name": "secret-ls",
+      "category": "discovery",
+      "args": [
+        "secret",
+        "ls"
+      ]
+    },
+    {
+      "name": "mcp-ls",
+      "category": "discovery",
+      "args": [
+        "mcp",
+        "ls"
+      ]
+    },
+    {
+      "name": "create-a",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-a",
+        "shell"
+      ]
+    },
+    {
+      "name": "create-b-static-mcp",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-b",
+        "--static-mcp",
+        "none",
+        "shell"
+      ]
+    },
+    {
+      "name": "inspect-a",
+      "category": "lifecycle",
+      "args": [
+        "inspect",
+        "audit-a"
+      ]
+    },
+    {
+      "name": "exec-a",
+      "category": "lifecycle",
+      "args": [
+        "exec",
+        "audit-a",
+        "--",
+        "uname",
+        "-a"
+      ]
+    },
+    {
+      "name": "cp-to-a",
+      "category": "files",
+      "mutates": true,
+      "args": [
+        "cp",
+        "{fixtures}/probe.txt",
+        "audit-a:/tmp/probe.txt"
+      ]
+    },
+    {
+      "name": "cp-from-a",
+      "category": "files",
+      "args": [
+        "cp",
+        "audit-a:/tmp/probe.txt",
+        "{work}/probe.back.txt"
+      ]
+    },
+    {
+      "name": "port-publish",
+      "category": "network",
+      "mutates": true,
+      "args": [
+        "port",
+        "publish",
+        "audit-a",
+        "18080:8080"
+      ]
+    },
+    {
+      "name": "port-ls",
+      "category": "network",
+      "args": [
+        "port",
+        "ls",
+        "audit-a"
+      ]
+    },
+    {
+      "name": "port-unpublish",
+      "category": "network",
+      "mutates": true,
+      "args": [
+        "port",
+        "unpublish",
+        "audit-a",
+        "18080:8080"
+      ]
+    },
+    {
+      "name": "policy-check",
+      "category": "policy",
+      "args": [
+        "policy",
+        "check",
+        "network",
+        "api.anthropic.com"
+      ]
+    },
+    {
+      "name": "policy-allow-sbx",
+      "category": "policy",
+      "mutates": true,
+      "args": [
+        "policy",
+        "allow",
+        "network",
+        "--sandbox",
+        "audit-a",
+        "audit-allow.example.com"
+      ]
+    },
+    {
+      "name": "policy-allow-sbx-http",
+      "category": "policy",
+      "mutates": true,
+      "args": [
+        "policy",
+        "allow",
+        "network",
+        "--sandbox",
+        "audit-a",
+        "audit-http.example.com",
+        "--method",
+        "GET",
+        "--path",
+        "/v1/**"
+      ]
+    },
+    {
+      "name": "policy-deny-sbx",
+      "category": "policy",
+      "mutates": true,
+      "args": [
+        "policy",
+        "deny",
+        "network",
+        "--sandbox",
+        "audit-a",
+        "audit-deny.example.com"
+      ]
+    },
+    {
+      "name": "policy-deny-sbx-http",
+      "category": "policy",
+      "mutates": true,
+      "args": [
+        "policy",
+        "deny",
+        "network",
+        "--sandbox",
+        "audit-a",
+        "audit-http-deny.example.com",
+        "--method",
+        "POST",
+        "--path",
+        "/admin/**"
+      ],
+      "note": "an HTTP deny rule, removed with the sandbox"
+    },
+    {
+      "name": "policy-ls-after",
+      "category": "policy",
+      "args": [
+        "policy",
+        "ls"
+      ]
+    },
+    {
+      "name": "policy-rm-sbx",
+      "category": "policy",
+      "mutates": true,
+      "args": [
+        "policy",
+        "rm",
+        "network",
+        "--sandbox",
+        "audit-a",
+        "--resource",
+        "audit-allow.example.com",
+        "-f"
+      ],
+      "note": "v0.54: -f is required with --no-input"
+    },
+    {
+      "name": "policy-allow-global",
+      "category": "policy",
+      "mutates": true,
+      "args": [
+        "policy",
+        "allow",
+        "network",
+        "docker-sandbox-audit-global.example.com"
+      ],
+      "note": "a global rule on a dummy host, removed by policy-rm-global"
+    },
+    {
+      "name": "policy-rm-global",
+      "category": "policy",
+      "mutates": true,
+      "args": [
+        "policy",
+        "rm",
+        "network",
+        "--resource",
+        "docker-sandbox-audit-global.example.com",
+        "-f"
+      ]
+    },
+    {
+      "name": "policy-rm-id-unknown",
+      "category": "policy",
+      "expect_error": true,
+      "args": [
+        "policy",
+        "rm",
+        "network",
+        "--id",
+        "zz-audit-none",
+        "-f"
+      ],
+      "note": "a removal by rule identifier, for an identifier that does not exist: documents the remove-id body and its error"
+    },
+    {
+      "name": "policy-log",
+      "category": "policy",
+      "args": [
+        "policy",
+        "log"
+      ]
+    },
+    {
+      "name": "secret-custom-sbx",
+      "category": "secrets",
+      "mutates": true,
+      "args": [
+        "secret",
+        "set-custom",
+        "--sandbox",
+        "audit-a",
+        "--host",
+        "api.audit.invalid",
+        "--env",
+        "AUDIT_KEY",
+        "--value-stdin"
+      ],
+      "stdin": "dummy-audit-value-not-a-secret"
+    },
+    {
+      "name": "secret-ls-after",
+      "category": "secrets",
+      "args": [
+        "secret",
+        "ls"
+      ]
+    },
+    {
+      "name": "mcp-add-remote",
+      "category": "mcp",
+      "mutates": true,
+      "expect_error": true,
+      "args": [
+        "mcp",
+        "add",
+        "audit-remote",
+        "--url",
+        "https://mcp.audit.invalid/mcp",
+        "--skip-auth",
+        "--skip-ssrf-check"
+      ],
+      "note": "mcp.audit.invalid does not resolve, so the server is never registered: documents the gateway errors (the coverage suite registers a working local server)"
+    },
+    {
+      "name": "mcp-inspect",
+      "category": "mcp",
+      "expect_error": true,
+      "args": [
+        "mcp",
+        "inspect",
+        "audit-remote"
+      ],
+      "note": "the remote server was not registered: documents the error"
+    },
+    {
+      "name": "mcp-load-a",
+      "category": "mcp",
+      "mutates": true,
+      "expect_error": true,
+      "args": [
+        "mcp",
+        "load",
+        "audit-remote",
+        "--sandbox",
+        "audit-a"
+      ],
+      "note": "the remote server was not registered: documents the error"
+    },
+    {
+      "name": "mcp-unload-a",
+      "category": "mcp",
+      "mutates": true,
+      "expect_error": true,
+      "args": [
+        "mcp",
+        "unload",
+        "audit-remote",
+        "--sandbox",
+        "audit-a"
+      ],
+      "note": "the remote server was not registered: documents the error"
+    },
+    {
+      "name": "mcp-rm",
+      "category": "mcp",
+      "mutates": true,
+      "expect_error": true,
+      "args": [
+        "mcp",
+        "rm",
+        "audit-remote",
+        "-f"
+      ],
+      "note": "the remote server was not registered: documents the error"
+    },
+    {
+      "name": "settings-get",
+      "category": "settings",
+      "args": [
+        "settings",
+        "get",
+        "browser.enabled"
+      ]
+    },
+    {
+      "name": "settings-set-default",
+      "category": "settings",
+      "mutates": true,
+      "args": [
+        "settings",
+        "set",
+        "sandbox.disk.dockerVolume",
+        "10g"
+      ]
+    },
+    {
+      "name": "env-plan",
+      "category": "env",
+      "args": [
+        "env",
+        "plan",
+        "{fixtures}/sbxenv.yaml"
+      ]
+    },
+    {
+      "name": "env-create",
+      "category": "env",
+      "mutates": true,
+      "args": [
+        "env",
+        "create",
+        "{fixtures}/sbxenv.yaml",
+        "-f"
+      ],
+      "note": "v0.54: -f is required with --no-input"
+    },
+    {
+      "name": "env-rm",
+      "category": "env",
+      "mutates": true,
+      "args": [
+        "env",
+        "rm",
+        "{fixtures}/sbxenv.yaml",
+        "-f"
+      ],
+      "note": "v0.54: -f is required with --no-input"
+    },
+    {
+      "name": "stop-a",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "stop",
+        "audit-a"
+      ]
+    },
+    {
+      "name": "rm-ab",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-a",
+        "audit-b",
+        "-f"
+      ],
+      "note": "v0.54: -f is required with --no-input"
+    }
+  ]
+}

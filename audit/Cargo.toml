@@ -1,0 +1,43 @@
+# ------------------------------------------------------------------------------
+# `audit` — the replayable audit of the `sandboxd` API: scenario suites
+# behind a spy, router inventory, one snapshot per `sbx` version free of
+# personal data, version comparison, and the test fixtures of `docker-sandbox`.
+#
+# A binary, never published: its assets and snapshots live next to it (see
+# README.md).
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "audit"
+description            = "Replayable audit of the Docker Sandboxes (sbx) sandboxd socket API"
+authors.workspace      = true
+categories.workspace   = true
+edition.workspace      = true
+keywords.workspace     = true
+license.workspace      = true
+readme                 = "README.md"
+rust-version.workspace = true
+version.workspace      = true
+# A tool of this repository, never a crates.io package, whatever the
+# workspace setting becomes.
+publish = false
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+bytes          = { workspace = true }
+clap           = { workspace = true }
+flate2         = { workspace = true }
+http-body-util = { workspace = true }
+httparse       = { workspace = true }
+hyper          = { workspace = true, features = ["client", "http1"] }
+hyper-util     = { workspace = true }
+portable-pty   = { workspace = true }
+regex          = { workspace = true }
+docker-sandbox = { workspace = true, features = ["kit-compiler"] }
+serde          = { workspace = true }
+serde_json     = { workspace = true }
+tokio          = { workspace = true, features = ["full"] }

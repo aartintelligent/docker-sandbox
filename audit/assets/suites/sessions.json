@@ -1,0 +1,706 @@
+{
+  "name": "sessions",
+  "description": "Socket routes and fields the CLI sends rarely or never: daemon information, images, VM debug routes and actions, terminal and agent sessions, exec environment, validation errors, raw ports, working directory, host mounts, held sessions, SSH and a blocked connection.",
+  "scenarios": [
+    {
+      "name": "settings-set-override",
+      "category": "settings",
+      "mutates": true,
+      "args": [
+        "settings",
+        "set",
+        "sandbox.disk.dockerVolume",
+        "12g"
+      ],
+      "note": "restored by settings-unset; the audit also restores every setting it finds changed"
+    },
+    {
+      "name": "settings-unset",
+      "category": "settings",
+      "mutates": true,
+      "args": [
+        "settings",
+        "unset",
+        "sandbox.disk.dockerVolume"
+      ]
+    },
+    {
+      "name": "daemon-info",
+      "category": "daemon",
+      "request": {
+        "method": "GET",
+        "path": "/daemon/info"
+      }
+    },
+    {
+      "name": "image-remove-unknown",
+      "category": "errors",
+      "expect_error": true,
+      "request": {
+        "method": "DELETE",
+        "path": "/docker/images/remove?name=zz-audit-none%3Alatest"
+      },
+      "note": "an image that does not exist: documents the error"
+    },
+    {
+      "name": "image-inspect-unknown",
+      "category": "errors",
+      "expect_error": true,
+      "request": {
+        "method": "GET",
+        "path": "/docker/images/inspect?name=zz-audit-none%3Alatest"
+      },
+      "note": "an image that does not exist: documents the error whatever the cache holds"
+    },
+    {
+      "name": "image-pull",
+      "category": "images",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/create?allowCachedOnForbidden=true&fromImage=docker.io%2Fsbx%2Fshell%3Alatest",
+        "wait_ms": 300000
+      },
+      "note": "a pull of the shell kit image: its progress stream whatever the cache holds; a new image is removed at the end of the audit"
+    },
+    {
+      "name": "oauth-reload-unknown",
+      "category": "daemon",
+      "request": {
+        "method": "POST",
+        "path": "/oauth/zz-audit-none/reload",
+        "body": {}
+      },
+      "expect_error": true,
+      "note": "an unknown service: documents the error"
+    },
+    {
+      "name": "image-pull-unknown",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/create?allowCachedOnForbidden=true&fromImage=docker.io%2Fsbx%2Fzz-audit-none%3Alatest",
+        "wait_ms": 30000
+      },
+      "note": "a pull of an image the registry refuses: the failure is an HTTP status, not an in-band line",
+      "expect_error": true
+    },
+    {
+      "name": "mcp-registration-minimal",
+      "category": "mcp",
+      "request": {
+        "method": "POST",
+        "path": "/mcp/registration/check",
+        "body": {
+          "spec": {
+            "Name": "audit-minimal",
+            "Type": "local",
+            "Command": [
+              "true"
+            ]
+          }
+        }
+      },
+      "note": "a check with the fields a caller knows, not the whole structure the CLI sends"
+    },
+    {
+      "name": "mcp-registration-remote",
+      "category": "mcp",
+      "request": {
+        "method": "POST",
+        "path": "/mcp/registration/check",
+        "body": {
+          "spec": {
+            "Name": "audit-remote-check",
+            "Type": "remote",
+            "URL": "https://mcp.example.com/mcp"
+          }
+        }
+      },
+      "note": "a check of a remote server with the fields a caller knows; nothing is registered"
+    },
+    {
+      "name": "user-prompts",
+      "category": "daemon",
+      "request": {
+        "method": "GET",
+        "path": "/user-prompts",
+        "wait_ms": 2000
+      },
+      "note": "a stream of approval requests: read for two seconds"
+    },
+    {
+      "name": "user-prompt-response-unknown",
+      "category": "daemon",
+      "request": {
+        "method": "POST",
+        "path": "/user-prompts/zz-audit-none/response",
+        "body": {}
+      },
+      "expect_error": true
+    },
+    {
+      "name": "create-a",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-a",
+        "shell"
+      ]
+    },
+    {
+      "name": "session-hold",
+      "category": "lifecycle",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-a/session",
+        "hold": "audit-a"
+      },
+      "note": "keeps the sandbox running from its creation until session-release: the VM routes below need it running"
+    },
+    {
+      "name": "diagnose-with-sandbox",
+      "category": "daemon",
+      "args": [
+        "diagnose",
+        "--format",
+        "json"
+      ]
+    },
+    {
+      "name": "debug-vm",
+      "category": "debug",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-a/debug/vm"
+      },
+      "expect_error": true,
+      "note": "the route query parameter is required: documents the error"
+    },
+    {
+      "name": "debug-vm-healthz",
+      "category": "debug",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-a/debug/vm?route=%2Fhealthz"
+      },
+      "expect_error": true,
+      "note": "outside the allow-list of VM diagnostics: documents the error"
+    },
+    {
+      "name": "debug-vm-metrics",
+      "category": "debug",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-a/debug/vm?route=%2Fmetrics"
+      },
+      "note": "allow-listed VM diagnostics route (Prometheus format)"
+    },
+    {
+      "name": "exec-tty",
+      "category": "exec",
+      "args": [
+        "exec",
+        "-it",
+        "audit-a",
+        "--",
+        "sh",
+        "-c",
+        "stty size; tty"
+      ],
+      "tty": {
+        "rows": 24,
+        "cols": 80
+      }
+    },
+    {
+      "name": "exec-tty-sized",
+      "category": "exec",
+      "args": [
+        "exec",
+        "-it",
+        "audit-a",
+        "--",
+        "sh",
+        "-c",
+        "stty size"
+      ],
+      "tty": {
+        "rows": 40,
+        "cols": 120
+      },
+      "note": "the CLI resizes the terminal after attaching"
+    },
+    {
+      "name": "resize-unknown-exec",
+      "category": "errors",
+      "expect_error": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/exec/zz-audit-none/resize?h=24&w=80"
+      },
+      "note": "an execution that does not exist: documents the error"
+    },
+    {
+      "name": "kits-empty",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/kits",
+        "body": {}
+      },
+      "expect_error": true,
+      "note": "an empty body: documents the validation error"
+    },
+    {
+      "name": "mounts-empty",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/mounts",
+        "body": {}
+      },
+      "expect_error": true,
+      "note": "an empty body: documents the validation error"
+    },
+    {
+      "name": "mounts-delete-empty",
+      "category": "errors",
+      "request": {
+        "method": "DELETE",
+        "path": "/sandbox/audit-a/mounts",
+        "body": {}
+      },
+      "expect_error": true,
+      "note": "an empty body: documents the validation error"
+    },
+    {
+      "name": "ssh-empty",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/ssh",
+        "body": {}
+      },
+      "expect_error": true,
+      "note": "an empty body: documents the validation error"
+    },
+    {
+      "name": "working-dir-empty",
+      "category": "errors",
+      "request": {
+        "method": "PUT",
+        "path": "/sandbox/audit-a/working-directory",
+        "body": {}
+      },
+      "expect_error": true,
+      "note": "an empty body: documents the validation error"
+    },
+    {
+      "name": "replace-desired-empty",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/ports/replace-desired",
+        "body": {}
+      },
+      "expect_error": true,
+      "note": "an empty body: documents the validation error"
+    },
+    {
+      "name": "swap-container-empty",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/swap-container",
+        "body": {}
+      },
+      "expect_error": true,
+      "note": "an empty body: documents the validation error"
+    },
+    {
+      "name": "debug-vm-post-empty",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/debug/vm",
+        "body": {}
+      },
+      "expect_error": true,
+      "note": "an empty body: documents the validation error"
+    },
+    {
+      "name": "ports-publish-raw",
+      "category": "network",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/ports",
+        "body": [
+          {
+            "host_ip": "127.0.0.1",
+            "host_port": 18090,
+            "protocol": "tcp",
+            "sandbox_port": 8090
+          }
+        ]
+      }
+    },
+    {
+      "name": "inspect-with-ports",
+      "category": "network",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-a"
+      },
+      "note": "the inspection of a sandbox that publishes ports"
+    },
+    {
+      "name": "ports-replace-desired",
+      "category": "network",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/ports/replace-desired",
+        "body": {
+          "new": {
+            "host_ip": "127.0.0.1",
+            "host_port": 18091,
+            "protocol": "tcp",
+            "sandbox_port": 8091
+          },
+          "old": {
+            "host_ip": "127.0.0.1",
+            "host_port": 18090,
+            "protocol": "tcp",
+            "sandbox_port": 8090
+          }
+        }
+      }
+    },
+    {
+      "name": "replace-desired-unknown",
+      "category": "errors",
+      "expect_error": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/ports/replace-desired",
+        "body": {
+          "new": {
+            "host_ip": "127.0.0.1",
+            "host_port": 18098,
+            "protocol": "tcp",
+            "sandbox_port": 8098
+          },
+          "old": {
+            "host_ip": "127.0.0.1",
+            "host_port": 18099,
+            "protocol": "tcp",
+            "sandbox_port": 8099
+          }
+        }
+      },
+      "note": "the old port is not a desired port: documents the error"
+    },
+    {
+      "name": "ports-get",
+      "category": "network",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-a/ports"
+      }
+    },
+    {
+      "name": "ports-unpublish-raw",
+      "category": "network",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/ports/unpublish",
+        "body": [
+          {
+            "host_ip": "127.0.0.1",
+            "host_port": 18091,
+            "protocol": "tcp",
+            "sandbox_port": 8091
+          },
+          {
+            "host_ip": "127.0.0.1",
+            "host_port": 18090,
+            "protocol": "tcp",
+            "sandbox_port": 8090
+          }
+        ]
+      }
+    },
+    {
+      "name": "working-dir",
+      "category": "lifecycle",
+      "mutates": true,
+      "request": {
+        "method": "PUT",
+        "path": "/sandbox/audit-a/working-directory",
+        "body": {
+          "working_dir": "/tmp"
+        }
+      }
+    },
+    {
+      "name": "mounts-add",
+      "category": "files",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/mounts",
+        "body": {
+          "host_path": "{fixtures}/mountdir"
+        }
+      }
+    },
+    {
+      "name": "start-raw",
+      "category": "lifecycle",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/start",
+        "body": {}
+      }
+    },
+    {
+      "name": "inspect-raw",
+      "category": "lifecycle",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-a"
+      }
+    },
+    {
+      "name": "mounts-verify",
+      "category": "files",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "grep -c mountdir /proc/mounts; find / -name hello.txt -path '*mountdir*' 2>/dev/null | head -3"
+          ],
+          "user": "0",
+          "working_dir": "/"
+        }
+      }
+    },
+    {
+      "name": "mounts-delete",
+      "category": "files",
+      "mutates": true,
+      "request": {
+        "method": "DELETE",
+        "path": "/sandbox/audit-a/mounts",
+        "body": {
+          "host_path": "{fixtures}/mountdir"
+        }
+      }
+    },
+    {
+      "name": "exec-env",
+      "category": "exec",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "printf '%s' \"$AUDIT_ENV\""
+          ],
+          "env": {
+            "AUDIT_ENV": "measured"
+          }
+        }
+      },
+      "note": "the env field of a synchronous execution, which the CLI never sends"
+    },
+    {
+      "name": "agent-session-sized",
+      "category": "exec",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/agent/session",
+        "body": {
+          "tty": true,
+          "terminal_size": {
+            "height": 33,
+            "width": 111
+          }
+        },
+        "upgrade": "tcp",
+        "stdin": "stty size\nexit\n",
+        "wait_ms": 4000
+      },
+      "note": "the terminal_size field of an agent session, which the CLI never sends: stty prints the size applied"
+    },
+    {
+      "name": "debug-vm-post-metrics",
+      "category": "debug",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/debug/vm?route=%2Fmetrics",
+        "body": {}
+      },
+      "note": "POST has its own allow-list of VM diagnostics routes, which does not include /metrics",
+      "expect_error": true
+    },
+    {
+      "name": "debug-vm-delete-metrics",
+      "category": "debug",
+      "request": {
+        "method": "DELETE",
+        "path": "/sandbox/audit-a/debug/vm?route=%2Fmetrics"
+      },
+      "note": "DELETE has its own allow-list of VM diagnostics routes, which does not include /metrics",
+      "expect_error": true
+    },
+    {
+      "name": "policy-deny-probe",
+      "category": "policy",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/rules",
+        "body": {
+          "actions": [
+            {
+              "action": "deny",
+              "protocols": [
+                "tcp",
+                "udp"
+              ],
+              "resources": [
+                "example.org"
+              ],
+              "sandbox_id": "audit-a"
+            }
+          ]
+        }
+      },
+      "note": "a sandbox-scoped deny rule, removed by policy-remove-probe"
+    },
+    {
+      "name": "exec-blocked",
+      "category": "policy",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "curl -sS -m 8 -o /dev/null -w '%{http_code}' https://example.org"
+          ]
+        }
+      },
+      "note": "a connection the rule denies: the proxy answers 403"
+    },
+    {
+      "name": "user-prompts-after-block",
+      "category": "policy",
+      "request": {
+        "method": "GET",
+        "path": "/user-prompts",
+        "wait_ms": 2000
+      },
+      "note": "whether the denied connection left an approval prompt pending"
+    },
+    {
+      "name": "policy-remove-probe",
+      "category": "policy",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/rules",
+        "body": {
+          "actions": [
+            {
+              "action": "remove-resource",
+              "resources": [
+                "example.org"
+              ],
+              "sandbox_id": "audit-a"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "session-release",
+      "category": "lifecycle",
+      "release": "audit-a"
+    },
+    {
+      "name": "ssh-upgrade",
+      "category": "ssh",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/ssh",
+        "upgrade": "ssh",
+        "wait_ms": 2000
+      },
+      "note": "the stream starts with the SSH banner of the sandbox"
+    },
+    {
+      "name": "stop-a",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "stop",
+        "audit-a"
+      ]
+    },
+    {
+      "name": "ports-publish-stopped",
+      "category": "errors",
+      "expect_error": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/ports",
+        "body": [
+          {
+            "host_ip": "127.0.0.1",
+            "host_port": 18092,
+            "protocol": "tcp",
+            "sandbox_port": 8092
+          }
+        ]
+      },
+      "note": "a stopped sandbox: documents the conflict"
+    },
+    {
+      "name": "mounts-add-stopped",
+      "category": "errors",
+      "expect_error": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-a/mounts",
+        "body": {
+          "host_path": "{fixtures}/mountdir"
+        }
+      },
+      "note": "a stopped sandbox: documents the conflict"
+    },
+    {
+      "name": "rm-a",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-a",
+        "-f"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+# Additional routes for `audit probe`, which only sends GET and OPTIONS.
+# `{sandbox}` is replaced with the --sandbox name. /daemon/reset and
+# /daemon/shutdown are refused by NEVER_PROBE in src/probe.rs even if listed.
+
+# --- read by the CLI with GET
+/daemon/debug/state
+/daemon/settings/browser.enabled
+/docker/images/inspect?name=docker.io/sbx/shell:latest
+/docker/images/local-metadata?name=docker.io/sbx/shell:latest
+/policy/network/log
+/sandbox/{sandbox}/mcp/gateway
+/sandbox/{sandbox}/session
+
+# --- written by the CLI: is there a read route as well?
+/sandbox/{sandbox}/credentials
+/sandbox/{sandbox}/start
+/sandbox/{sandbox}/stop
+/sandbox/{sandbox}/exec/attach
+/sandbox/{sandbox}/mcp/gateway/servers
+/sandbox/{sandbox}/ports/unpublish
+/policy/network/check
+/policy/network/rules
+
+# --- candidates: is /docker/* a relay to a Docker API?
+/docker/_ping
+/docker/version
+/docker/info
+/docker/containers/json
+/docker/networks
+/docker/volumes
+
+# --- candidates: debug, secrets, OAuth
+/daemon/debug
+/daemon/debug/pprof/
+/daemon/logs
+/daemon/version
+/daemon/oauth
+/oauth
+/credentials
+/sandbox/{sandbox}/credentials/oauth
+/sandbox/{sandbox}/env
+/sandbox/{sandbox}/kits
+/sandbox/{sandbox}/proxy
+/policy/filesystem/rules?type=all

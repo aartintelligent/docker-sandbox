@@ -1,0 +1,562 @@
+{
+  "name": "errors",
+  "description": "Error answers the library documents: unknown settings, images, rules and prompts, a sandbox that does not exist, a stopped sandbox, and invalid paths, programs and identifiers in a running one.",
+  "scenarios": [
+    {
+      "name": "setting-get-unknown",
+      "category": "errors",
+      "request": {
+        "method": "GET",
+        "path": "/daemon/settings/zz.audit.none"
+      },
+      "note": "an unknown setting",
+      "expect_error": true
+    },
+    {
+      "name": "setting-set-unknown",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/daemon/settings/zz.audit.none",
+        "body": {
+          "value": "x"
+        }
+      },
+      "note": "an unknown setting",
+      "expect_error": true
+    },
+    {
+      "name": "setting-unset-unknown",
+      "category": "errors",
+      "request": {
+        "method": "DELETE",
+        "path": "/daemon/settings/zz.audit.none"
+      },
+      "note": "an unknown setting",
+      "expect_error": true
+    },
+    {
+      "name": "loglevel-unknown-target",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/daemon/loglevel/zz-audit-none",
+        "body": {
+          "level": "info"
+        }
+      },
+      "note": "an unknown log category",
+      "expect_error": true
+    },
+    {
+      "name": "loglevel-invalid-level",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/daemon/loglevel/general",
+        "body": {
+          "level": "zz-audit-none"
+        }
+      },
+      "note": "an invalid level; loglevel-restore sets the baseline level back in case it is accepted",
+      "expect_error": true
+    },
+    {
+      "name": "loglevel-restore",
+      "category": "errors",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/daemon/loglevel/general",
+        "body": {
+          "level": "info"
+        }
+      }
+    },
+    {
+      "name": "image-export-unknown",
+      "category": "errors",
+      "request": {
+        "method": "GET",
+        "path": "/docker/images/export?name=zz-audit-none%3Alatest"
+      },
+      "note": "an image that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "image-local-metadata-unknown",
+      "category": "errors",
+      "request": {
+        "method": "GET",
+        "path": "/docker/images/local-metadata?name=zz-audit-none%3Alatest"
+      },
+      "note": "an image that does not exist: answered 200 with defaults"
+    },
+    {
+      "name": "image-load-invalid",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{fixtures}/probe.txt"
+      },
+      "note": "a body that is not an image archive",
+      "expect_error": true
+    },
+    {
+      "name": "rules-invalid-action",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/rules",
+        "body": {
+          "actions": [
+            {
+              "action": "zz-audit-none",
+              "resources": [
+                "docker-sandbox-audit-invalid.example.com"
+              ]
+            }
+          ]
+        }
+      },
+      "note": "an unknown rule action: answered 200, the failure is reported inside the result of the action"
+    },
+    {
+      "name": "rules-no-action",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/rules",
+        "body": {
+          "actions": []
+        }
+      },
+      "note": "an empty list of changes",
+      "expect_error": true
+    },
+    {
+      "name": "check-invalid-type",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/check",
+        "body": {
+          "type": "zz-audit-none",
+          "target": "api.anthropic.com"
+        }
+      },
+      "note": "an unknown check type",
+      "expect_error": true
+    },
+    {
+      "name": "check-empty",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/check",
+        "body": {}
+      },
+      "note": "no target",
+      "expect_error": true
+    },
+    {
+      "name": "prompt-respond-unknown",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/user-prompts/zz-audit-none/response",
+        "body": {
+          "option_id": "zz-audit-none"
+        }
+      },
+      "note": "an unknown prompt, with an option",
+      "expect_error": true
+    },
+    {
+      "name": "mcp-registration-empty",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/mcp/registration/check",
+        "body": {}
+      },
+      "note": "no spec",
+      "expect_error": true
+    },
+    {
+      "name": "sandbox-start-unknown",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/zz-audit-none/start",
+        "body": {}
+      },
+      "note": "a sandbox that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "sandbox-stop-unknown",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/zz-audit-none/stop",
+        "body": {}
+      },
+      "note": "a sandbox that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "sandbox-delete-unknown",
+      "category": "errors",
+      "request": {
+        "method": "DELETE",
+        "path": "/sandbox/zz-audit-none?expected_id=zz-audit-none&force=false"
+      },
+      "note": "a sandbox that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "sandbox-save-unknown",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/zz-audit-none/save",
+        "body": {
+          "tag": "audit-none:v1"
+        }
+      },
+      "note": "a sandbox that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "session-unknown",
+      "category": "errors",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/zz-audit-none/session",
+        "wait_ms": 1000
+      },
+      "note": "a sandbox that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "credentials-unknown",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/zz-audit-none/credentials",
+        "body": {}
+      },
+      "note": "a sandbox that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "exec-unknown-sandbox",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/zz-audit-none/exec",
+        "body": {
+          "cmd": [
+            "true"
+          ]
+        }
+      },
+      "note": "a sandbox that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "ports-unknown-sandbox",
+      "category": "errors",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/zz-audit-none/ports"
+      },
+      "note": "a sandbox that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "mcp-gateway-unknown-sandbox",
+      "category": "errors",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/zz-audit-none/mcp/gateway"
+      },
+      "note": "a sandbox that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "create-e",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-e",
+        "shell"
+      ]
+    },
+    {
+      "name": "stop-e",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "stop",
+        "audit-e"
+      ]
+    },
+    {
+      "name": "tar-probe",
+      "category": "files",
+      "program": "tar",
+      "args": [
+        "-cf",
+        "{work}/probe.tar",
+        "-C",
+        "{fixtures}",
+        "probe.txt"
+      ],
+      "note": "builds the archive of files-put-stopped and files-put-missing-dir"
+    },
+    {
+      "name": "exec-stopped",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-e/exec",
+        "body": {
+          "cmd": [
+            "true"
+          ]
+        }
+      },
+      "note": "a stopped sandbox",
+      "expect_error": true
+    },
+    {
+      "name": "attach-stopped",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-e/exec/attach",
+        "body": {
+          "cmd": [
+            "true"
+          ]
+        },
+        "upgrade": "tcp",
+        "wait_ms": 1000
+      },
+      "note": "a stopped sandbox",
+      "expect_error": true
+    },
+    {
+      "name": "files-get-stopped",
+      "category": "errors",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-e/files?path=%2Ftmp"
+      },
+      "note": "a stopped sandbox",
+      "expect_error": true
+    },
+    {
+      "name": "files-put-stopped",
+      "category": "errors",
+      "request": {
+        "method": "PUT",
+        "path": "/sandbox/audit-e/files?path=%2Ftmp",
+        "body_file": "{work}/probe.tar",
+        "content_type": "application/x-tar"
+      },
+      "note": "a stopped sandbox",
+      "expect_error": true
+    },
+    {
+      "name": "ssh-stopped",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-e/ssh",
+        "upgrade": "ssh",
+        "wait_ms": 1000
+      },
+      "note": "a stopped sandbox: the tunnel opens and the sandbox stays stopped"
+    },
+    {
+      "name": "inspect-e-after-ssh",
+      "category": "lifecycle",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-e"
+      },
+      "note": "whether the SSH tunnel started the stopped sandbox"
+    },
+    {
+      "name": "working-dir-stopped",
+      "category": "errors",
+      "request": {
+        "method": "PUT",
+        "path": "/sandbox/audit-e/working-directory",
+        "body": {
+          "working_dir": "/tmp"
+        }
+      },
+      "note": "a stopped sandbox: the working directory is recorded"
+    },
+    {
+      "name": "agent-session-stopped",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-e/agent/session",
+        "body": {
+          "tty": true
+        },
+        "upgrade": "tcp",
+        "wait_ms": 1000
+      },
+      "note": "a stopped sandbox, probed last: the daemon may start it for the session"
+    },
+    {
+      "name": "inspect-e-after-agent",
+      "category": "lifecycle",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-e"
+      },
+      "note": "whether the agent session started the stopped sandbox"
+    },
+    {
+      "name": "session-hold-e",
+      "category": "lifecycle",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-e/session",
+        "hold": "audit-e"
+      }
+    },
+    {
+      "name": "start-e",
+      "category": "lifecycle",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-e/start",
+        "body": {}
+      }
+    },
+    {
+      "name": "files-put-missing-dir",
+      "category": "errors",
+      "request": {
+        "method": "PUT",
+        "path": "/sandbox/audit-e/files?path=%2Fzz-audit-none",
+        "body_file": "{work}/probe.tar",
+        "content_type": "application/x-tar"
+      },
+      "note": "a directory that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "files-get-missing",
+      "category": "errors",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-e/files?path=%2Fzz-audit-none"
+      },
+      "note": "a path that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "exec-missing-program",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-e/exec",
+        "body": {
+          "cmd": [
+            "zz-audit-none"
+          ]
+        }
+      },
+      "note": "a program that does not exist: answered 200 with exit code 127"
+    },
+    {
+      "name": "exec-empty-cmd",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-e/exec",
+        "body": {
+          "cmd": []
+        }
+      },
+      "note": "no program",
+      "expect_error": true
+    },
+    {
+      "name": "exec-inspect-unknown",
+      "category": "errors",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-e/exec/zz-audit-none"
+      },
+      "note": "an execution that does not exist",
+      "expect_error": true
+    },
+    {
+      "name": "ports-unpublish-unknown",
+      "category": "errors",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-e/ports/unpublish",
+        "body": [
+          {
+            "host_ip": "127.0.0.1",
+            "host_port": 18093,
+            "protocol": "tcp",
+            "sandbox_port": 8093
+          }
+        ]
+      },
+      "note": "a port that is not published: answered 200"
+    },
+    {
+      "name": "mcp-unload-unknown",
+      "category": "errors",
+      "request": {
+        "method": "DELETE",
+        "path": "/sandbox/audit-e/mcp/gateway/servers/zz-audit-none"
+      },
+      "note": "a server that is not loaded",
+      "expect_error": true
+    },
+    {
+      "name": "delete-wrong-id",
+      "category": "errors",
+      "request": {
+        "method": "DELETE",
+        "path": "/sandbox/audit-e?expected_id=zz-audit-none&force=true"
+      },
+      "note": "an identifier that is not the sandbox's: the deletion guard",
+      "expect_error": true
+    },
+    {
+      "name": "session-release-e",
+      "category": "lifecycle",
+      "release": "audit-e"
+    },
+    {
+      "name": "rm-e",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-e",
+        "-f"
+      ]
+    }
+  ]
+}

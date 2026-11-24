@@ -1,0 +1,13 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Audit mixin v3
+description: Test mixin of the docker-sbx audit, writes a marker file at install time.
+version: "0.1.0"
+capabilities:
+  - type: com.docker.sandbox/lifecycle@1
+    config:
+      install:
+        - command: echo "audit-mixin-v3 installed" > /home/agent/audit-mixin.txt
+          user: agent
+          description: Writes a marker file

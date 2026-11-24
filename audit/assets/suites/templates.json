@@ -1,0 +1,119 @@
+{
+  "name": "templates",
+  "description": "Saving a stopped sandbox as a template, creating a sandbox from it, then loading and removing it.",
+  "scenarios": [
+    {
+      "name": "create-a",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-a",
+        "shell"
+      ]
+    },
+    {
+      "name": "exec-a-mark",
+      "category": "template",
+      "mutates": true,
+      "args": ["exec", "audit-a", "--", "sh", "-c", "echo saved-in-a > /home/agent/saved.txt"],
+      "note": "a change made in the sandbox before it is saved"
+    },
+    {
+      "name": "stop-a",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "stop",
+        "audit-a"
+      ]
+    },
+    {
+      "name": "template-save",
+      "category": "template",
+      "mutates": true,
+      "args": [
+        "template",
+        "save",
+        "audit-a",
+        "audit-snap:v1",
+        "--output",
+        "{work}/snap.tar"
+      ]
+    },
+    {
+      "name": "template-ls-all",
+      "category": "template",
+      "args": [
+        "template",
+        "ls",
+        "--all",
+        "--digests",
+        "--no-trunc"
+      ],
+      "note": "`template inspect` requires --cloud since v0.54"
+    },
+    {
+      "name": "create-b-from-template",
+      "category": "template",
+      "mutates": true,
+      "args": ["create", "--name", "audit-b", "--pull", "never", "-t", "audit-snap:v1", "shell"],
+      "note": "what `-t` sends: a sandbox created from the saved template"
+    },
+    {
+      "name": "exec-b-saved",
+      "category": "template",
+      "args": ["exec", "audit-b", "--", "cat", "/home/agent/saved.txt"],
+      "note": "the change saved with the template, in the new sandbox"
+    },
+    {
+      "name": "rm-b",
+      "category": "template",
+      "mutates": true,
+      "args": ["rm", "audit-b", "-f"]
+    },
+    {
+      "name": "template-rm",
+      "category": "template",
+      "mutates": true,
+      "args": [
+        "template",
+        "rm",
+        "audit-snap:v1",
+        "-f"
+      ]
+    },
+    {
+      "name": "template-load",
+      "category": "template",
+      "mutates": true,
+      "args": [
+        "template",
+        "load",
+        "{work}/snap.tar"
+      ]
+    },
+    {
+      "name": "template-rm-2",
+      "category": "template",
+      "mutates": true,
+      "args": [
+        "template",
+        "rm",
+        "audit-snap:v1",
+        "-f"
+      ]
+    },
+    {
+      "name": "rm-a",
+      "category": "lifecycle",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-a",
+        "-f"
+      ]
+    }
+  ]
+}
