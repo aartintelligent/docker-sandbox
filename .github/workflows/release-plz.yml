@@ -13,6 +13,8 @@
 # and pull-requests write access: events raised with the automatic
 # `GITHUB_TOKEN` trigger no other workflow, so a release PR opened with it would
 # never receive the `CI OK` check that the protected `main` branch requires.
+# The token is a secret of the `release` environment, which only `main` may
+# deploy to: a workflow pushed on another branch cannot read it.
 # ------------------------------------------------------------------------------
 
 name: Release-plz
@@ -32,6 +34,7 @@ jobs:
     if: github.event.repository.fork == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: release
     permissions:
       contents: write
       pull-requests: read
@@ -56,6 +59,7 @@ jobs:
     if: github.event.repository.fork == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: release
     permissions:
       contents: write
       pull-requests: write
