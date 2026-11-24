@@ -82,7 +82,33 @@ jobs:
       # rust-toolchain.toml pins the toolchain release-plz runs cargo with.
       - run: rustup toolchain install
       - uses: release-plz/action@v0.5
+        id: release-pr
         with:
           command: release-pr
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+      # The examples are a workspace of their own, which release-plz does not
+      # know: their lockfile still records the previous version of the library,
+      # and CI builds them with `--locked`. After every run that opens or
+      # refreshes the release PR, the new version is carried there, on its
+      # branch, with the identity release-plz configured for the token.
+      - name: Carry the version into the lockfile of the examples
+        if: steps.release-pr.outputs.prs_created == 'true'
+        env:
+          BRANCH: ${{ fromJSON(steps.release-pr.outputs.pr).head_branch }}
+          TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+        run: |
+          git fetch --no-tags origin "refs/heads/$BRANCH"
+          git switch --discard-changes --detach FETCH_HEAD
+          cargo update --manifest-path examples/Cargo.toml --package docker-sandbox
+          if git diff --quiet -- examples/Cargo.lock; then
+            exit 0
+          fi
+          git add examples/Cargo.lock
+          git commit --message "chore: carry the release version into the examples lockfile"
+          # The checkout keeps no credentials: the push authenticates as the
+          # checkout would, with the header masked like the token itself.
+          auth=$(printf 'x-access-token:%s' "$TOKEN" | base64 --wrap=0)
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push origin "HEAD:refs/heads/$BRANCH"
