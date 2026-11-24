@@ -5,8 +5,9 @@ every tool reads the same instructions.
 
 ## What this is
 
-docker-sbx: `docker-sandbox`, a library crate that drives Docker Sandboxes (`sbx`) through the
-private `sandboxd` Unix socket, its examples, and `audit`, the tool that maps that socket.
+The docker-sandbox repository: the `docker-sandbox` library crate, which drives Docker Sandboxes
+(`sbx`) through the private `sandboxd` Unix socket, its examples, and `audit`, the tool that maps
+that socket.
 **Nothing else belongs here**: runners, operators, orchestration, agent management and any HTTP API
 built on top of the library live in another repository (project rule).
 

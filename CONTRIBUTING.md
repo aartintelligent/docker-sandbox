@@ -1,10 +1,10 @@
 # Contributing
 
-Thanks for contributing to docker-sbx: `docker-sandbox`, a Rust client for the
-`sandboxd` socket of Docker Sandboxes (`sbx`), and `audit`, the tool that
-maps that socket. This guide covers how to set up the repository, the quality
-gates, the commit conventions and how a change is validated before it is
-merged. It applies to both human contributors and AI coding agents.
+Thanks for contributing to the docker-sandbox repository: `docker-sandbox`, a
+Rust client for the `sandboxd` socket of Docker Sandboxes (`sbx`), and `audit`,
+the tool that maps that socket. This guide covers how to set up the repository,
+the quality gates, the commit conventions and how a change is validated before
+it is merged. It applies to both human contributors and AI coding agents.
 
 > Code conventions and their rationale live in [`AGENTS.md`](AGENTS.md); the
 > upgrade workflow in [`audit/README.md`](audit/README.md).
