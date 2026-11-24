@@ -21,8 +21,9 @@
 //!
 //! The check also covers the files `cargo package` publishes for the library
 //! ([`published_files`]). There, the public contact the maintainer declares in
-//! the root manifest (`authors`, `repository`, `homepage`) is the one personal
-//! data allowed ([`declared_contacts`]): it is published on purpose.
+//! the root manifest (`authors`, `repository`, `homepage`, and the Codecov page
+//! of a GitHub repository, which the coverage badge links to) is the one
+//! personal data allowed ([`declared_contacts`]): it is published on purpose.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -303,8 +304,11 @@ pub(crate) fn check_allowing(
 }
 
 /// The public contacts the root manifest `manifest` declares: each entry of
-/// `authors`, its e-mail address alone, and the values of `repository` and
-/// `homepage`.
+/// `authors`, its e-mail address alone, the values of `repository` and
+/// `homepage`, and the Codecov page of a GitHub repository.
+///
+/// The Codecov page is the full URL, not the `<owner>/<repo>` path alone: the
+/// path would also hide a home directory such as `/home/<owner>/<repo>`.
 #[must_use]
 pub(crate) fn declared_contacts(manifest: &str) -> Vec<String> {
     static AUTHORS_RE: LazyLock<Regex> =
@@ -314,6 +318,9 @@ pub(crate) fn declared_contacts(manifest: &str) -> Vec<String> {
     });
     static QUOTED_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r#""([^"]+)""#).expect("valid"));
+    static GITHUB_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"^https://github\.com/([^/]+/[^/]+?)(?:\.git)?/?$").expect("valid")
+    });
     let mut contacts = Vec::new();
     for authors in AUTHORS_RE.captures_iter(manifest) {
         for author in QUOTED_RE.captures_iter(&authors[1]) {
@@ -325,7 +332,12 @@ pub(crate) fn declared_contacts(manifest: &str) -> Vec<String> {
             );
         }
     }
-    contacts.extend(LINK_RE.captures_iter(manifest).map(|c| c[1].to_owned()));
+    for link in LINK_RE.captures_iter(manifest) {
+        contacts.push(link[1].to_owned());
+        if let Some(repository) = GITHUB_RE.captures(&link[1]) {
+            contacts.push(format!("https://codecov.io/gh/{}", &repository[1]));
+        }
+    }
     // Longest first, so that an author entry goes before its address.
     contacts.sort_by_key(|value| std::cmp::Reverse(value.len()));
     contacts.dedup();
@@ -489,6 +501,7 @@ mod tests {
         assert_eq!(
             allowed,
             [
+                "https://codecov.io/gh/jdoe/project",
                 "Jane Doe <jane@doe.example.org>",
                 "https://github.com/jdoe/project",
                 "jane@doe.example.org"
@@ -506,7 +519,9 @@ mod tests {
              repository = \"https://github.com/jdoe/project\"\n\
              contact = \"jane@doe.example.org\"\n\
              other = \"someone@mail.example.org\"\n\
-             user = \"jdoe\"\n",
+             user = \"jdoe\"\n\
+             badge = \"https://codecov.io/gh/jdoe/project/branch/main/graph/badge.svg\"\n\
+             clone = \"/home/jdoe/project\"\n",
         )
         .unwrap();
         let findings = check_allowing(std::slice::from_ref(&dir), &scrubber(), &allowed).unwrap();
@@ -514,8 +529,9 @@ mod tests {
         let lines: Vec<usize> = findings.iter().map(|f| f.line).collect();
         assert_eq!(
             lines,
-            [4, 5],
-            "another address and the user name are still found"
+            [4, 5, 7, 7],
+            "another address, the user name and a home directory named after the \
+             repository are still found"
         );
     }
 

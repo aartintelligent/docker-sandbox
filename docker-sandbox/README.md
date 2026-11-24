@@ -1,5 +1,13 @@
 # docker-sandbox
 
+[![Crates.io](https://img.shields.io/crates/v/docker-sandbox.svg)](https://crates.io/crates/docker-sandbox)
+[![docs.rs](https://img.shields.io/docsrs/docker-sandbox)](https://docs.rs/docker-sandbox)
+[![CI](https://github.com/aartintelligent/docker-sandbox/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aartintelligent/docker-sandbox/actions/workflows/ci.yml?query=branch%3Amain)
+[![codecov](https://codecov.io/gh/aartintelligent/docker-sandbox/branch/main/graph/badge.svg)](https://codecov.io/gh/aartintelligent/docker-sandbox)
+[![Security audit](https://github.com/aartintelligent/docker-sandbox/actions/workflows/audit.yml/badge.svg?branch=main)](https://github.com/aartintelligent/docker-sandbox/actions/workflows/audit.yml?query=branch%3Amain)
+[![MSRV](https://img.shields.io/crates/msrv/docker-sandbox)](https://crates.io/crates/docker-sandbox)
+[![License](https://img.shields.io/crates/l/docker-sandbox.svg)](https://github.com/aartintelligent/docker-sandbox/blob/main/docker-sandbox/README.md#license)
+
 A typed async Rust client for the `sandboxd` socket of
 [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) (`sbx`). It drives the
 daemon directly, without going through the `sbx` CLI: create sandboxes from
