@@ -1,0 +1,66 @@
+# ------------------------------------------------------------------------------
+# docker-sandbox — the typed client of the `sandboxd` socket of Docker
+# Sandboxes, the published crate of the repository.
+#
+# Versions, shared metadata and lints come from the workspace root
+# `Cargo.toml`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "docker-sandbox"
+description            = "Typed async client for the sandboxd Unix socket of Docker Sandboxes (sbx)"
+documentation          = "https://docs.rs/docker-sandbox"
+authors.workspace      = true
+categories.workspace   = true
+edition.workspace      = true
+keywords.workspace     = true
+license.workspace      = true
+publish.workspace      = true
+readme                 = "README.md"
+repository.workspace   = true
+rust-version.workspace = true
+version.workspace      = true
+# The published package is the library alone: its tests and recorded fixtures
+# stay out of it, as do the examples and the audit tool of the repository.
+include = ["/src", "/README.md", "/CHANGELOG.md", "/LICENSE-APACHE", "/LICENSE-MIT"]
+
+# Every feature but `live`, which only gates the live integration tests.
+[package.metadata.docs.rs]
+features     = ["kit-compiler"]
+rustdoc-args = ["--cfg", "docsrs"]
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[features]
+# `KitCompiler`: runs `sbx create` once behind a capturing proxy to produce a
+# kit package. Needs the `sbx` CLI at run time, a child process (`tokio/process`),
+# an HTTP server for the proxy (`hyper/server`) and the channel that stops it
+# (`tokio/sync`).
+kit-compiler = ["hyper/server", "tokio/process", "tokio/sync"]
+# Runs the integration tests against the real daemon of the current user
+# (`tests/live.rs`); it adds no code to the library.
+live = []
+
+[dependencies]
+bytes            = { workspace = true }
+futures-core     = { workspace = true }
+http             = { workspace = true }
+http-body        = { workspace = true }
+http-body-util   = { workspace = true }
+hyper            = { workspace = true, features = ["client", "http1"] }
+hyper-util       = { workspace = true }
+percent-encoding = { workspace = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+tar              = { workspace = true }
+thiserror        = { workspace = true }
+tokio            = { workspace = true, features = ["fs", "io-util", "macros", "net", "rt", "time"] }
+tracing          = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+# `#[tokio::test]` on a multi-threaded runtime, the in-memory fake daemon, and
+# the `#[tokio::main]` of the README example.
+tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread", "sync"] }

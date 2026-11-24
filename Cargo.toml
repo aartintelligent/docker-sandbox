@@ -1,0 +1,178 @@
+# ------------------------------------------------------------------------------
+# docker-sbx — the workspace manifest: its member list, shared package
+# metadata, the single source of truth for dependency versions, the lint policy
+# every member inherits, and the release build profile.
+#
+# `docker-sandbox` is the typed client of the `sandboxd` socket of Docker
+# Sandboxes. `audit` is the tool that maps the daemon API and produces the
+# library's test fixtures, a member that is never published, as is
+# `docker-sandbox/tests/live-probe`, the program the live tests of the library
+# run inside sandboxes. `examples/` is a workspace of its own, one crate per
+# example, as in axum.
+# ------------------------------------------------------------------------------
+
+[workspace]
+members = ["audit", "docker-sandbox", "docker-sandbox/tests/live-probe"]
+# The examples form their own workspace, with their own lockfile.
+exclude = ["examples"]
+# Pinned explicitly so that the resolver does not change with the edition of a
+# future member.
+resolver = "3"
+
+# Metadata inherited by every member through `<key>.workspace = true`.
+[workspace.package]
+authors    = ["Aurelien Andre <aurelien.andre@aartintelligent.fr>"]
+categories = ["api-bindings", "asynchronous", "virtualization"]
+edition    = "2024"
+keywords   = ["docker", "sandbox", "sbx", "sandboxd", "agents"]
+license    = "MIT OR Apache-2.0"
+# The GitHub repository, linked from the crates.io page.
+repository = "https://github.com/aartintelligent/docker-sandbox"
+# Nothing is published to crates.io yet: the library drives a private daemon
+# API that changes with every `sbx` release. Members inherit this through
+# `publish.workspace = true`; release-plz.toml says the same.
+publish = false
+# Keep in sync with rust-toolchain.toml.
+# This is the MSRV — 1.88 for `let` chains in `if` conditions, while the
+# dependency graph needs 1.85 — which CI checks the workspace on, while
+# rust-toolchain.toml pins the newer development toolchain used locally and by
+# every other CI job.
+rust-version = "1.88"
+version      = "0.1.0"
+
+# ------------------------------------------------------------------------------
+# Workspace dependencies — every version is declared here exactly once; members
+# opt in with `{ workspace = true }` and add only the features they need.
+# ------------------------------------------------------------------------------
+
+[workspace.dependencies]
+# The library, used by `audit`. The `version` is what
+# `cargo publish` would resolve from crates.io once it is published.
+docker-sandbox = { version = "0.1.0", path = "docker-sandbox" }
+
+# Serialization of the daemon payloads in the library, and of the captures and
+# snapshots of the audit.
+serde = { version = "1", features = ["derive"] }
+
+# JSON encoding of the same payloads, and the opaque `serde_json::Value` fields
+# kept for forward compatibility with new daemon versions.
+serde_json = "1"
+
+# Async runtime. Default features are off: each member enables only what it
+# uses (`net` and `io-util` for the socket client, `fs` for kit images,
+# `process` and `sync` for the kit compiler, `full` for the audit tool, `rt`
+# and `net` for live-probe); the test suites add `rt-multi-thread` and `sync`.
+tokio = { version = "1", default-features = false }
+
+# HTTP/1.1 over the `sandboxd` Unix socket in the library, the capture proxy of
+# its kit compiler and the spy of the audit, and the HTTP client live-probe runs
+# inside sandboxes. Connection upgrades carry the
+# exec, attach and SSH streams.
+hyper = "1"
+
+# Tokio adapters for hyper's I/O traits, used wherever hyper is.
+hyper-util = { version = "0.1", features = ["tokio"] }
+
+# Request and response types of hyper, used in the error and request types of
+# the library.
+http = "1"
+
+# Body trait of hyper, implemented by the streaming bodies of the library.
+http-body = "1"
+
+# Ready-made bodies (`Full`, `BodyExt`) for the requests hyper sends.
+http-body-util = "0.1"
+
+# Byte buffers exchanged with hyper and through the streams.
+bytes = "1"
+
+# `Stream` for the event and execution streams of the library.
+futures-core = "0.3"
+
+# Query string encoding of the daemon routes in the library.
+percent-encoding = "2"
+
+# Error enum of the library.
+thiserror = "2"
+
+# Request and kit compilation logging in the library.
+tracing = "0.1"
+
+# Tar archives of the file transfers (`Sandbox::write_file`, `upload_dir`, …)
+# and the OCI image layouts read by the kit compiler.
+tar = "0.4"
+
+# Command line of the audit; `env` lets options fall back to environment
+# variables.
+clap = { version = "4", features = ["derive", "env"] }
+
+# Error handling of the audit binary.
+anyhow = "1"
+
+# HTTP/1.1 message parsing in the spy proxy of the audit.
+httparse = "1"
+
+# Pseudo-terminals for the `sbx exec -it` scenarios of the audit.
+portable-pty = "0.9"
+
+# Pattern matching in the audit: route templating, scrubbing, the router
+# inventory scan of the `sbx` binary.
+regex = "1"
+
+# Rotated daemon logs (`daemon-<time>.log.gz`) read back by the audit.
+flate2 = "1"
+
+# Dev-dependency: temporary directories for the socket and kit tests.
+tempfile = "3"
+
+# ------------------------------------------------------------------------------
+# Quality gates — inherited by every member through `[lints] workspace = true`.
+# Never silence one of these locally without a written justification.
+# ------------------------------------------------------------------------------
+
+[workspace.lints.rust]
+# Every public type should be printable while debugging.
+missing_debug_implementations = "warn"
+# Every public item must carry English rustdoc.
+missing_docs = "warn"
+# Edition-2018 idioms (explicit `dyn`, no extern crate, ...); lower priority so
+# that individual lints below can still override it.
+rust_2018_idioms = { level = "warn", priority = -1 }
+# Catches `pub` items that are not actually reachable from outside the crate.
+unreachable_pub = "warn"
+# No unsafe code anywhere in the workspace.
+unsafe_code = "forbid"
+# Paths that are already imported should not be spelled out again.
+unused_qualifications = "warn"
+
+[workspace.lints.clippy]
+# The default lint set plus the pedantic group, both at low priority so that
+# the explicit allows and warns below take precedence.
+all      = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Names like `api::Sandboxes` are the conventional vocabulary of each module.
+module_name_repetitions = "allow"
+# Restriction lints worth enforcing in a library.
+# Leftover debugging output; the audit binary allows printing, with a reason,
+# at its crate root.
+dbg_macro    = "warn"
+print_stderr = "warn"
+print_stdout = "warn"
+# Unfinished code must not ship.
+todo          = "warn"
+unimplemented = "warn"
+# Panics on `Option`/`Result` in library code; tests are exempt via clippy.toml.
+unwrap_used = "warn"
+
+[workspace.lints.rustdoc]
+# A broken `[link]` in rustdoc is a documentation bug, not a warning.
+broken_intra_doc_links = "deny"
+
+# ------------------------------------------------------------------------------
+# Build profiles — release builds trade compile time for a smaller, faster
+# binary; the other profiles keep their defaults.
+# ------------------------------------------------------------------------------
+
+[profile.release]
+codegen-units = 1
+lto           = "fat"
