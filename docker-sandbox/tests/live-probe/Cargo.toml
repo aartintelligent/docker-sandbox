@@ -1,0 +1,35 @@
+# ------------------------------------------------------------------------------
+# live-probe — the program the live tests of `docker-sandbox` run inside a
+# sandbox: a one-shot TCP server and a plain HTTP client that goes through the
+# proxy of the sandbox.
+#
+# A test tool, never published. It is built statically for Linux
+# (`<arch>-unknown-linux-musl`) by `just test-live`, so that it runs in any
+# sandbox image; it has no C dependency and no TLS, and does not depend on the
+# library it helps to test.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "live-probe"
+description            = "The program the live tests of docker-sandbox run inside a sandbox"
+authors.workspace      = true
+categories.workspace   = true
+edition.workspace      = true
+keywords.workspace     = true
+license.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+# A tool of this repository, never a crates.io package, whatever the
+# workspace setting becomes.
+publish = false
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+bytes          = { workspace = true }
+http-body-util = { workspace = true }
+hyper          = { workspace = true, features = ["client", "http1"] }
+hyper-util     = { workspace = true }
+tokio          = { workspace = true, features = ["io-util", "macros", "net", "rt"] }
