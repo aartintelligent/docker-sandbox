@@ -186,7 +186,7 @@ are in [`AGENTS.md`](AGENTS.md).
 
 Every line of `docker-sandbox` runs under the tests above, without a daemon:
 `just coverage` fails on the first line none of them runs, and lists it. CI
-runs the same gate when the library changes, and uploads the report to
+runs the same gate when the library or `codecov.yml` changes, and uploads the report to
 [Codecov](https://codecov.io) (`codecov.yml`), which annotates the uncovered
 lines of a pull request. The doctests, the live tests and the examples do not count; the test
 files themselves are not measured.
