@@ -12,6 +12,11 @@
 # statuses must not be required by branch protection: `CI OK` is.
 # ------------------------------------------------------------------------------
 
+# The branch Codecov compares pull requests with and shows the history of:
+# `main`, which Codecov does not take from GitHub on its own.
+codecov:
+  branch: main
+
 coverage:
   precision: 2
   round: down
