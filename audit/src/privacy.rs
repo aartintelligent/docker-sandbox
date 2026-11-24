@@ -7,7 +7,8 @@
 //! What counts as personal data:
 //!
 //! - the home directory, the user name and the host name of the machine the
-//!   audit runs on, read from the environment;
+//!   audit runs on, read from the environment (none on a GitHub Actions
+//!   runner, whose names are nobody's);
 //! - e-mail addresses;
 //! - host session details the `sbx` CLI forwards to the daemon: the values of
 //!   the `SBX_HOST_*` variables (display, D-Bus address, X authority file) and
@@ -203,18 +204,31 @@ impl Identity {
     #[must_use]
     pub(crate) fn current() -> Self {
         let var = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
+        let kernel_host = std::fs::read_to_string("/proc/sys/kernel/hostname")
+            .or_else(|_| std::fs::read_to_string("/etc/hostname"))
+            .ok()
+            .map(|h| h.trim().to_owned())
+            .filter(|h| !h.is_empty());
+        Self::from_vars(var, kernel_host)
+    }
+
+    /// The identity that the environment variables `var` and the kernel host
+    /// name `kernel_host` describe, or none on a GitHub Actions runner
+    /// (`GITHUB_ACTIONS=true`): the user and host names of a throw-away
+    /// runner (`runner`, …) are nobody's, and common words a document may use.
+    /// E-mail addresses, home directories and session variables are still
+    /// found there.
+    fn from_vars(var: impl Fn(&str) -> Option<String>, kernel_host: Option<String>) -> Self {
+        if var("GITHUB_ACTIONS").as_deref() == Some("true") {
+            return Self::default();
+        }
         let home = var("HOME");
         let user = var("USER").or_else(|| var("LOGNAME")).or_else(|| {
             home.as_deref()
                 .and_then(|h| Path::new(h).file_name())
                 .map(|n| n.to_string_lossy().into_owned())
         });
-        let host = std::fs::read_to_string("/proc/sys/kernel/hostname")
-            .or_else(|_| std::fs::read_to_string("/etc/hostname"))
-            .ok()
-            .map(|h| h.trim().to_owned())
-            .filter(|h| !h.is_empty())
-            .or_else(|| var("HOSTNAME"));
+        let host = kernel_host.or_else(|| var("HOSTNAME"));
         Self { home, user, host }
     }
 }
@@ -503,6 +517,30 @@ mod tests {
             [4, 5],
             "another address and the user name are still found"
         );
+    }
+
+    #[test]
+    fn a_github_actions_runner_has_no_personal_identity() {
+        let env = |runner: bool| {
+            move |name: &str| match name {
+                "GITHUB_ACTIONS" if runner => Some("true".to_owned()),
+                "HOME" => Some("/home/runner".to_owned()),
+                "USER" => Some("runner".to_owned()),
+                _ => None,
+            }
+        };
+        let on_runner = Identity::from_vars(env(true), Some("fv-az42".into()));
+        assert!(on_runner.home.is_none() && on_runner.user.is_none() && on_runner.host.is_none());
+        let elsewhere = Identity::from_vars(env(false), Some("fv-az42".into()));
+        assert_eq!(elsewhere.user.as_deref(), Some("runner"));
+        assert_eq!(elsewhere.host.as_deref(), Some("fv-az42"));
+        // The other rules still apply on a runner.
+        let scrubber = Scrubber::new(&on_runner, &[]);
+        assert_eq!(
+            scrubber.text("Building a runner on it"),
+            "Building a runner on it"
+        );
+        assert_eq!(scrubber.text("jane@doe.example.org"), EMAIL);
     }
 
     #[test]
