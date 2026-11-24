@@ -4,17 +4,22 @@
 # The last stage of the pipeline: a pull request is checked by CI, merged into
 # `main`, then collected here. `release-pr` opens or refreshes the release PR
 # (version bump and changelog from the Conventional Commits since the last
-# tag), which CI checks like any other; merging it makes `release` tag the
-# version and create its GitHub release. A push without a releasable commit
-# (release-plz.toml) changes nothing.
+# release), which CI checks like any other; merging it makes `release` publish
+# the version to crates.io, tag it and create its GitHub release. A push
+# without a releasable commit (release-plz.toml) changes nothing.
 #
-# Nothing is published to crates.io (`publish = false`), so no registry token
-# is needed. `RELEASE_PLZ_TOKEN` is a fine-grained personal token with contents
+# crates.io takes a new crate only from a stored token: its first version goes
+# through `CARGO_REGISTRY_TOKEN`, a crates.io token limited to publishing
+# `docker-sandbox`. Once the crate exists, crates.io trusts this workflow
+# (trusted publishing): release-plz trades the OIDC identity of the job for a
+# short-lived token, and the stored one is no longer needed.
+#
+# `RELEASE_PLZ_TOKEN` is a fine-grained personal token with contents
 # and pull-requests write access: events raised with the automatic
 # `GITHUB_TOKEN` trigger no other workflow, so a release PR opened with it would
 # never receive the `CI OK` check that the protected `main` branch requires.
-# The token is a secret of the `release` environment, which only `main` may
-# deploy to: a workflow pushed on another branch cannot read it.
+# Both tokens are secrets of the `release` environment, which only `main` may
+# deploy to: a workflow pushed on another branch cannot read them.
 # ------------------------------------------------------------------------------
 
 name: Release-plz
@@ -27,8 +32,9 @@ permissions:
   contents: read
 
 jobs:
-  # Creates the git tag and GitHub release when a release PR has just been
-  # merged. Forks have no release token: they skip it.
+  # Publishes the version to crates.io, then creates its git tag and GitHub
+  # release, when a release PR has just been merged. Forks have no release
+  # token: they skip it.
   release-plz-release:
     name: Release
     if: github.event.repository.fork == false
@@ -37,6 +43,8 @@ jobs:
     environment: release
     permissions:
       contents: write
+      # The OIDC identity crates.io trusts once the crate exists.
+      id-token: write
       pull-requests: read
     steps:
       - uses: actions/checkout@v7
@@ -51,6 +59,7 @@ jobs:
           command: release
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   # Opens or updates the release PR with version bumps and the changelog;
   # never canceled mid-run so a half-written PR is not left behind.

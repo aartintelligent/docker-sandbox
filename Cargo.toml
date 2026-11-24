@@ -28,10 +28,6 @@ keywords   = ["docker", "sandbox", "sbx", "sandboxd", "agents"]
 license    = "MIT OR Apache-2.0"
 # The GitHub repository, linked from the crates.io page.
 repository = "https://github.com/aartintelligent/docker-sandbox"
-# Nothing is published to crates.io yet: the library drives a private daemon
-# API that changes with every `sbx` release. Members inherit this through
-# `publish.workspace = true`; release-plz.toml says the same.
-publish = false
 # Keep in sync with rust-toolchain.toml.
 # This is the MSRV — 1.88 for `let` chains in `if` conditions, while the
 # dependency graph needs 1.85 — which CI checks the workspace on, while
@@ -46,8 +42,8 @@ version      = "0.1.0"
 # ------------------------------------------------------------------------------
 
 [workspace.dependencies]
-# The library, used by `audit`. The `version` is what
-# `cargo publish` would resolve from crates.io once it is published.
+# The library, used by `audit` through its path; release-plz raises the
+# `version` with each release of the crate.
 docker-sandbox = { version = "0.1.0", path = "docker-sandbox" }
 
 # Serialization of the daemon payloads in the library, and of the captures and
