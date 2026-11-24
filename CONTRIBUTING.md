@@ -254,6 +254,11 @@ Conventional Commits on `main`; merging it publishes `docker-sandbox` to
 crates.io, tags the version (`v<version>`) and creates the GitHub release. The
 other members are never published (`publish = false`).
 
+crates.io trusts the release workflow (trusted publishing: `release-plz.yml`,
+environment `release`), so no crates.io token is stored. A new crate cannot be
+published that way: 0.1.0, tagged before the crate was publishable, is
+published by hand from `main` with `cargo publish --locked -p docker-sandbox`.
+
 ## License
 
 By contributing, you agree that your contributions are dual licensed under
