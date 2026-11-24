@@ -1,32 +1,27 @@
 # ------------------------------------------------------------------------------
-# release-plz — automated release PRs, changelogs and tags.
+# release-plz — automated release PRs, changelogs, tags and crates.io uploads.
 #
-# Nothing is published to crates.io yet (`publish = false`, as in Cargo.toml):
-# releases are git tags, GitHub releases and `docker-sandbox/CHANGELOG.md`,
-# written on behalf of `docker-sandbox`. Entries come from conventional commits: `feat`, `fix`,
-# `perf`, `doc`, `refactor`, `deprecate` and `revert` are grouped under Keep a
-# Changelog headings; `chore`, `ci`, `build`, `test` and `style` are skipped.
-#
-# Versions come from the git tags (`git_only`): outside that mode release-plz
-# reads them from crates.io and leaves out every package whose manifest says
-# `publish = false`, so it would never release anything. Publishing to crates.io
-# later means dropping `git_only`, which cannot be combined with `publish = true`.
+# `docker-sandbox` is the one package released: to crates.io, as a git tag and
+# a GitHub release, with `docker-sandbox/CHANGELOG.md`. Entries come from
+# conventional commits: `feat`, `fix`, `perf`, `doc`, `refactor`, `deprecate`
+# and `revert` are grouped under Keep a Changelog headings; `chore`, `ci`,
+# `build`, `test` and `style` are skipped. Versions come from crates.io: a
+# version not published there yet is the next release.
 # Reference: https://release-plz.dev/docs/config
 # ------------------------------------------------------------------------------
 
 [workspace]
 changelog_update    = false
 dependencies_update = false
-git_only            = true
 git_release_enable  = true
 git_tag_enable      = true
 pr_labels           = ["release"]
-publish             = false
 # Only the commit types that appear in the changelog open a release.
 release_commits = '^(feat|fix|perf|refactor|docs|deprecate|revert)(\(|!|:)'
 release_always  = false
-# The semver check compares with crates.io, where nothing is published yet.
-semver_check = false
+# Compares the public API with the last version on crates.io, to raise the
+# version a breaking change needs; the first release has nothing to compare.
+semver_check = true
 
 # Changelog preamble and the commit-message to section mapping.
 [changelog]
@@ -67,8 +62,7 @@ name    = "audit"
 publish = false
 release = false
 
-# The program the live tests run inside sandboxes, the same: git-only mode
-# would otherwise tag it, since it releases `publish = false` members too.
+# The program the live tests run inside sandboxes, the same.
 [[package]]
 name    = "live-probe"
 publish = false

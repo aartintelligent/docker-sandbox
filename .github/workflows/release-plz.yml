@@ -4,12 +4,16 @@
 # The last stage of the pipeline: a pull request is checked by CI, merged into
 # `main`, then collected here. `release-pr` opens or refreshes the release PR
 # (version bump and changelog from the Conventional Commits since the last
-# tag), which CI checks like any other; merging it makes `release` tag the
-# version and create its GitHub release. A push without a releasable commit
-# (release-plz.toml) changes nothing.
+# release), which CI checks like any other; merging it makes `release` publish
+# the version to crates.io, tag it and create its GitHub release. A push
+# without a releasable commit (release-plz.toml) changes nothing.
 #
-# Nothing is published to crates.io (`publish = false`), so no registry token
-# is needed. `RELEASE_PLZ_TOKEN` is a fine-grained personal token with contents
+# crates.io trusts this workflow (trusted publishing): release-plz trades the
+# OIDC identity of the release job for a short-lived token, so no crates.io
+# token is stored. A new crate cannot be published that way, so its first
+# version, 0.1.0, is published by hand (CONTRIBUTING.md).
+#
+# `RELEASE_PLZ_TOKEN` is a fine-grained personal token with contents
 # and pull-requests write access: events raised with the automatic
 # `GITHUB_TOKEN` trigger no other workflow, so a release PR opened with it would
 # never receive the `CI OK` check that the protected `main` branch requires.
@@ -27,8 +31,9 @@ permissions:
   contents: read
 
 jobs:
-  # Creates the git tag and GitHub release when a release PR has just been
-  # merged. Forks have no release token: they skip it.
+  # Publishes the version to crates.io, then creates its git tag and GitHub
+  # release, when a release PR has just been merged. Forks have no release
+  # token: they skip it.
   release-plz-release:
     name: Release
     if: github.event.repository.fork == false
@@ -37,6 +42,8 @@ jobs:
     environment: release
     permissions:
       contents: write
+      # The OIDC identity crates.io trusts to publish the crate.
+      id-token: write
       pull-requests: read
     steps:
       - uses: actions/checkout@v7
