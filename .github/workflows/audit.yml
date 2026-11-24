@@ -1,0 +1,44 @@
+# ------------------------------------------------------------------------------
+# Security audit — RustSec advisories against both lockfile, every week.
+#
+# Advisories appear without any change to the code: CI checks them when a pull
+# request touches the dependencies, this workflow catches the ones published
+# since, and opens an issue for each new one. It covers the lockfile of the
+# main workspace and that of the examples, whose advisories CI does not block
+# on. Runs weekly and on manual dispatch.
+# ------------------------------------------------------------------------------
+
+name: Security audit
+
+on:
+  schedule:
+    # Mondays at 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+# `checks: write` lets the action attach its report as a check run on the
+# commit; without it the step fails after a successful audit.
+permissions:
+  checks: write
+  contents: read
+  issues: write
+
+jobs:
+  # Guards against known-vulnerable or unmaintained dependencies between the
+  # pull requests that change them.
+  audit:
+    name: Audit (${{ matrix.workspace }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: [".", examples]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: ${{ matrix.workspace }}

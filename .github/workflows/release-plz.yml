@@ -1,0 +1,77 @@
+# ------------------------------------------------------------------------------
+# Release-plz — releases on every push to `main`, driven by release-plz.toml.
+#
+# The last stage of the pipeline: a pull request is checked by CI, merged into
+# `main`, then collected here. `release-pr` opens or refreshes the release PR
+# (version bump and changelog from the Conventional Commits since the last
+# tag), which CI checks like any other; merging it makes `release` tag the
+# version and create its GitHub release. A push without a releasable commit
+# (release-plz.toml) changes nothing.
+#
+# Nothing is published to crates.io (`publish = false`), so no registry token
+# is needed. `RELEASE_PLZ_TOKEN` is a fine-grained personal token with contents
+# and pull-requests write access: events raised with the automatic
+# `GITHUB_TOKEN` trigger no other workflow, so a release PR opened with it would
+# never receive the `CI OK` check that the protected `main` branch requires.
+# ------------------------------------------------------------------------------
+
+name: Release-plz
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Creates the git tag and GitHub release when a release PR has just been
+  # merged. Forks have no release token: they skip it.
+  release-plz-release:
+    name: Release
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ secrets.RELEASE_PLZ_TOKEN }}
+      # rust-toolchain.toml pins the toolchain release-plz runs cargo with.
+      - run: rustup toolchain install
+      - uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+
+  # Opens or updates the release PR with version bumps and the changelog;
+  # never canceled mid-run so a half-written PR is not left behind.
+  release-plz-pr:
+    name: Release PR
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ secrets.RELEASE_PLZ_TOKEN }}
+      # rust-toolchain.toml pins the toolchain release-plz runs cargo with.
+      - run: rustup toolchain install
+      - uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}

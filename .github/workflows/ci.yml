@@ -1,0 +1,380 @@
+# ------------------------------------------------------------------------------
+# CI — the checks of pull requests, of the merge queue and of `main`.
+#
+# A pull request runs only the jobs its changes concern: the `changes` job maps
+# the changed files to areas (library, Rust workspace, examples, audit data,
+# dependencies), and a job whose area is untouched is skipped. The merge queue
+# and `main` run every job, so that `main` is always fully checked and keeps
+# the caches that pull requests restore warm. `ci-ok` aggregates the jobs into
+# the single status check that branch protection requires; a skipped job
+# counts as a success.
+#
+# The `justfile` mirrors these jobs for local runs (`just ci`). Tests run on
+# Linux, and also on macOS when the library changes: the daemon is reached
+# through a Unix socket. The live tests, the examples and the audit need a
+# real `sbx` daemon and never run here.
+# ------------------------------------------------------------------------------
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels its previous run; runs of `main` and of
+# the merge queue always finish, so that every commit of `main` gets a status
+# and the caches are saved.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_BUILD_WARNINGS: deny
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Maps the files a pull request changes to the areas the other jobs guard.
+  # Outside pull requests, every area counts as changed.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      library: ${{ steps.areas.outputs.library }}
+      rust: ${{ steps.areas.outputs.rust }}
+      examples: ${{ steps.areas.outputs.examples }}
+      audit-data: ${{ steps.areas.outputs.audit-data }}
+      dependencies: ${{ steps.areas.outputs.dependencies }}
+      test-os: ${{ steps.areas.outputs.test-os }}
+    steps:
+      - id: areas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            files=$(gh api "repos/$REPOSITORY/pulls/$PULL_REQUEST/files" --paginate --jq '.[].filename')
+            printf 'Changed files:\n%s\n' "$files"
+          fi
+          # Whether a changed file matches the extended regular expression $1;
+          # always true outside pull requests.
+          changed() { [ "$EVENT" != pull_request ] || grep -qE "$1" <<< "$files"; }
+          # Writes `$1=true` when a changed file matches $2, `$1=false` otherwise.
+          area() {
+            if changed "$2"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"
+          }
+          # What every crate is built with: the root manifest and lockfile, the
+          # toolchain, the lint configuration, and this workflow.
+          shared='^(Cargo\.(toml|lock)|rust-toolchain\.toml|clippy\.toml|\.github/workflows/ci\.yml)$'
+          # What the library builds and tests from; its README holds doctests,
+          # its changelog nothing that compiles.
+          library="$shared|^docker-sandbox/(Cargo\.toml|README\.md)$|^docker-sandbox/(src|tests)/"
+          area library "$library"
+          area rust "$library|^audit/Cargo\.toml$|^audit/(src|assets)/"
+          area examples "$shared|^examples/|^docker-sandbox/Cargo\.toml$|^docker-sandbox/src/"
+          # What the privacy check reads: the audit data, and the files of the
+          # published crate.
+          area audit-data "$shared|^audit/Cargo\.toml$|^audit/(src|snapshots)/|^docker-sandbox/tests/fixtures/|^docker-sandbox/(Cargo\.toml|README\.md|CHANGELOG\.md|LICENSE-[A-Z]+)$|^docker-sandbox/src/"
+          area dependencies '(^|/)Cargo\.(toml|lock)$|^deny\.toml$|^\.github/workflows/ci\.yml$'
+          # macOS runners are the slowest and the dearest: the tests run there
+          # when the library changes, the only code that depends on the platform.
+          if changed "$library"; then
+            echo 'test-os=["ubuntu-latest", "macos-latest"]'
+          else
+            echo 'test-os=["ubuntu-latest"]'
+          fi >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+  # Guards formatting (`cargo fmt` for Rust, `taplo` for TOML) and spelling
+  # (typos.toml). Nothing is compiled, so it runs on every change.
+  format:
+    name: Format & spelling
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml pins the toolchain and its components.
+      - run: rustup toolchain install
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: taplo
+      - run: cargo fmt --all --check
+      - run: cargo fmt --all --check --manifest-path examples/Cargo.toml
+      - run: taplo fmt --check
+      - uses: crate-ci/typos@v1.52.1
+
+  # Guards the lint policy: clippy on every target and feature of the main
+  # workspace, warnings as errors, with a lockfile that must be up to date.
+  clippy:
+    name: Clippy
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+
+  # Guards the examples, a workspace of their own (`examples/Cargo.toml`): they
+  # must build and pass clippy. They run against a real daemon, so only locally.
+  examples:
+    name: Examples
+    needs: changes
+    if: needs.changes.outputs.examples == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: examples
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo clippy --locked --manifest-path examples/Cargo.toml --workspace --all-targets -- -D warnings
+
+  # Guards behavior: the test suite and the doctests, on Linux and, when the
+  # library changes, on macOS. The `live` feature stays off: its tests need a
+  # real daemon.
+  test:
+    name: Test (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(needs.changes.outputs.test-os) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - run: cargo nextest run --locked --workspace --features docker-sandbox/kit-compiler
+      - run: cargo test --locked --workspace --features docker-sandbox/kit-compiler --doc
+
+  # Guards the coverage of the library: every line of `docker-sandbox` must run
+  # under its tests — unit, fake daemon, fixtures. The gate is enforced here,
+  # after the upload, so that Codecov still annotates the uncovered lines of a
+  # failing pull request and an outage of the service blocks nothing.
+  coverage:
+    name: Coverage
+    needs: changes
+    if: needs.changes.outputs.library == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # `id-token` lets the upload authenticate through OIDC, without a token
+    # stored in the repository secrets.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      # Only this job needs the instrumentation tools, so they stay out of
+      # rust-toolchain.toml.
+      - run: rustup component add llvm-tools
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov,cargo-nextest
+      - run: cargo llvm-cov nextest --locked -p docker-sandbox --features kit-compiler --lcov --output-path target/lcov.info
+      # Merge-queue commits are temporary: Codecov tracks `main` and the pull
+      # requests.
+      - uses: codecov/codecov-action@v7
+        if: github.event_name != 'merge_group'
+        with:
+          files: target/lcov.info
+          disable_search: true
+          use_oidc: true
+      # Fails on any line no test runs, counted as Codecov does, and below 95 %
+      # of the regions — the branches within a line, error paths included.
+      # The line percentage of the `llvm-cov` table is no gate: for each
+      # function, it keeps the best-covered build (unit or integration tests),
+      # not their union.
+      - run: cargo llvm-cov report -p docker-sandbox --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
+
+  # Guards the documentation: builds with the docs.rs flags, warnings as errors.
+  docs:
+    name: Docs (docs.rs settings)
+    needs: changes
+    if: needs.changes.outputs.library == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUSTDOCFLAGS: --cfg docsrs -D warnings
+      # rust-toolchain.toml pins the stable toolchain, which rejects the
+      # `doc_cfg` feature; this nightly must win. The date is pinned because
+      # newer nightlies changed the unstable file-time API that `filetime`
+      # (through `tar`) uses; bump it once a nightly builds again.
+      RUSTUP_TOOLCHAIN: nightly-2026-10-14
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo doc --locked -p docker-sandbox --features kit-compiler --no-deps
+
+  # Guards the MSRV: the main workspace compiles on exactly the `rust-version`
+  # of Cargo.toml.
+  msrv:
+    name: MSRV
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml would otherwise override the MSRV toolchain.
+      - name: Select the MSRV toolchain
+        run: |
+          msrv=$(awk -F'"' '/^rust-version/ {print $2; exit}' Cargo.toml)
+          rustup toolchain install "$msrv" --profile minimal
+          echo "RUSTUP_TOOLCHAIN=$msrv" >> "$GITHUB_ENV"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo check --locked --workspace --all-features --all-targets
+
+  # Guards feature independence: every feature combination of the library
+  # compiles on its own.
+  features:
+    name: Feature powerset
+    needs: changes
+    if: needs.changes.outputs.library == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+      - run: cargo hack check --locked -p docker-sandbox --feature-powerset --no-dev-deps
+
+  # Guards the supply chain (deny.toml) when a manifest, a lockfile or the
+  # policy changes: everything for the main workspace; licenses and sources for
+  # the examples, whose advisories the weekly security workflow reports.
+  deny:
+    name: cargo-deny
+    needs: changes
+    if: needs.changes.outputs.dependencies == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: examples/Cargo.toml
+          command: check
+          command-arguments: licenses sources
+
+  # Guards the audit data and the published crate: no personal data in the
+  # snapshots, the fixtures or the files `cargo package` publishes.
+  privacy:
+    name: Privacy
+    needs: changes
+    if: needs.changes.outputs.audit-data == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: cargo run --locked --quiet -p audit -- privacy-check
+
+  # Guards the history: every commit of a pull request must be a Conventional
+  # Commit (committed.toml), since release-plz derives versions from them.
+  commits:
+    name: Commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: crate-ci/committed@v1.1.12
+        with:
+          args: -vv --no-merge-commit
+          # The default range walks `HEAD~N` through the merge commit's first
+          # parent, which is `main`, so it falls off the end of a short history.
+          commits: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+
+  # Single required status check for branch protection — green only when every
+  # job it needs to be succeeded or was skipped.
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs:
+      - changes
+      - format
+      - clippy
+      - examples
+      - test
+      - coverage
+      - docs
+      - msrv
+      - features
+      - deny
+      - privacy
+      - commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -e '
+            to_entries | all(.value.result == "success" or .value.result == "skipped")'
