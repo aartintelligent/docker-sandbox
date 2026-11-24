@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "profiles": []
+  },
+  "route": "/policy/network/profiles",
+  "status": 200
+}

@@ -1,0 +1,9 @@
+{
+  "method": "DELETE",
+  "request": {},
+  "response": {
+    "message": "host_path is required"
+  },
+  "route": "/sandbox/{name}/mounts",
+  "status": 400
+}

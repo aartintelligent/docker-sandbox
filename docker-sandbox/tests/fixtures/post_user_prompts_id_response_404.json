@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "request": {
+    "option_id": "zz-audit-none"
+  },
+  "response": {
+    "message": "no such user prompt"
+  },
+  "route": "/user-prompts/{id}/response",
+  "status": 404
+}

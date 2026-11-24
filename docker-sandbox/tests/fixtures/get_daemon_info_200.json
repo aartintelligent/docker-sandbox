@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "api_socket": "/home/user/.local/state/sandboxes/sandboxes/sandboxd/sandboxd.sock"
+  },
+  "route": "/daemon/info",
+  "status": 200
+}

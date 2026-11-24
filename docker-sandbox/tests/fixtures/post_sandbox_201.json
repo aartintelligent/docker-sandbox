@@ -1,0 +1,791 @@
+{
+  "method": "POST",
+  "request": {
+    "agent": "shell",
+    "enable_virtiofs_cache": true,
+    "kit_artifacts": [
+      {
+        "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of its own: outbound access, including the apt sources\n(deb.debian.org, dhi.io), is whatever the sandbox policy and\ncomposed kits allow. Install more with apt where that permits;\ncomposed kits list their own capabilities below.\n",
+        "kitHubPublication": {
+          "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+          "repository": "sbx/shell"
+        },
+        "kitUsage": {
+          "kit_identifier": "unknown",
+          "source_type": "hub"
+        },
+        "licenses": [
+          "Apache-2.0"
+        ],
+        "manifest": {
+          "aiFilename": "AGENTS.md",
+          "binary": "bash",
+          "description": "A plain shell sandbox on DHI: bash, git, apt, a Docker engine with compose and buildx that sbx starts automatically, plus common CLI tooling (curl, gh, jq, make) and Python with pip and uv. The base workload agent mixins layer onto; it ships no agent and declares no credentials.",
+          "displayName": "Shell",
+          "kind": "sandbox",
+          "name": "shell",
+          "runOptions": [
+            "-c",
+            "exec \"$@\"",
+            "bash",
+            "bash",
+            "-l"
+          ],
+          "schemaVersion": "3",
+          "sourceURL": "https://github.com/docker-hardened-images/definitions",
+          "template": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d"
+        },
+        "storageSource": "oci://docker.io/sbx/shell:latest",
+        "v3": {
+          "author": "Docker, Inc. https://docker.com",
+          "capabilities": [
+            {
+              "type": "com.docker.sandbox/sbx@1"
+            },
+            {
+              "config": {
+                "content": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of its own: outbound access, including the apt sources\n(deb.debian.org, dhi.io), is whatever the sandbox policy and\ncomposed kits allow. Install more with apt where that permits;\ncomposed kits list their own capabilities below.\n",
+                "filename": "AGENTS.md"
+              },
+              "optional": true,
+              "type": "com.docker.sandbox/agent-context@1"
+            },
+            {
+              "config": {
+                "content": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of its own: outbound access, including the apt sources\n(deb.debian.org, dhi.io), is whatever the sandbox policy and\ncomposed kits allow. Install more with apt where that permits;\ncomposed kits list their own capabilities below.\n",
+                "filename": "AGENTS.md"
+              },
+              "optional": true,
+              "type": "com.docker.sandbox/agent-context@2"
+            }
+          ],
+          "description": "A plain shell sandbox on DHI: bash, git, apt, a Docker engine with compose and buildx that sbx starts automatically, plus common CLI tooling (curl, gh, jq, make) and Python with pip and uv. The base workload agent mixins layer onto; it ships no agent and declares no credentials.",
+          "displayName": "Shell",
+          "kind": "workload",
+          "licenses": [
+            "Apache-2.0"
+          ],
+          "provides": [
+            "bash@5.2.37",
+            "curl@8.14.1",
+            "docker-buildx@0.39.1",
+            "docker-compose@5.8.0",
+            "docker-engine@29.10.0",
+            "docker@29.10.0",
+            "git@2.47.3",
+            "gpg@2.4.7",
+            "jq@1.8.2",
+            "make@4.4.1",
+            "pip@26.3",
+            "python@3.14.10",
+            "ripgrep@14.1.1",
+            "ssh@10.0",
+            "unzip@6.0",
+            "uv@0.13.9",
+            "wget@1.25.0",
+            "deb/adduser@3.152",
+            "deb/apt@3.0.4",
+            "deb/base-files@13.8",
+            "deb/base-passwd@3.6.7",
+            "deb/bash@5.2.37",
+            "deb/bind9-dnsutils@9.20.30",
+            "deb/bind9-host@9.20.30",
+            "deb/bind9-libs@9.20.30",
+            "deb/bubblewrap@0.12.0",
+            "deb/ca-certificates@20250419",
+            "deb/containerd.io@2.4.2",
+            "deb/coreutils@9.7",
+            "deb/curl@8.14.1",
+            "deb/dash@0.5.12",
+            "deb/debconf@1.5.91",
+            "deb/debian-archive-keyring@2025.1",
+            "deb/debianutils@5.23.2",
+            "deb/diffutils@3.10",
+            "deb/dirmngr@2.4.7",
+            "deb/docker-buildx-plugin@0.39.1",
+            "deb/docker-ce-cli@29.10.0",
+            "deb/docker-ce@29.10.0",
+            "deb/docker-compose-plugin@5.8.0",
+            "deb/dpkg@1.22.22",
+            "deb/findutils@4.10.0",
+            "deb/gcc-14-base@14.2.0",
+            "deb/gh@2.105.0",
+            "deb/git@2.47.3",
+            "deb/gnu-which@2.21",
+            "deb/gnupg-l10n@2.4.7",
+            "deb/gnupg@2.4.7",
+            "deb/gpg-agent@2.4.7",
+            "deb/gpg@2.4.7",
+            "deb/gpgconf@2.4.7",
+            "deb/gpgsm@2.4.7",
+            "deb/gpgv@2.4.7",
+            "deb/grep@3.11",
+            "deb/gzip@1.13",
+            "deb/htop@3.4.1",
+            "deb/iproute2@6.15.0",
+            "deb/iptables@1.8.11",
+            "deb/iputils-ping@20240905",
+            "deb/jq@1.8.2",
+            "deb/less@668",
+            "deb/libacl1@2.3.2",
+            "deb/libapparmor1@4.1.0",
+            "deb/libapt-pkg7.0@3.0.4",
+            "deb/libassuan9@3.0.2",
+            "deb/libattr1@2.5.2",
+            "deb/libaudit-common@4.0.2",
+            "deb/libaudit1@4.0.2",
+            "deb/libblkid1@2.41.5",
+            "deb/libbpf1@1.5.0",
+            "deb/libbrotli1@1.1.0",
+            "deb/libbsd0@0.12.2",
+            "deb/libbz2-1.0@1.0.8",
+            "deb/libc-bin@2.41",
+            "deb/libc-l10n@2.41",
+            "deb/libc6@2.41",
+            "deb/libcap-ng0@0.8.5",
+            "deb/libcap2-bin@2.75",
+            "deb/libcap2@2.75",
+            "deb/libcbor0.10@0.10.2",
+            "deb/libcom-err2@1.47.2",
+            "deb/libcrypt1@4.4.38",
+            "deb/libcurl4t64@8.14.1",
+            "deb/libdb5.3t64@5.3.28",
+            "deb/libdebconfclient0@0.280",
+            "deb/libedit2@3.1",
+            "deb/libelf1t64@0.192",
+            "deb/liberror-perl@0.17030",
+            "deb/libevent-core-2.1-7t64@2.1.13",
+            "deb/libexpat1@2.9.0",
+            "deb/libffi8@3.4.8",
+            "deb/libfido2-1@1.15.0",
+            "deb/libfstrm0@0.6.1",
+            "deb/libgcc-s1@14.2.0",
+            "deb/libgcrypt20@1.11.0",
+            "deb/libgdbm-compat4t64@1.24",
+            "deb/libgdbm6t64@1.24",
+            "deb/libgmp10@6.3.0",
+            "deb/libgnutls30t64@3.8.9",
+            "deb/libgpg-error0@1.51",
+            "deb/libgpm2@1.20.7",
+            "deb/libgssapi-krb5-2@1.21.3",
+            "deb/libhogweed6t64@3.10.1",
+            "deb/libidn2-0@2.3.8",
+            "deb/libip4tc2@1.8.11",
+            "deb/libip6tc2@1.8.11",
+            "deb/libjansson4@2.14",
+            "deb/libjemalloc2@5.3.0",
+            "deb/libjq1@1.8.2",
+            "deb/libjson-c5@0.18",
+            "deb/libk5crypto3@1.21.3",
+            "deb/libkeyutils1@1.6.3",
+            "deb/libkrb5-3@1.21.3",
+            "deb/libkrb5support0@1.21.3",
+            "deb/libksba8@1.6.7",
+            "deb/liblastlog2-2@2.41.5",
+            "deb/libldap2@2.6.10",
+            "deb/liblmdb0@0.9.31",
+            "deb/liblsof0@4.99.4",
+            "deb/liblz4-1@1.10.0",
+            "deb/liblzma5@5.8.1",
+            "deb/libmaxminddb0@1.12.2",
+            "deb/libmd0@1.1.0",
+            "deb/libmnl0@1.0.5",
+            "deb/libmount1@2.41.5",
+            "deb/libncursesw6@6.5",
+            "deb/libnetfilter-conntrack3@1.1.0",
+            "deb/libnettle8t64@3.10.1",
+            "deb/libnfnetlink0@1.0.2",
+            "deb/libnftables1@1.1.3",
+            "deb/libnftnl11@1.2.9",
+            "deb/libnghttp2-14@1.64.0",
+            "deb/libnghttp3-9@1.8.0",
+            "deb/libnpth0t64@1.8",
+            "deb/libonig5@6.9.9",
+            "deb/libp11-kit0@0.25.5",
+            "deb/libpam-modules-bin@1.7.0",
+            "deb/libpam-modules@1.7.0",
+            "deb/libpam-runtime@1.7.0",
+            "deb/libpam0g@1.7.0",
+            "deb/libpcre2-8-0@10.46",
+            "deb/libperl5.40@5.40.1",
+            "deb/libproc2-0@4.0.4",
+            "deb/libprotobuf-c1@1.5.1",
+            "deb/libpsl5t64@0.21.2",
+            "deb/libpython-3.14-minimal@3.14.10",
+            "deb/libpython-3.14-stdlib@3.14.10",
+            "deb/libpython-3.14@3.14.10",
+            "deb/libreadline8t64@8.2",
+            "deb/librtmp1@2.4",
+            "deb/libsasl2-2@2.1.28",
+            "deb/libsasl2-modules-db@2.1.28",
+            "deb/libseccomp2@2.6.0",
+            "deb/libselinux1@3.8.1",
+            "deb/libsemanage-common@3.8.1",
+            "deb/libsemanage2@3.8.1",
+            "deb/libsepol2@3.8.1",
+            "deb/libsmartcols1@2.41.5",
+            "deb/libsodium23@1.0.18",
+            "deb/libsqlite3-0@3.46.1",
+            "deb/libssh2-1t64@1.11.1",
+            "deb/libssl3t64@3.5.9",
+            "deb/libstdc++6@14.2.0",
+            "deb/libsystemd0@257.13",
+            "deb/libtasn1-6@4.20.0",
+            "deb/libtinfo6@6.5",
+            "deb/libtirpc-common@1.3.6",
+            "deb/libtirpc3t64@1.3.6",
+            "deb/libudev1@257.13",
+            "deb/libunistring5@1.3",
+            "deb/liburcu8t64@0.15.2",
+            "deb/libuuid1@2.41.5",
+            "deb/libuv1t64@1.50.0",
+            "deb/libwrap0@7.6",
+            "deb/libxml2@2.12.7",
+            "deb/libxtables12@1.8.11",
+            "deb/libxxhash0@0.8.3",
+            "deb/libzstd1@1.5.7",
+            "deb/locales@2.41",
+            "deb/login.defs@4.17.4",
+            "deb/lsof@4.99.4",
+            "deb/make@4.4.1",
+            "deb/mawk@1.3.4",
+            "deb/nano@8.4",
+            "deb/ncurses-base@6.5",
+            "deb/ncurses-bin@6.5",
+            "deb/net-tools@2.10",
+            "deb/netbase@6.5",
+            "deb/netcat-openbsd@1.229",
+            "deb/nftables@1.1.3",
+            "deb/openssh-client@10.0",
+            "deb/openssl-provider-legacy@3.5.9",
+            "deb/openssl@3.5.9",
+            "deb/passwd@4.17.4",
+            "deb/perl-base@5.40.1",
+            "deb/perl-modules-5.40@5.40.1",
+            "deb/perl@5.40.1",
+            "deb/pinentry-curses@1.3.1",
+            "deb/procps@4.0.4",
+            "deb/psmisc@23.7",
+            "deb/python-3.14-minimal@3.14.10",
+            "deb/python-3.14@3.14.10",
+            "deb/python3-pip-whl@26.3",
+            "deb/python3-pip@26.3",
+            "deb/python3-setuptools-whl@84.2.1",
+            "deb/python3-wheel@0.48.0",
+            "deb/readline-common@8.2",
+            "deb/ripgrep@14.1.1",
+            "deb/sed@4.9",
+            "deb/socat@1.8.0",
+            "deb/sudo@1.9.16",
+            "deb/tar@1.35",
+            "deb/tini@0.19.0",
+            "deb/tmux@3.5",
+            "deb/traceroute@2.1.6",
+            "deb/tree@2.2.1",
+            "deb/tzdata@2026",
+            "deb/unzip@6.0",
+            "deb/util-linux@2.41.5",
+            "deb/uv@0.13.9",
+            "deb/vim-common@9.1.1230",
+            "deb/vim-runtime@9.1.1230",
+            "deb/vim@9.1.1230",
+            "deb/wget@1.25.0",
+            "deb/zlib1g@1.3"
+          ],
+          "schemaVersion": "3",
+          "sourceUrl": "https://github.com/docker-hardened-images/definitions",
+          "version": "1.1.0"
+        },
+        "v3Digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "v3Effective": {
+          "author": "Docker, Inc. https://docker.com",
+          "capabilities": [
+            {
+              "type": "com.docker.sandbox/sbx@1"
+            },
+            {
+              "config": {
+                "content": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of its own: outbound access, including the apt sources\n(deb.debian.org, dhi.io), is whatever the sandbox policy and\ncomposed kits allow. Install more with apt where that permits;\ncomposed kits list their own capabilities below.\n",
+                "filename": "AGENTS.md"
+              },
+              "optional": true,
+              "type": "com.docker.sandbox/agent-context@2"
+            }
+          ],
+          "description": "A plain shell sandbox on DHI: bash, git, apt, a Docker engine with compose and buildx that sbx starts automatically, plus common CLI tooling (curl, gh, jq, make) and Python with pip and uv. The base workload agent mixins layer onto; it ships no agent and declares no credentials.",
+          "displayName": "Shell",
+          "kind": "workload",
+          "licenses": [
+            "Apache-2.0"
+          ],
+          "provides": [
+            "bash@5.2.37",
+            "curl@8.14.1",
+            "docker-buildx@0.39.1",
+            "docker-compose@5.8.0",
+            "docker-engine@29.10.0",
+            "docker@29.10.0",
+            "git@2.47.3",
+            "gpg@2.4.7",
+            "jq@1.8.2",
+            "make@4.4.1",
+            "pip@26.3",
+            "python@3.14.10",
+            "ripgrep@14.1.1",
+            "ssh@10.0",
+            "unzip@6.0",
+            "uv@0.13.9",
+            "wget@1.25.0",
+            "deb/adduser@3.152",
+            "deb/apt@3.0.4",
+            "deb/base-files@13.8",
+            "deb/base-passwd@3.6.7",
+            "deb/bash@5.2.37",
+            "deb/bind9-dnsutils@9.20.30",
+            "deb/bind9-host@9.20.30",
+            "deb/bind9-libs@9.20.30",
+            "deb/bubblewrap@0.12.0",
+            "deb/ca-certificates@20250419",
+            "deb/containerd.io@2.4.2",
+            "deb/coreutils@9.7",
+            "deb/curl@8.14.1",
+            "deb/dash@0.5.12",
+            "deb/debconf@1.5.91",
+            "deb/debian-archive-keyring@2025.1",
+            "deb/debianutils@5.23.2",
+            "deb/diffutils@3.10",
+            "deb/dirmngr@2.4.7",
+            "deb/docker-buildx-plugin@0.39.1",
+            "deb/docker-ce-cli@29.10.0",
+            "deb/docker-ce@29.10.0",
+            "deb/docker-compose-plugin@5.8.0",
+            "deb/dpkg@1.22.22",
+            "deb/findutils@4.10.0",
+            "deb/gcc-14-base@14.2.0",
+            "deb/gh@2.105.0",
+            "deb/git@2.47.3",
+            "deb/gnu-which@2.21",
+            "deb/gnupg-l10n@2.4.7",
+            "deb/gnupg@2.4.7",
+            "deb/gpg-agent@2.4.7",
+            "deb/gpg@2.4.7",
+            "deb/gpgconf@2.4.7",
+            "deb/gpgsm@2.4.7",
+            "deb/gpgv@2.4.7",
+            "deb/grep@3.11",
+            "deb/gzip@1.13",
+            "deb/htop@3.4.1",
+            "deb/iproute2@6.15.0",
+            "deb/iptables@1.8.11",
+            "deb/iputils-ping@20240905",
+            "deb/jq@1.8.2",
+            "deb/less@668",
+            "deb/libacl1@2.3.2",
+            "deb/libapparmor1@4.1.0",
+            "deb/libapt-pkg7.0@3.0.4",
+            "deb/libassuan9@3.0.2",
+            "deb/libattr1@2.5.2",
+            "deb/libaudit-common@4.0.2",
+            "deb/libaudit1@4.0.2",
+            "deb/libblkid1@2.41.5",
+            "deb/libbpf1@1.5.0",
+            "deb/libbrotli1@1.1.0",
+            "deb/libbsd0@0.12.2",
+            "deb/libbz2-1.0@1.0.8",
+            "deb/libc-bin@2.41",
+            "deb/libc-l10n@2.41",
+            "deb/libc6@2.41",
+            "deb/libcap-ng0@0.8.5",
+            "deb/libcap2-bin@2.75",
+            "deb/libcap2@2.75",
+            "deb/libcbor0.10@0.10.2",
+            "deb/libcom-err2@1.47.2",
+            "deb/libcrypt1@4.4.38",
+            "deb/libcurl4t64@8.14.1",
+            "deb/libdb5.3t64@5.3.28",
+            "deb/libdebconfclient0@0.280",
+            "deb/libedit2@3.1",
+            "deb/libelf1t64@0.192",
+            "deb/liberror-perl@0.17030",
+            "deb/libevent-core-2.1-7t64@2.1.13",
+            "deb/libexpat1@2.9.0",
+            "deb/libffi8@3.4.8",
+            "deb/libfido2-1@1.15.0",
+            "deb/libfstrm0@0.6.1",
+            "deb/libgcc-s1@14.2.0",
+            "deb/libgcrypt20@1.11.0",
+            "deb/libgdbm-compat4t64@1.24",
+            "deb/libgdbm6t64@1.24",
+            "deb/libgmp10@6.3.0",
+            "deb/libgnutls30t64@3.8.9",
+            "deb/libgpg-error0@1.51",
+            "deb/libgpm2@1.20.7",
+            "deb/libgssapi-krb5-2@1.21.3",
+            "deb/libhogweed6t64@3.10.1",
+            "deb/libidn2-0@2.3.8",
+            "deb/libip4tc2@1.8.11",
+            "deb/libip6tc2@1.8.11",
+            "deb/libjansson4@2.14",
+            "deb/libjemalloc2@5.3.0",
+            "deb/libjq1@1.8.2",
+            "deb/libjson-c5@0.18",
+            "deb/libk5crypto3@1.21.3",
+            "deb/libkeyutils1@1.6.3",
+            "deb/libkrb5-3@1.21.3",
+            "deb/libkrb5support0@1.21.3",
+            "deb/libksba8@1.6.7",
+            "deb/liblastlog2-2@2.41.5",
+            "deb/libldap2@2.6.10",
+            "deb/liblmdb0@0.9.31",
+            "deb/liblsof0@4.99.4",
+            "deb/liblz4-1@1.10.0",
+            "deb/liblzma5@5.8.1",
+            "deb/libmaxminddb0@1.12.2",
+            "deb/libmd0@1.1.0",
+            "deb/libmnl0@1.0.5",
+            "deb/libmount1@2.41.5",
+            "deb/libncursesw6@6.5",
+            "deb/libnetfilter-conntrack3@1.1.0",
+            "deb/libnettle8t64@3.10.1",
+            "deb/libnfnetlink0@1.0.2",
+            "deb/libnftables1@1.1.3",
+            "deb/libnftnl11@1.2.9",
+            "deb/libnghttp2-14@1.64.0",
+            "deb/libnghttp3-9@1.8.0",
+            "deb/libnpth0t64@1.8",
+            "deb/libonig5@6.9.9",
+            "deb/libp11-kit0@0.25.5",
+            "deb/libpam-modules-bin@1.7.0",
+            "deb/libpam-modules@1.7.0",
+            "deb/libpam-runtime@1.7.0",
+            "deb/libpam0g@1.7.0",
+            "deb/libpcre2-8-0@10.46",
+            "deb/libperl5.40@5.40.1",
+            "deb/libproc2-0@4.0.4",
+            "deb/libprotobuf-c1@1.5.1",
+            "deb/libpsl5t64@0.21.2",
+            "deb/libpython-3.14-minimal@3.14.10",
+            "deb/libpython-3.14-stdlib@3.14.10",
+            "deb/libpython-3.14@3.14.10",
+            "deb/libreadline8t64@8.2",
+            "deb/librtmp1@2.4",
+            "deb/libsasl2-2@2.1.28",
+            "deb/libsasl2-modules-db@2.1.28",
+            "deb/libseccomp2@2.6.0",
+            "deb/libselinux1@3.8.1",
+            "deb/libsemanage-common@3.8.1",
+            "deb/libsemanage2@3.8.1",
+            "deb/libsepol2@3.8.1",
+            "deb/libsmartcols1@2.41.5",
+            "deb/libsodium23@1.0.18",
+            "deb/libsqlite3-0@3.46.1",
+            "deb/libssh2-1t64@1.11.1",
+            "deb/libssl3t64@3.5.9",
+            "deb/libstdc++6@14.2.0",
+            "deb/libsystemd0@257.13",
+            "deb/libtasn1-6@4.20.0",
+            "deb/libtinfo6@6.5",
+            "deb/libtirpc-common@1.3.6",
+            "deb/libtirpc3t64@1.3.6",
+            "deb/libudev1@257.13",
+            "deb/libunistring5@1.3",
+            "deb/liburcu8t64@0.15.2",
+            "deb/libuuid1@2.41.5",
+            "deb/libuv1t64@1.50.0",
+            "deb/libwrap0@7.6",
+            "deb/libxml2@2.12.7",
+            "deb/libxtables12@1.8.11",
+            "deb/libxxhash0@0.8.3",
+            "deb/libzstd1@1.5.7",
+            "deb/locales@2.41",
+            "deb/login.defs@4.17.4",
+            "deb/lsof@4.99.4",
+            "deb/make@4.4.1",
+            "deb/mawk@1.3.4",
+            "deb/nano@8.4",
+            "deb/ncurses-base@6.5",
+            "deb/ncurses-bin@6.5",
+            "deb/net-tools@2.10",
+            "deb/netbase@6.5",
+            "deb/netcat-openbsd@1.229",
+            "deb/nftables@1.1.3",
+            "deb/openssh-client@10.0",
+            "deb/openssl-provider-legacy@3.5.9",
+            "deb/openssl@3.5.9",
+            "deb/passwd@4.17.4",
+            "deb/perl-base@5.40.1",
+            "deb/perl-modules-5.40@5.40.1",
+            "deb/perl@5.40.1",
+            "deb/pinentry-curses@1.3.1",
+            "deb/procps@4.0.4",
+            "deb/psmisc@23.7",
+            "deb/python-3.14-minimal@3.14.10",
+            "deb/python-3.14@3.14.10",
+            "deb/python3-pip-whl@26.3",
+            "deb/python3-pip@26.3",
+            "deb/python3-setuptools-whl@84.2.1",
+            "deb/python3-wheel@0.48.0",
+            "deb/readline-common@8.2",
+            "deb/ripgrep@14.1.1",
+            "deb/sed@4.9",
+            "deb/socat@1.8.0",
+            "deb/sudo@1.9.16",
+            "deb/tar@1.35",
+            "deb/tini@0.19.0",
+            "deb/tmux@3.5",
+            "deb/traceroute@2.1.6",
+            "deb/tree@2.2.1",
+            "deb/tzdata@2026",
+            "deb/unzip@6.0",
+            "deb/util-linux@2.41.5",
+            "deb/uv@0.13.9",
+            "deb/vim-common@9.1.1230",
+            "deb/vim-runtime@9.1.1230",
+            "deb/vim@9.1.1230",
+            "deb/wget@1.25.0",
+            "deb/zlib1g@1.3"
+          ],
+          "schemaVersion": "3",
+          "sourceUrl": "https://github.com/docker-hardened-images/definitions",
+          "version": "1.1.0"
+        },
+        "v3Entrypoint": [
+          "bash",
+          "-c",
+          "exec \"$@\"",
+          "bash"
+        ],
+        "v3Reference": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "v3Selection": {
+          "capabilities": [
+            {
+              "source": {
+                "kit": "docker.io/sbx/shell:latest",
+                "path": "capabilities[0]"
+              },
+              "type": "com.docker.sandbox/sbx@1"
+            },
+            {
+              "config": {
+                "content": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of its own: outbound access, including the apt sources\n(deb.debian.org, dhi.io), is whatever the sandbox policy and\ncomposed kits allow. Install more with apt where that permits;\ncomposed kits list their own capabilities below.\n",
+                "filename": "AGENTS.md"
+              },
+              "optional": true,
+              "source": {
+                "kit": "docker.io/sbx/shell:latest",
+                "path": "capabilities[2]"
+              },
+              "type": "com.docker.sandbox/agent-context@2"
+            }
+          ],
+          "selected": [
+            {
+              "decisions": [
+                {
+                  "accepted": true
+                }
+              ],
+              "memberSources": [
+                {
+                  "kit": "docker.io/sbx/shell:latest",
+                  "path": "capabilities[0]"
+                }
+              ],
+              "members": [
+                "capabilities[0]"
+              ],
+              "path": "capabilities[0]",
+              "source": {
+                "kit": "docker.io/sbx/shell:latest",
+                "path": "capabilities[0]"
+              }
+            },
+            {
+              "decisions": [
+                {
+                  "accepted": true
+                }
+              ],
+              "memberSources": [
+                {
+                  "kit": "docker.io/sbx/shell:latest",
+                  "path": "capabilities[2]"
+                }
+              ],
+              "members": [
+                "capabilities[2]"
+              ],
+              "path": "capabilities[2]",
+              "source": {
+                "kit": "docker.io/sbx/shell:latest",
+                "path": "capabilities[2]"
+              }
+            }
+          ],
+          "skipped": [
+            {
+              "decisions": [
+                {
+                  "accepted": false,
+                  "message": "com.docker.sandbox/agent-context@1 is not selected: this kit set uses com.docker.sandbox/agent-context@2, and the two cannot compose"
+                }
+              ],
+              "memberSources": [
+                {
+                  "kit": "docker.io/sbx/shell:latest",
+                  "path": "capabilities[1]"
+                }
+              ],
+              "members": [
+                "capabilities[1]"
+              ],
+              "path": "capabilities[1]",
+              "rejected": [
+                "capabilities[1]"
+              ],
+              "source": {
+                "kit": "docker.io/sbx/shell:latest",
+                "path": "capabilities[1]"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "commands": {
+          "install": [
+            {
+              "command": "env -i PATH=\"$PATH\" HOME=\"$HOME\" USER=\"$USER\" TERM=\"$TERM\" HTTP_PROXY=\"$HTTP_PROXY\" HTTPS_PROXY=\"$HTTPS_PROXY\" NO_PROXY=\"$NO_PROXY\" http_proxy=\"$http_proxy\" https_proxy=\"$https_proxy\" no_proxy=\"$no_proxy\" SSL_CERT_FILE=\"$SSL_CERT_FILE\" SSL_CERT_DIR=\"$SSL_CERT_DIR\" REQUESTS_CA_BUNDLE=\"$REQUESTS_CA_BUNDLE\" CURL_CA_BUNDLE=\"$CURL_CA_BUNDLE\" NODE_EXTRA_CA_CERTS=\"$NODE_EXTRA_CA_CERTS\" sh -c 'echo \"audit-mixin-v3 installed\" > /home/agent/audit-mixin.txt'",
+              "description": "Writes a marker file",
+              "user": "agent"
+            }
+          ]
+        },
+        "kitUsage": {
+          "kit_identifier": "unknown",
+          "source_type": "local-dir"
+        },
+        "manifest": {
+          "description": "Test mixin of the docker-sbx audit, writes a marker file at install time.",
+          "displayName": "Audit mixin v3",
+          "kind": "mixin",
+          "name": "audit-mixin-v3",
+          "schemaVersion": "3",
+          "template": "sbx-kit-src:spec-fa77e12c00c8"
+        },
+        "v3": {
+          "capabilities": [
+            {
+              "config": {
+                "install": [
+                  {
+                    "command": "echo \"audit-mixin-v3 installed\" > /home/agent/audit-mixin.txt",
+                    "description": "Writes a marker file",
+                    "user": "agent"
+                  }
+                ]
+              },
+              "type": "com.docker.sandbox/lifecycle@1"
+            }
+          ],
+          "description": "Test mixin of the docker-sbx audit, writes a marker file at install time.",
+          "displayName": "Audit mixin v3",
+          "kind": "mixin",
+          "schemaVersion": "3",
+          "version": "0.1.0"
+        },
+        "v3Digest": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
+        "v3Effective": {
+          "capabilities": [
+            {
+              "config": {
+                "install": [
+                  {
+                    "command": [
+                      "sh",
+                      "-c",
+                      "echo \"audit-mixin-v3 installed\" > /home/agent/audit-mixin.txt"
+                    ],
+                    "description": "Writes a marker file",
+                    "user": "agent"
+                  }
+                ]
+              },
+              "type": "com.docker.sandbox/lifecycle@1"
+            }
+          ],
+          "description": "Test mixin of the docker-sbx audit, writes a marker file at install time.",
+          "displayName": "Audit mixin v3",
+          "kind": "mixin",
+          "schemaVersion": "3",
+          "version": "0.1.0"
+        },
+        "v3Reference": "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3",
+        "v3Selection": {
+          "capabilities": [
+            {
+              "config": {
+                "install": [
+                  {
+                    "command": "echo \"audit-mixin-v3 installed\" > /home/agent/audit-mixin.txt",
+                    "description": "Writes a marker file",
+                    "user": "agent"
+                  }
+                ]
+              },
+              "source": {
+                "kit": "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3",
+                "path": "capabilities[0]"
+              },
+              "type": "com.docker.sandbox/lifecycle@1"
+            }
+          ],
+          "selected": [
+            {
+              "decisions": [
+                {
+                  "accepted": true
+                }
+              ],
+              "memberSources": [
+                {
+                  "kit": "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3",
+                  "path": "capabilities[0]"
+                }
+              ],
+              "members": [
+                "capabilities[0]"
+              ],
+              "path": "capabilities[0]",
+              "source": {
+                "kit": "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3",
+                "path": "capabilities[0]"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "kits": [
+      "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3"
+    ],
+    "name": "audit-r",
+    "pull_policy": "missing"
+  },
+  "response": {
+    "agent": "shell",
+    "id": "2fb4c8ee-3f30-4dc4-91bc-843f76b8e8ff",
+    "mcp": {
+      "port": 42225,
+      "state": "ready",
+      "static": false,
+      "url": "http://mcp-gateway.docker.internal/mcp"
+    },
+    "name": "audit-r",
+    "status": "running",
+    "workspace": ""
+  },
+  "route": "/sandbox",
+  "status": 201
+}

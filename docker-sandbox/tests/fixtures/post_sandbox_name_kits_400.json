@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "request": {},
+  "response": {
+    "message": "kit_artifact: field is required"
+  },
+  "route": "/sandbox/{name}/kits",
+  "status": 400
+}

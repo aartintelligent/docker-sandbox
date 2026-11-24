@@ -1,0 +1,22 @@
+{
+  "method": "POST",
+  "request": {
+    "new": {
+      "host_ip": "127.0.0.1",
+      "host_port": 18091,
+      "protocol": "tcp",
+      "sandbox_port": 8091
+    },
+    "old": {
+      "host_ip": "127.0.0.1",
+      "host_port": 18090,
+      "protocol": "tcp",
+      "sandbox_port": 8090
+    }
+  },
+  "response": {
+    "message": "replaced desired published port"
+  },
+  "route": "/sandbox/{name}/ports/replace-desired",
+  "status": 200
+}

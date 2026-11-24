@@ -1,0 +1,17 @@
+{
+  "method": "POST",
+  "request": [
+    {
+      "host_ip": "127.0.0.1",
+      "host_port": 18092,
+      "protocol": "tcp",
+      "sandbox_port": 8092
+    }
+  ],
+  "response": {
+    "error": "cannot publish ports while sandbox is stopped",
+    "message": "request[0]: cannot publish ports while sandbox is stopped"
+  },
+  "route": "/sandbox/{name}/ports",
+  "status": 409
+}

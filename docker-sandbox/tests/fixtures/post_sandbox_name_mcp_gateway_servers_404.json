@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "request": {
+    "server": "audit-remote"
+  },
+  "response": {
+    "message": "MCP server \"audit-remote\" is not registered (run 'sbx mcp add audit-remote ...')"
+  },
+  "route": "/sandbox/{name}/mcp/gateway/servers",
+  "status": 404
+}

@@ -1,0 +1,23 @@
+{
+  "method": "POST",
+  "request": {
+    "new": {
+      "host_ip": "127.0.0.1",
+      "host_port": 18098,
+      "protocol": "tcp",
+      "sandbox_port": 8098
+    },
+    "old": {
+      "host_ip": "127.0.0.1",
+      "host_port": 18099,
+      "protocol": "tcp",
+      "sandbox_port": 8099
+    }
+  },
+  "response": {
+    "code": "desired_port_not_found",
+    "message": "desired published port not found"
+  },
+  "route": "/sandbox/{name}/ports/replace-desired",
+  "status": 404
+}

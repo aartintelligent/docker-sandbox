@@ -1,0 +1,120 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": [
+    {
+      "agent": "shell",
+      "created_at": "2026-11-19T17:01:03Z",
+      "digest": "sha256:1936ccbe44e1d5a0475baf48b21da44eb0840e46263d659ce21d15b71b763fcf",
+      "id": "sha256:1936ccbe44e1d5a0475baf48b21da44eb0840e46263d659ce21d15b71b763fcf",
+      "repository": "docker.io/library/sandbox-kit-assembled",
+      "size": 229663595,
+      "tag": "652f680878198c72"
+    },
+    {
+      "agent": "shell",
+      "created_at": "2026-11-19T17:01:03Z",
+      "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "repository": "docker.io/library/sandbox-kit-assembled",
+      "size": 229758983,
+      "tag": "652f680878198c72-kit-0"
+    },
+    {
+      "created_at": "2026-11-24T18:16:06Z",
+      "digest": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
+      "id": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
+      "repository": "docker.io/library/sandbox-kit-assembled",
+      "size": 6077,
+      "tag": "652f680878198c72-kit-1"
+    },
+    {
+      "agent": "shell",
+      "created_at": "2026-11-19T17:01:03Z",
+      "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "repository": "docker.io/library/sandbox-kit-assembled",
+      "size": 229758983,
+      "tag": "652f680878198c72-template"
+    },
+    {
+      "agent": "shell",
+      "created_at": "2026-11-24T18:15:15Z",
+      "digest": "sha256:e7d95d532345308576847721a07c0e3d98777e8b10472a4fcd41903e1077f4f5",
+      "id": "sha256:e7d95d532345308576847721a07c0e3d98777e8b10472a4fcd41903e1077f4f5",
+      "repository": "docker.io/library/sandbox-kit-assembled",
+      "size": 230131795,
+      "tag": "9d427a999698531e"
+    },
+    {
+      "agent": "claude",
+      "created_at": "2026-11-21T07:38:13Z",
+      "digest": "sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245",
+      "id": "sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245",
+      "repository": "docker.io/library/sandbox-kit-assembled",
+      "size": 381904885,
+      "tag": "abcb8e131d141d15"
+    },
+    {
+      "agent": "shell",
+      "created_at": "2026-11-19T17:01:03Z",
+      "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "repository": "docker.io/library/sandbox-kit-assembled",
+      "size": 229758983,
+      "tag": "c1400a176754093d"
+    },
+    {
+      "created_at": "2026-11-24T18:16:06Z",
+      "digest": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
+      "id": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
+      "repository": "docker.io/library/sbx-kit-src",
+      "size": 6077,
+      "tag": "spec-fa77e12c00c8"
+    },
+    {
+      "agent": "shell",
+      "created_at": "2026-11-19T17:01:03Z",
+      "digest": "sha256:999335ea5cb0fdad1fc16a0fcd2694afc2b23fed311f77854f42db699ae9f2b0",
+      "id": "sha256:999335ea5cb0fdad1fc16a0fcd2694afc2b23fed311f77854f42db699ae9f2b0",
+      "repository": "docker.io/sandboxes-swap/audit-a",
+      "size": 229806594,
+      "tag": "f20cabc9"
+    },
+    {
+      "agent": "claude",
+      "created_at": "2026-11-21T07:38:13Z",
+      "digest": "sha256:33135a6168ddd0844f195a8b69c9704c57bbecec9a53a9e885f04fab655933bc",
+      "id": "sha256:33135a6168ddd0844f195a8b69c9704c57bbecec9a53a9e885f04fab655933bc",
+      "repository": "docker.io/sbx/claude",
+      "size": 381865807
+    },
+    {
+      "agent": "claude",
+      "created_at": "2026-11-21T07:38:13Z",
+      "digest": "sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245",
+      "id": "sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245",
+      "repository": "docker.io/sbx/claude",
+      "size": 381904885
+    },
+    {
+      "agent": "shell",
+      "created_at": "2026-11-19T17:01:03Z",
+      "digest": "sha256:f3c1b4f30c801e014735efbd300e16853cc21988dcd1ffcd9383c96389234c83",
+      "id": "sha256:f3c1b4f30c801e014735efbd300e16853cc21988dcd1ffcd9383c96389234c83",
+      "repository": "docker.io/sbx/shell",
+      "size": 229758717
+    },
+    {
+      "agent": "shell",
+      "created_at": "2026-11-19T17:01:03Z",
+      "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "repository": "docker.io/sbx/shell",
+      "size": 229758983,
+      "tag": "latest"
+    }
+  ],
+  "route": "/docker/images",
+  "status": 200
+}

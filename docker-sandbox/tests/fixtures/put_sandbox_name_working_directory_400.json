@@ -1,0 +1,9 @@
+{
+  "method": "PUT",
+  "request": {},
+  "response": {
+    "message": "working_dir is required"
+  },
+  "route": "/sandbox/{name}/working-directory",
+  "status": 400
+}

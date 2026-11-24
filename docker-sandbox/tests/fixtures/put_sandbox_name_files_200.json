@@ -1,0 +1,9 @@
+{
+  "method": "PUT",
+  "request": null,
+  "response": {
+    "message": "files copied"
+  },
+  "route": "/sandbox/{name}/files",
+  "status": 200
+}

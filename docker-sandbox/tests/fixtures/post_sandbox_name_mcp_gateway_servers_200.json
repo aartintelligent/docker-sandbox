@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "request": {
+    "server": "audit-echo"
+  },
+  "response": {
+    "sandbox": "audit-a",
+    "server": "audit-echo"
+  },
+  "route": "/sandbox/{name}/mcp/gateway/servers",
+  "status": 200
+}

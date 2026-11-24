@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "request": null,
+  "response": {
+    "message": "image loaded"
+  },
+  "route": "/docker/images/load",
+  "status": 200
+}

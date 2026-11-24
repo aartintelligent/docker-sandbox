@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "request": {
+    "host_path": "/tmp/docker-sandbox-audit-work/fixtures/mountdir"
+  },
+  "response": {
+    "message": "sandbox \"audit-a\" is not running"
+  },
+  "route": "/sandbox/{name}/mounts",
+  "status": 409
+}

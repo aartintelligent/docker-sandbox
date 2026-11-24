@@ -1,0 +1,12 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "port": 39725,
+    "state": "ready",
+    "static": false,
+    "url": "http://mcp-gateway.docker.internal/mcp"
+  },
+  "route": "/sandbox/{name}/mcp/gateway",
+  "status": 200
+}

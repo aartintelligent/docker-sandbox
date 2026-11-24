@@ -1,0 +1,10 @@
+{
+  "method": "DELETE",
+  "request": null,
+  "response": {
+    "code": "sandbox_identity_changed",
+    "message": "sandbox identity changed"
+  },
+  "route": "/sandbox/{name}",
+  "status": 409
+}

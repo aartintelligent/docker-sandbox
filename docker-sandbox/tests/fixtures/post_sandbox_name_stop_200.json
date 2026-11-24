@@ -1,0 +1,41 @@
+{
+  "method": "POST",
+  "request": null,
+  "response": {
+    "agent": "shell",
+    "created_at": "2026-11-24T19:14:41+01:00",
+    "effective_working_dir": "/home/agent/workspace",
+    "host_mounts": [],
+    "id": "e467a781-043e-4ede-ab42-0b78a0d1b2ff",
+    "labels": {
+      "com.docker.container.etc-hosts": "disabled",
+      "com.docker.container.fuse": "true",
+      "com.docker.sandbox.agent": "shell",
+      "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
+      "com.docker.sandbox.createdVersion": "v0.54.0",
+      "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:c1400a176754093d",
+      "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d\",\"digest\":\"sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d\",\"image\":\"docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d\",\"kind\":\"workload\",\"permissions\":{}}]}",
+      "com.docker.sandbox.kit-workspace-dir": "false",
+      "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d\"]",
+      "com.docker.sandbox.mount-snapshot": "v1:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "com.docker.sandbox.name": "audit-a",
+      "com.docker.sandbox.skillsReserved": "true",
+      "com.docker.sandbox.usesWorktree": "false",
+      "com.docker.sandboxes.start-docker": "true",
+      "com.docker.sdk": "true",
+      "com.docker.sdk.client": "0.1.0-alpha014",
+      "com.docker.sdk.container": "0.1.0-alpha017",
+      "com.docker.sdk.lang": "go",
+      "docker/sandbox": "true"
+    },
+    "last_used_at": "2026-11-24T18:15:06.767947344Z",
+    "name": "audit-a",
+    "runtime_mounts": [],
+    "status": "stopped",
+    "working_dir": "",
+    "workspace": ""
+  },
+  "route": "/sandbox/{name}/stop",
+  "status": 200
+}

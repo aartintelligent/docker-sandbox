@@ -1,0 +1,9 @@
+{
+  "method": "DELETE",
+  "request": null,
+  "response": {
+    "message": "MCP server \"zz-audit-none\" is not loaded in sandbox \"audit-e\""
+  },
+  "route": "/sandbox/{name}/mcp/gateway/servers/{server_name}",
+  "status": 404
+}

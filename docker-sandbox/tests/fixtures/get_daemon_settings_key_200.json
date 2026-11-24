@@ -1,0 +1,14 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "default": false,
+    "description": "Serve the clone-mode Git remote from a loopback TCP port that any local user can read, instead of through the daemon socket. Applies when a sandbox starts.",
+    "key": "clone.legacyTcpRemote",
+    "source": "default",
+    "type": "bool",
+    "value": false
+  },
+  "route": "/daemon/settings/{key}",
+  "status": 200
+}

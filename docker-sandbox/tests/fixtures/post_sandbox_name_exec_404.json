@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "request": {
+    "cmd": [
+      "true"
+    ]
+  },
+  "response": {
+    "message": "sandbox \"zz-audit-none\" not found"
+  },
+  "route": "/sandbox/{name}/exec",
+  "status": 404
+}

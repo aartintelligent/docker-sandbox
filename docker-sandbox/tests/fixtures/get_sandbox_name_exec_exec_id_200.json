@@ -1,0 +1,11 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "exit_code": 0,
+    "id": "a2e31209d94f96eec8655c74ee71d9d5f68ce5683b73f44ec26215fded6e5585",
+    "running": false
+  },
+  "route": "/sandbox/{name}/exec/{exec_id}",
+  "status": 200
+}

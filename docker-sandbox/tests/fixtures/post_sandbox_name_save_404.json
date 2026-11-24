@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "request": {
+    "tag": "audit-none:v1"
+  },
+  "response": {
+    "code": "sandbox_not_found",
+    "message": "no sandbox named 'zz-audit-none'"
+  },
+  "route": "/sandbox/{name}/save",
+  "status": 404
+}

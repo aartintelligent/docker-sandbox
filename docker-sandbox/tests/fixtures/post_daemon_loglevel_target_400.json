@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "request": {
+    "level": "info"
+  },
+  "response": {
+    "message": "loglevel: unknown category \"zz-audit-none\""
+  },
+  "route": "/daemon/loglevel/{target}",
+  "status": 400
+}

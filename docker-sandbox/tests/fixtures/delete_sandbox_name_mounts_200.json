@@ -1,0 +1,11 @@
+{
+  "method": "DELETE",
+  "request": {
+    "host_path": "/tmp/docker-sandbox-audit-work/fixtures/mountdir"
+  },
+  "response": {
+    "message": "Removed explicit host-path permission for /tmp/docker-sandbox-audit-work/fixtures/mountdir"
+  },
+  "route": "/sandbox/{name}/mounts",
+  "status": 200
+}

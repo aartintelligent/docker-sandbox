@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "request": {},
+  "response": {
+    "code": "invalid_input",
+    "message": "old: sandbox_port must be between 1 and 65535, got 0"
+  },
+  "route": "/sandbox/{name}/ports/replace-desired",
+  "status": 400
+}

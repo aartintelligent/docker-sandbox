@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "request": null,
+  "response": {
+    "code": "registry_access_denied",
+    "message": "pull failed for image \"docker.io/sbx/zz-audit-none:latest\""
+  },
+  "route": "/docker/images/create",
+  "status": 403
+}

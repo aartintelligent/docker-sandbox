@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "request": {},
+  "response": {
+    "message": "sandbox \"zz-audit-none\" not found"
+  },
+  "route": "/sandbox/{name}/stop",
+  "status": 404
+}

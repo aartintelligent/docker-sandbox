@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "message": "exec \"zz-audit-none\" not found"
+  },
+  "route": "/sandbox/{name}/exec/{exec_id}",
+  "status": 404
+}

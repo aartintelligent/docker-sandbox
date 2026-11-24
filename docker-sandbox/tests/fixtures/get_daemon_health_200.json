@@ -1,0 +1,14 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "api_version": "0.52.0",
+    "release": true,
+    "revision": "4bec4a5ce093466e54b034146965b143d065dc09",
+    "runtime_backend": false,
+    "status": "healthy",
+    "version": "v0.54.0"
+  },
+  "route": "/daemon/health",
+  "status": 200
+}

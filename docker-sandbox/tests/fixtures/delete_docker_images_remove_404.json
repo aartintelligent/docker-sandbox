@@ -1,0 +1,9 @@
+{
+  "method": "DELETE",
+  "request": null,
+  "response": {
+    "message": "no image \"zz-audit-none:latest\""
+  },
+  "route": "/docker/images/remove",
+  "status": 404
+}

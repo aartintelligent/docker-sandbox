@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "message": "path \"/zz-audit-none\" not found in sandbox \"audit-e\""
+  },
+  "route": "/sandbox/{name}/files",
+  "status": 404
+}

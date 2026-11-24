@@ -1,0 +1,16 @@
+{
+  "method": "POST",
+  "request": {
+    "value": "<redacted:3>"
+  },
+  "response": {
+    "default": "10g",
+    "description": "Size of a sandbox's /var/lib/docker volume (minimum 512 MiB; e.g. \"10g\"). Applies to sandboxes created after the change; existing volumes are never resized. Set DOCKER_SANDBOXES_DOCKER_SIZE to override one sandbox.",
+    "key": "sandbox.disk.dockerVolume",
+    "source": "default",
+    "type": "string",
+    "value": "<redacted:3>"
+  },
+  "route": "/daemon/settings/{key}",
+  "status": 200
+}

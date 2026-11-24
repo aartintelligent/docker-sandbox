@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "request": null,
+  "response": {
+    "message": "exec \"zz-audit-none\" not found"
+  },
+  "route": "/sandbox/{name}/exec/{exec_id}/resize",
+  "status": 404
+}

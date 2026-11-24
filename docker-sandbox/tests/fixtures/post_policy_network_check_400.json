@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "request": {
+    "target": "api.anthropic.com",
+    "type": "zz-audit-none"
+  },
+  "response": {
+    "message": "type must be \"network\" or \"http\""
+  },
+  "route": "/policy/network/check",
+  "status": 400
+}

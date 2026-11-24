@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "request": null,
+  "response": {
+    "code": "exec_not_running",
+    "message": "exec \"5e04324a4ac7e183b223b8641fef20473c6e7dd247815d0ecb3d236fd9d8c10d\" is no longer running"
+  },
+  "route": "/sandbox/{name}/exec/{exec_id}/resize",
+  "status": 409
+}

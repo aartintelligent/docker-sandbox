@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "request": {
+    "cmd": []
+  },
+  "response": {
+    "message": "cmd is required and must contain at least one element"
+  },
+  "route": "/sandbox/{name}/exec",
+  "status": 400
+}

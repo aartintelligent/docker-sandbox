@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "message": "sandbox \"audit-w\" not found"
+  },
+  "route": "/sandbox/{name}",
+  "status": 404
+}

@@ -1,0 +1,9 @@
+{
+  "method": "DELETE",
+  "request": null,
+  "response": {
+    "message": "removed image \"audit-snap:v1\""
+  },
+  "route": "/docker/images/remove",
+  "status": 200
+}

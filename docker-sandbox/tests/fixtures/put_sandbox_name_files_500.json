@@ -1,0 +1,9 @@
+{
+  "method": "PUT",
+  "request": null,
+  "response": {
+    "message": "tar extract failed in sandbox \"audit-e\": tar: /zz-audit-none: Cannot open: No such file or directory\ntar: Error is not recoverable: exiting now"
+  },
+  "route": "/sandbox/{name}/files",
+  "status": 500
+}

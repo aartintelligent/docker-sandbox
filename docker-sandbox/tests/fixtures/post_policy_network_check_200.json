@@ -1,0 +1,24 @@
+{
+  "method": "POST",
+  "request": {
+    "method": "POST",
+    "target": "https://api.anthropic.com/v1/messages",
+    "type": "http"
+  },
+  "response": {
+    "action": "net:connect:tcp",
+    "allowed": true,
+    "context": "global",
+    "governance": {
+      "active": false
+    },
+    "method": "POST",
+    "resource_type": "net:domain",
+    "resource_value": "api.anthropic.com:443",
+    "rule": "default-allow-all",
+    "target": "https://api.anthropic.com:443/v1/messages",
+    "type": "http"
+  },
+  "route": "/policy/network/check",
+  "status": 200
+}

@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "request": {},
+  "response": {
+    "message": "option_id is required"
+  },
+  "route": "/user-prompts/{id}/response",
+  "status": 400
+}

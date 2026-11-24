@@ -1,0 +1,41 @@
+{
+  "method": "POST",
+  "request": {
+    "actions": [
+      {
+        "action": "deny",
+        "protocols": [
+          "tcp",
+          "udp"
+        ],
+        "resources": [
+          "audit-deny.example.com"
+        ],
+        "sandbox_id": "audit-s"
+      }
+    ]
+  },
+  "response": {
+    "results": [
+      {
+        "action": "deny",
+        "created": [
+          {
+            "protocols": [
+              "tcp",
+              "udp"
+            ],
+            "resource": "audit-deny.example.com",
+            "rule_id": "8b484bba-ba44-4530-b550-0f87dd5863e2"
+          }
+        ],
+        "resources": [
+          "audit-deny.example.com"
+        ],
+        "sandbox_id": "audit-s"
+      }
+    ]
+  },
+  "route": "/policy/network/rules",
+  "status": 200
+}

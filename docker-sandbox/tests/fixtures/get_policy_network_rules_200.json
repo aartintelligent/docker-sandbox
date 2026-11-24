@@ -1,0 +1,124 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "governance_active": false,
+    "governance_upsell_banner_flag_enabled": true,
+    "rules": [
+      {
+        "actions": [
+          "net:connect:tcp"
+        ],
+        "applies_to": "all",
+        "decision": "allow",
+        "editable": true,
+        "id": "default-allow-all",
+        "layer": "local",
+        "name": "default-allow-all",
+        "origin": "local",
+        "policy_id": "local-policy",
+        "provenance": {
+          "created_via": "default"
+        },
+        "resource_type": "network",
+        "resources": [
+          "**"
+        ],
+        "scope": "global",
+        "status": "active"
+      },
+      {
+        "actions": [
+          "fs:mount:read"
+        ],
+        "applies_to": "all",
+        "decision": "allow",
+        "editable": false,
+        "id": "default-fs-read-allow-all",
+        "layer": "local",
+        "name": "default-fs-read-allow-all",
+        "origin": "local",
+        "policy_id": "local-policy",
+        "provenance": {
+          "created_via": "default"
+        },
+        "resource_type": "filesystem:read",
+        "resources": [
+          "**"
+        ],
+        "scope": "global",
+        "status": "active"
+      },
+      {
+        "actions": [
+          "fs:mount:read",
+          "fs:mount:write"
+        ],
+        "applies_to": "all",
+        "decision": "allow",
+        "editable": false,
+        "id": "default-fs-write-allow-all",
+        "layer": "local",
+        "name": "default-fs-write-allow-all",
+        "origin": "local",
+        "policy_id": "local-policy",
+        "provenance": {
+          "created_via": "default"
+        },
+        "resource_type": "filesystem:write",
+        "resources": [
+          "**"
+        ],
+        "scope": "global",
+        "status": "active"
+      },
+      {
+        "actions": [
+          "net:connect:tcp",
+          "net:connect:udp"
+        ],
+        "applies_to": "sandbox:audit-s",
+        "decision": "deny",
+        "editable": true,
+        "id": "8b484bba-ba44-4530-b550-0f87dd5863e2",
+        "layer": "local",
+        "name": "8b484bba-ba44-4530-b550-0f87dd5863e2",
+        "origin": "scoped",
+        "policy_id": "5a76121b-ffdb-4cdf-b142-bbbbb5ff2643",
+        "provenance": {
+          "created_via": "added"
+        },
+        "resource_type": "network",
+        "resources": [
+          "audit-deny.example.com"
+        ],
+        "sandbox_id": "audit-s",
+        "scope": "sandbox:audit-s",
+        "status": "active"
+      },
+      {
+        "actions": [
+          "net:connect:tcp",
+          "net:connect:udp"
+        ],
+        "applies_to": "all",
+        "decision": "deny",
+        "editable": false,
+        "id": "default-deny-all",
+        "layer": "local",
+        "name": "default-deny-all",
+        "origin": "local",
+        "policy_name": "default-deny-all",
+        "reason": "Implicit fallback when no applicable policy decides the request.",
+        "resource_type": "network",
+        "resources": [
+          "**"
+        ],
+        "scope": "global",
+        "status": "active"
+      }
+    ]
+  },
+  "route": "/policy/network/rules",
+  "status": 200
+}

@@ -1,0 +1,76 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "additional_workspaces": [
+      {
+        "dir": "/tmp/docker-sandbox-audit-work/fixtures/docs",
+        "read_only": true
+      },
+      {
+        "dir": "/tmp/docker-sandbox-audit-work/fixtures/data",
+        "target": "/workspace/data"
+      },
+      {
+        "dir": "/tmp/docker-sandbox-audit-work/fixtures/mountdir/hello.txt",
+        "read_only": true
+      }
+    ],
+    "agent": "shell",
+    "created_at": "2026-11-24T19:17:07+01:00",
+    "effective_working_dir": "/tmp/docker-sandbox-audit-work/fixtures/mountdir",
+    "host_mounts": [
+      {
+        "container_target": "/tmp/docker-sandbox-audit-work/fixtures/mountdir",
+        "host_path": "/tmp/docker-sandbox-audit-work/fixtures/mountdir",
+        "read_only": false
+      },
+      {
+        "container_target": "/tmp/docker-sandbox-audit-work/fixtures/docs",
+        "host_path": "/tmp/docker-sandbox-audit-work/fixtures/docs",
+        "read_only": true
+      },
+      {
+        "container_target": "/workspace/data",
+        "host_path": "/tmp/docker-sandbox-audit-work/fixtures/data",
+        "read_only": false
+      },
+      {
+        "container_target": "/tmp/docker-sandbox-audit-work/fixtures/mountdir/hello.txt",
+        "host_path": "/tmp/docker-sandbox-audit-work/fixtures/mountdir/hello.txt",
+        "read_only": true
+      }
+    ],
+    "id": "948eb612-4418-4705-97f6-a8e2b143dee7",
+    "labels": {
+      "com.docker.container.etc-hosts": "disabled",
+      "com.docker.container.fuse": "true",
+      "com.docker.sandbox.agent": "shell",
+      "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
+      "com.docker.sandbox.createdVersion": "v0.54.0",
+      "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:c1400a176754093d",
+      "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d\",\"digest\":\"sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d\",\"image\":\"docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d\",\"kind\":\"workload\",\"permissions\":{}}]}",
+      "com.docker.sandbox.kit-workspace-dir": "false",
+      "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d\"]",
+      "com.docker.sandbox.mount-snapshot": "v1:f689acaba707cb874499c2b0fd10ce3ccca81eb61a964828a05772cd1ba5adc5",
+      "com.docker.sandbox.name": "audit-w",
+      "com.docker.sandbox.skillsReserved": "true",
+      "com.docker.sandbox.usesWorktree": "false",
+      "com.docker.sandboxes.start-docker": "true",
+      "com.docker.sdk": "true",
+      "com.docker.sdk.client": "0.1.0-alpha014",
+      "com.docker.sdk.container": "0.1.0-alpha017",
+      "com.docker.sdk.lang": "go",
+      "docker/sandbox": "true"
+    },
+    "last_used_at": "2026-11-24T18:17:07.401319418Z",
+    "name": "audit-w",
+    "runtime_mounts": [],
+    "status": "running",
+    "working_dir": "",
+    "workspace": "/tmp/docker-sandbox-audit-work/fixtures/mountdir"
+  },
+  "route": "/sandbox/{name}",
+  "status": 200
+}

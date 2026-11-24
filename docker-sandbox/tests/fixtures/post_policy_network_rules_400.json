@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "request": {
+    "actions": []
+  },
+  "response": {
+    "message": "actions must not be empty"
+  },
+  "route": "/policy/network/rules",
+  "status": 400
+}

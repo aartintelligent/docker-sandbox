@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "request": {
+    "cmd": [
+      "zz-audit-none"
+    ]
+  },
+  "response": {
+    "exit_code": 127,
+    "stderr": "executable file `zz-audit-none` not found in $PATH: No such file or directory\n",
+    "stdout": "executable file `zz-audit-none` not found in $PATH: No such file or directory\n\r\n"
+  },
+  "route": "/sandbox/{name}/exec",
+  "status": 200
+}

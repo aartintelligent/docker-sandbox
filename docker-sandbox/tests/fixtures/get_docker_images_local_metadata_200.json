@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "local_snapshot": false
+  },
+  "route": "/docker/images/local-metadata",
+  "status": 200
+}

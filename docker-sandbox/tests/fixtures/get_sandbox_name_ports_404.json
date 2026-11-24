@@ -1,0 +1,10 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "code": "sandbox_not_found",
+    "message": "sandbox \"zz-audit-none\" not found"
+  },
+  "route": "/sandbox/{name}/ports",
+  "status": 404
+}

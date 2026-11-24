@@ -1,0 +1,22 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "agent": "shell",
+    "cmd": [
+      "bash",
+      "-l"
+    ],
+    "created_at": "2026-11-19T17:01:03Z",
+    "entrypoint": [
+      "bash",
+      "-c",
+      "exec \"$@\"",
+      "bash"
+    ],
+    "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+    "user": "1000"
+  },
+  "route": "/docker/images/inspect",
+  "status": 200
+}

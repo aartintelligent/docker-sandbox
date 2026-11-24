@@ -1,0 +1,10 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "general": "info",
+    "proxy": "info"
+  },
+  "route": "/daemon/loglevel",
+  "status": 200
+}

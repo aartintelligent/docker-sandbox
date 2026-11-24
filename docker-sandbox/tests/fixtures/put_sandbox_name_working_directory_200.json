@@ -1,0 +1,11 @@
+{
+  "method": "PUT",
+  "request": {
+    "working_dir": "/tmp"
+  },
+  "response": {
+    "message": "working directory saved"
+  },
+  "route": "/sandbox/{name}/working-directory",
+  "status": 200
+}

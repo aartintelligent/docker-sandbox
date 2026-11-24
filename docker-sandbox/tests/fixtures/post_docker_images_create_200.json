@@ -1,0 +1,65 @@
+{
+  "method": "POST",
+  "request": null,
+  "response": {
+    "ndjson": [
+      {
+        "id": "6bde3df80ffa",
+        "progressDetail": {
+          "hidecounts": true
+        },
+        "status": "Already exists"
+      },
+      {
+        "id": "f3c57f79fda2",
+        "progressDetail": {
+          "hidecounts": true
+        },
+        "status": "Already exists"
+      },
+      {
+        "id": "0b7eb36cb631",
+        "progressDetail": {
+          "hidecounts": true
+        },
+        "status": "Already exists"
+      },
+      {
+        "id": "00c5da7518bd",
+        "progressDetail": {
+          "hidecounts": true
+        },
+        "status": "Already exists"
+      },
+      {
+        "id": "d927af8e888b",
+        "progressDetail": {
+          "hidecounts": true
+        },
+        "status": "Already exists"
+      },
+      {
+        "id": "5bb32ed72b82",
+        "progressDetail": {
+          "hidecounts": true
+        },
+        "status": "Already exists"
+      },
+      {
+        "id": "50dd8089ec63",
+        "progressDetail": {
+          "hidecounts": true
+        },
+        "status": "Already exists"
+      },
+      {
+        "status": "Digest: sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d"
+      },
+      {
+        "status": "Status: Downloaded newer image for sbx/shell:latest"
+      }
+    ]
+  },
+  "route": "/docker/images/create",
+  "status": 200
+}

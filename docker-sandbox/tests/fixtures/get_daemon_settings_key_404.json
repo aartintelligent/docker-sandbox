@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "message": "setting \"zz.audit.none\" is not defined"
+  },
+  "route": "/daemon/settings/{key}",
+  "status": 404
+}

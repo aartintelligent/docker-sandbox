@@ -1,0 +1,9 @@
+{
+  "method": "DELETE",
+  "request": null,
+  "response": {
+    "message": "sandbox \"audit-w\" deleted"
+  },
+  "route": "/sandbox/{name}",
+  "status": 200
+}

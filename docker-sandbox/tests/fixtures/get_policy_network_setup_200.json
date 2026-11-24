@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "needed": false
+  },
+  "route": "/policy/network/setup",
+  "status": 200
+}

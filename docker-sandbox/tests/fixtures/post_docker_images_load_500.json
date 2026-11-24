@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "request": "docker-sbx audit probe\n",
+  "response": {
+    "message": "failed to complete image load"
+  },
+  "route": "/docker/images/load",
+  "status": 500
+}

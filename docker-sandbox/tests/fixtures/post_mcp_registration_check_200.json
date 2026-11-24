@@ -1,0 +1,49 @@
+{
+  "method": "POST",
+  "request": {
+    "spec": {
+      "CallbackPort": 0,
+      "Command": [
+        "/home/user/workspace/user/sbx-audit/target/debug/audit",
+        "mcp-echo"
+      ],
+      "Cwd": "",
+      "DisableHTTP2": false,
+      "Env": null,
+      "EnvOverride": null,
+      "GatewayBackend": "",
+      "GatewayCPURL": "",
+      "GatewayEndpoint": "",
+      "GatewayFarRequiresOAuth": false,
+      "GatewayFarURL": "",
+      "GatewayServers": null,
+      "HTTPPath": "",
+      "HTTPPort": 0,
+      "HTTPTransport": "",
+      "Headers": null,
+      "Image": "",
+      "Name": "audit-echo",
+      "OAuthOverride": null,
+      "OAuthProviders": null,
+      "OAuthRequestedScopes": null,
+      "OAuthResourceOverride": "",
+      "RegistryURL": "",
+      "RemoteTransport": "",
+      "RequiresOAuth": false,
+      "ResolvedCommand": "/home/user/workspace/user/sbx-audit/target/debug/audit",
+      "SSRFCheckFailed": false,
+      "SSRFCheckReason": "",
+      "SecretEnv": null,
+      "SharedGatewayOwner": "",
+      "SharedGatewayURL": "",
+      "Type": "local",
+      "URL": ""
+    }
+  },
+  "response": {
+    "allowed": true,
+    "name": "audit-echo"
+  },
+  "route": "/mcp/registration/check",
+  "status": 200
+}

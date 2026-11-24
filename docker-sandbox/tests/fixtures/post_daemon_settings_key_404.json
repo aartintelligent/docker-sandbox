@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "request": {
+    "value": "<redacted:1>"
+  },
+  "response": {
+    "message": "setting \"zz.audit.none\" is not defined"
+  },
+  "route": "/daemon/settings/{key}",
+  "status": 404
+}

@@ -1,0 +1,10 @@
+{
+  "method": "POST",
+  "request": {},
+  "response": {
+    "code": "invalid_input",
+    "message": "docker_name_override is required; recreate-on-kit-add derives <runtimeName>-swap-<rand>"
+  },
+  "route": "/sandbox/{name}/swap-container",
+  "status": 400
+}

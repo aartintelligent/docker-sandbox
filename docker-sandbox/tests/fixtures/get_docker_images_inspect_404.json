@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "message": "no image \"zz-audit-none:latest\""
+  },
+  "route": "/docker/images/inspect",
+  "status": 404
+}

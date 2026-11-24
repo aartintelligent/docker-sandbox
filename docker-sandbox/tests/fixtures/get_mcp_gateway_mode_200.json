@@ -1,0 +1,11 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "decision": "local",
+    "gateway_url": "none",
+    "reason": "sbx always uses the local MCP gateway"
+  },
+  "route": "/mcp/gateway-mode",
+  "status": 200
+}

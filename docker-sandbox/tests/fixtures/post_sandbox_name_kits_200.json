@@ -1,0 +1,124 @@
+{
+  "method": "POST",
+  "request": {
+    "kit_artifact": {
+      "commands": {
+        "install": [
+          {
+            "command": "env -i PATH=\"$PATH\" HOME=\"$HOME\" USER=\"$USER\" TERM=\"$TERM\" HTTP_PROXY=\"$HTTP_PROXY\" HTTPS_PROXY=\"$HTTPS_PROXY\" NO_PROXY=\"$NO_PROXY\" http_proxy=\"$http_proxy\" https_proxy=\"$https_proxy\" no_proxy=\"$no_proxy\" SSL_CERT_FILE=\"$SSL_CERT_FILE\" SSL_CERT_DIR=\"$SSL_CERT_DIR\" REQUESTS_CA_BUNDLE=\"$REQUESTS_CA_BUNDLE\" CURL_CA_BUNDLE=\"$CURL_CA_BUNDLE\" NODE_EXTRA_CA_CERTS=\"$NODE_EXTRA_CA_CERTS\" sh -c 'echo \"audit-mixin-v3 installed\" > /home/agent/audit-mixin.txt'",
+            "description": "Writes a marker file",
+            "user": "agent"
+          }
+        ]
+      },
+      "kitUsage": {
+        "kit_identifier": "unknown",
+        "source_type": "local-dir"
+      },
+      "manifest": {
+        "description": "Test mixin of the docker-sbx audit, writes a marker file at install time.",
+        "displayName": "Audit mixin v3",
+        "kind": "mixin",
+        "name": "audit-mixin-v3",
+        "schemaVersion": "3",
+        "template": "sbx-kit-src:spec-fa77e12c00c8"
+      },
+      "v3": {
+        "capabilities": [
+          {
+            "config": {
+              "install": [
+                {
+                  "command": "echo \"audit-mixin-v3 installed\" > /home/agent/audit-mixin.txt",
+                  "description": "Writes a marker file",
+                  "user": "agent"
+                }
+              ]
+            },
+            "type": "com.docker.sandbox/lifecycle@1"
+          }
+        ],
+        "description": "Test mixin of the docker-sbx audit, writes a marker file at install time.",
+        "displayName": "Audit mixin v3",
+        "kind": "mixin",
+        "schemaVersion": "3",
+        "version": "0.1.0"
+      },
+      "v3Digest": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
+      "v3Effective": {
+        "capabilities": [
+          {
+            "config": {
+              "install": [
+                {
+                  "command": [
+                    "sh",
+                    "-c",
+                    "echo \"audit-mixin-v3 installed\" > /home/agent/audit-mixin.txt"
+                  ],
+                  "description": "Writes a marker file",
+                  "user": "agent"
+                }
+              ]
+            },
+            "type": "com.docker.sandbox/lifecycle@1"
+          }
+        ],
+        "description": "Test mixin of the docker-sbx audit, writes a marker file at install time.",
+        "displayName": "Audit mixin v3",
+        "kind": "mixin",
+        "schemaVersion": "3",
+        "version": "0.1.0"
+      },
+      "v3Reference": "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3",
+      "v3Selection": {
+        "capabilities": [
+          {
+            "config": {
+              "install": [
+                {
+                  "command": "echo \"audit-mixin-v3 installed\" > /home/agent/audit-mixin.txt",
+                  "description": "Writes a marker file",
+                  "user": "agent"
+                }
+              ]
+            },
+            "source": {
+              "kit": "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3",
+              "path": "capabilities[0]"
+            },
+            "type": "com.docker.sandbox/lifecycle@1"
+          }
+        ],
+        "selected": [
+          {
+            "decisions": [
+              {
+                "accepted": true
+              }
+            ],
+            "memberSources": [
+              {
+                "kit": "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3",
+                "path": "capabilities[0]"
+              }
+            ],
+            "members": [
+              "capabilities[0]"
+            ],
+            "path": "capabilities[0]",
+            "source": {
+              "kit": "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3",
+              "path": "capabilities[0]"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "response": {
+    "message": "kit \"audit-mixin-v3\" added to sandbox \"audit-p\""
+  },
+  "route": "/sandbox/{name}/kits",
+  "status": 200
+}

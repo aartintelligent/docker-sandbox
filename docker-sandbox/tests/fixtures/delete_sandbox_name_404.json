@@ -1,0 +1,9 @@
+{
+  "method": "DELETE",
+  "request": null,
+  "response": {
+    "message": "sandbox \"zz-audit-none\" not found"
+  },
+  "route": "/sandbox/{name}",
+  "status": 404
+}

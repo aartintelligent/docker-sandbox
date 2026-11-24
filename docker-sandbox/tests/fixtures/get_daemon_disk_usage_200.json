@@ -1,0 +1,81 @@
+{
+  "method": "GET",
+  "request": null,
+  "response": {
+    "containers": [],
+    "images": [
+      {
+        "containers": 0,
+        "created_at": "2026-11-24T16:40:49.758090207Z",
+        "id": "sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245",
+        "names": [
+          "docker.io/library/sandbox-kit-assembled:abcb8e131d141d15",
+          "docker.io/sbx/claude@sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245"
+        ],
+        "shared_size": 26359,
+        "size": 1553662206,
+        "unique_size": 1553635847
+      },
+      {
+        "containers": 0,
+        "created_at": "2026-11-24T18:05:17.985405567Z",
+        "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "names": [
+          "docker.io/library/sandbox-kit-assembled:c1400a176754093d",
+          "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d"
+        ],
+        "shared_size": 11445,
+        "size": 1022536530,
+        "unique_size": 1022525085
+      },
+      {
+        "containers": 0,
+        "created_at": "2026-11-23T15:50:28.265723834Z",
+        "id": "sha256:33135a6168ddd0844f195a8b69c9704c57bbecec9a53a9e885f04fab655933bc",
+        "names": [
+          "docker.io/sbx/claude@sha256:33135a6168ddd0844f195a8b69c9704c57bbecec9a53a9e885f04fab655933bc"
+        ],
+        "shared_size": 26359,
+        "size": 1553528920,
+        "unique_size": 1553502561
+      },
+      {
+        "containers": 0,
+        "created_at": "2026-11-23T15:58:39.169280398Z",
+        "id": "sha256:f3c1b4f30c801e014735efbd300e16853cc21988dcd1ffcd9383c96389234c83",
+        "names": [
+          "docker.io/sbx/shell@sha256:f3c1b4f30c801e014735efbd300e16853cc21988dcd1ffcd9383c96389234c83"
+        ],
+        "shared_size": 11445,
+        "size": 1022466632,
+        "unique_size": 1022455187
+      }
+    ],
+    "summaries": [
+      {
+        "active": 0,
+        "reclaimable": 5152156484,
+        "size": 5152156484,
+        "total_count": 4,
+        "type": "Images"
+      },
+      {
+        "active": 0,
+        "reclaimable": 0,
+        "size": 0,
+        "total_count": 0,
+        "type": "Containers"
+      },
+      {
+        "active": 0,
+        "reclaimable": 0,
+        "size": 0,
+        "total_count": 0,
+        "type": "Local Volumes"
+      }
+    ],
+    "volumes": []
+  },
+  "route": "/daemon/disk-usage",
+  "status": 200
+}
