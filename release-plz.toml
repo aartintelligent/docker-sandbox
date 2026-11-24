@@ -1,0 +1,59 @@
+# ------------------------------------------------------------------------------
+# release-plz — automated release PRs, changelogs and tags.
+#
+# Nothing is published to crates.io yet (`publish = false`, as in Cargo.toml):
+# releases are git tags, GitHub releases and `docker-sandbox/CHANGELOG.md`,
+# written on behalf of `docker-sandbox`. Entries come from conventional commits: `feat`, `fix`,
+# `perf`, `doc`, `refactor`, `deprecate` and `revert` are grouped under Keep a
+# Changelog headings; `chore`, `ci`, `build`, `test` and `style` are skipped.
+# Reference: https://release-plz.dev/docs/config
+# ------------------------------------------------------------------------------
+
+[workspace]
+changelog_update    = false
+dependencies_update = false
+git_release_enable  = true
+git_tag_enable      = true
+pr_labels           = ["release"]
+publish             = false
+# Only the commit types that appear in the changelog open a release.
+release_commits = '^(feat|fix|perf|refactor|docs|deprecate|revert)(\(|!|:)'
+release_always  = false
+# The semver check compares with crates.io, where nothing is published yet.
+semver_check = false
+
+# Changelog preamble and the commit-message to section mapping.
+[changelog]
+header = """# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+"""
+commit_parsers = [
+    { message = "^feat", group = "Added" },
+    { message = "^fix", group = "Fixed" },
+    { message = "^perf", group = "Performance" },
+    { message = "^doc", group = "Documentation" },
+    { message = "^refactor", group = "Changed" },
+    { message = "^deprecate", group = "Deprecated" },
+    { message = "^(chore|ci|build|test|style)", skip = true },
+    { message = "^revert", group = "Reverted" },
+    { body = ".*security", group = "Security" },
+]
+
+# The library owns the changelog; the commits of the audit tool feed it too,
+# since they change what the library is validated against.
+[[package]]
+name              = "docker-sandbox"
+changelog_update  = true
+changelog_include = ["audit"]
+
+# The audit tool is a member that is never published, versioned or tagged.
+# `publish = false` is repeated here: release-plz checks every member's
+# manifest against its configuration before it honours `release`.
+[[package]]
+name    = "audit"
+publish = false
+release = false

@@ -1,0 +1,22 @@
+# ------------------------------------------------------------------------------
+# typos — source-code spell checker, run by the `typos` CI job.
+#
+# Generated files are excluded: the lockfile, the changelog, and the audit
+# snapshots and fixtures, which hold the daemon's own spelling (hashes, ids).
+# False positives go in `[default.extend-words]`.
+# Reference: https://github.com/crate-ci/typos
+# ------------------------------------------------------------------------------
+
+[files]
+extend-exclude = [
+    "target/",
+    "Cargo.lock",
+    "CHANGELOG.md",
+    "audit/snapshots/",
+    "docker-sandbox/tests/fixtures/",
+]
+
+# Add false positives here, e.g. `ser = "ser"`.
+[default.extend-words]
+# The `flate2` crate.
+flate = "flate"

@@ -1,0 +1,21 @@
+# ------------------------------------------------------------------------------
+# git — files that never belong in the repository.
+# ------------------------------------------------------------------------------
+
+# Build output, including the scratch output of the audit tool
+# (`target/audit`).
+target/
+
+# IDE and agent state.
+/.idea/
+/.vscode/
+*.iml
+/.claude/settings.local.json
+
+# OS metadata.
+.DS_Store
+Thumbs.db
+
+# Coverage reports.
+/lcov.info
+/coverage/
