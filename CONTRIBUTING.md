@@ -251,7 +251,8 @@ the squash commit). Fill in the template; `CI OK` must be green.
 
 [release-plz](https://release-plz.dev) opens a release pull request from the
 Conventional Commits on `main`; merging it tags the version and creates the
-GitHub release. Nothing is published to crates.io yet (`publish = false`).
+GitHub release. Nothing is published to crates.io yet (`publish = false`): the
+versions come from the `v<version>` git tags (`git_only` in `release-plz.toml`).
 
 ## License
 

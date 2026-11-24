@@ -6,12 +6,18 @@
 # written on behalf of `docker-sandbox`. Entries come from conventional commits: `feat`, `fix`,
 # `perf`, `doc`, `refactor`, `deprecate` and `revert` are grouped under Keep a
 # Changelog headings; `chore`, `ci`, `build`, `test` and `style` are skipped.
+#
+# Versions come from the git tags (`git_only`): outside that mode release-plz
+# reads them from crates.io and leaves out every package whose manifest says
+# `publish = false`, so it would never release anything. Publishing to crates.io
+# later means dropping `git_only`, which cannot be combined with `publish = true`.
 # Reference: https://release-plz.dev/docs/config
 # ------------------------------------------------------------------------------
 
 [workspace]
 changelog_update    = false
 dependencies_update = false
+git_only            = true
 git_release_enable  = true
 git_tag_enable      = true
 pr_labels           = ["release"]
@@ -44,16 +50,26 @@ commit_parsers = [
 ]
 
 # The library owns the changelog; the commits of the audit tool feed it too,
-# since they change what the library is validated against.
+# since they change what the library is validated against. It is the only
+# package released: its tags are pinned to `v<version>`, since the default
+# format depends on how many members release-plz counts as public.
 [[package]]
 name              = "docker-sandbox"
-changelog_update  = true
 changelog_include = ["audit"]
+changelog_update  = true
+git_tag_name      = "v{{ version }}"
 
 # The audit tool is a member that is never published, versioned or tagged.
 # `publish = false` is repeated here: release-plz checks every member's
 # manifest against its configuration before it honours `release`.
 [[package]]
 name    = "audit"
+publish = false
+release = false
+
+# The program the live tests run inside sandboxes, the same: git-only mode
+# would otherwise tag it, since it releases `publish = false` members too.
+[[package]]
+name    = "live-probe"
 publish = false
 release = false
