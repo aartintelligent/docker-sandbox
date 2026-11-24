@@ -1,0 +1,22 @@
+# ------------------------------------------------------------------------------
+# example-agent-opencode-mcp — OpenCode in a throw-away sandbox, with the MCP server of the examples.
+#
+# Run it with `just example agent-opencode-mcp`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-agent-opencode-mcp"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+example-common = { workspace = true }
+tokio          = { workspace = true }

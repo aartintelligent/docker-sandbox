@@ -1,0 +1,27 @@
+# ------------------------------------------------------------------------------
+# example-mcp-dynamic — an MCP server added from inside a sandbox, through the
+# tools of its MCP gateway.
+#
+# Run it with `just example mcp-dynamic`. It builds the MCP client it runs in
+# the sandbox for the musl target of the sandbox platform, which must be
+# installed: `rustup target add x86_64-unknown-linux-musl`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-mcp-dynamic"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+serde_json     = { workspace = true }
+tokio          = { workspace = true }

@@ -1,0 +1,100 @@
+# ------------------------------------------------------------------------------
+# examples — a workspace of its own, one crate per example, as in axum.
+#
+# Every example is a binary crate named `example-<directory>` that depends on
+# the library by path; `common` holds what several of them share. Keeping the
+# examples out of the main workspace keeps their dependencies (terminal, MCP
+# server) out of the lockfile, the dependency policy and the MSRV of the
+# library. Run one with `just example <name>`.
+# ------------------------------------------------------------------------------
+
+[workspace]
+members  = ["*"]
+exclude  = ["target"]
+resolver = "3"
+
+# Metadata inherited by every example through `<key>.workspace = true`.
+[workspace.package]
+edition      = "2024"
+license      = "MIT OR Apache-2.0"
+publish      = false
+rust-version = "1.88"
+version      = "0.1.0"
+
+# ------------------------------------------------------------------------------
+# Workspace dependencies — every version is declared here exactly once.
+# ------------------------------------------------------------------------------
+
+[workspace.dependencies]
+# The library, with the kit compiler: the examples compile the kits they run
+# once with the `sbx` CLI, then drive the daemon through the socket alone.
+docker-sandbox = { path = "../docker-sandbox", features = ["kit-compiler"] }
+
+# What the examples share: kit cache, throw-away sandboxes, terminal relay,
+# agent credentials, and the MCP servers and in-sandbox client of the MCP
+# examples.
+example-common = { path = "common" }
+
+# Error handling of the example programs.
+anyhow = "1"
+
+# Byte buffers of the HTTP MCP server of `common` and of `sandbox-tools`.
+bytes = "1"
+
+# HTTP/1.1 server of `common` under rmcp's streamable HTTP service: the remote
+# MCP server of the examples, which checks a bearer token before rmcp sees the
+# request. HTTP/1.1 only, enough for the gateway. `sandbox-tools` serves files
+# with it, and adds the `client` feature for its requests through the proxy of
+# the sandbox.
+http-body-util = "0.1"
+hyper          = { version = "1", features = ["http1", "server"] }
+hyper-util     = { version = "0.1", features = ["tokio"] }
+
+# Raw mode and size of the local terminal, for the interactive examples.
+crossterm = "0.29"
+
+# MCP, with the default features off: the tool macros and the stdio server
+# used by every MCP example. `common` adds the streamable HTTP server, and
+# `mcp-client` the client over streamable HTTP with reqwest — no TLS: the
+# gateway of a sandbox is plain HTTP, and a static musl build needs no C
+# library.
+rmcp = { version = "3.11", default-features = false, features = [
+    "macros",
+    "server",
+    "transport-io",
+] }
+
+# Request types of the MCP tools.
+serde = { version = "1", features = ["derive"] }
+
+# The JSON events streamed by the agents of the automation examples, and the
+# lines the MCP client prints.
+serde_json = "1"
+
+# Async runtime of the example programs.
+tokio = { version = "1", features = ["full"] }
+
+# ------------------------------------------------------------------------------
+# Quality gates — the policy of the main workspace, with printing allowed:
+# examples are programs that report on the terminal.
+# ------------------------------------------------------------------------------
+
+[workspace.lints.rust]
+missing_debug_implementations = "warn"
+missing_docs                  = "warn"
+rust_2018_idioms              = { level = "warn", priority = -1 }
+unreachable_pub               = "warn"
+unsafe_code                   = "forbid"
+unused_qualifications         = "warn"
+
+[workspace.lints.clippy]
+all                     = { level = "warn", priority = -1 }
+pedantic                = { level = "warn", priority = -1 }
+dbg_macro               = "warn"
+module_name_repetitions = "allow"
+todo                    = "warn"
+unimplemented           = "warn"
+unwrap_used             = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"

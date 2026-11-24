@@ -1,0 +1,27 @@
+# ------------------------------------------------------------------------------
+# example-mcp-remote — a remote MCP server over streamable HTTP, reached with
+# a credential that the sandbox never sees.
+#
+# Run it with `just example mcp-remote`. It builds the MCP client it runs in
+# the sandbox for the musl target of the sandbox platform, which must be
+# installed: `rustup target add x86_64-unknown-linux-musl`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-mcp-remote"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+serde_json     = { workspace = true }
+tokio          = { workspace = true }

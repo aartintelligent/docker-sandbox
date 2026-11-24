@@ -1,0 +1,23 @@
+# ------------------------------------------------------------------------------
+# example-base — the first steps: connect, list, create a sandbox, run a command, delete it.
+#
+# Run it with `just example base`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-base"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+tokio          = { workspace = true }

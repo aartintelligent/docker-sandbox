@@ -1,0 +1,23 @@
+# ------------------------------------------------------------------------------
+# example-shell-ports — a web server in a shell sandbox, published on a port of the host.
+#
+# Run it with `just example shell-ports`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-shell-ports"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+tokio          = { workspace = true }

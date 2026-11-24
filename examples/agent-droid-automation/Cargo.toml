@@ -1,0 +1,24 @@
+# ------------------------------------------------------------------------------
+# example-agent-droid-automation — Droid run unattended on a task, its work checked by
+# the task's own tests.
+#
+# Run it with `just example agent-droid-automation`, or `just example agent-droid-automation <prompt>`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-agent-droid-automation"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+tokio          = { workspace = true }

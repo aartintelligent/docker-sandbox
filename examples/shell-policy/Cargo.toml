@@ -1,0 +1,25 @@
+# ------------------------------------------------------------------------------
+# example-shell-policy — the policy beyond the hosts of one sandbox: global
+# rules, protocols, removals by identifier, failures inside a success, host
+# path permissions and approval prompts.
+#
+# Run it with `just example shell-policy`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-shell-policy"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+tokio          = { workspace = true }

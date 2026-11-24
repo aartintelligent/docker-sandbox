@@ -1,0 +1,25 @@
+# ------------------------------------------------------------------------------
+# example-shell-lifecycle — the life of a shell sandbox step by step: refused
+# and streamed creation, sessions, start and stop, ports, working directory,
+# guarded deletion, and the errors of the daemon.
+#
+# Run it with `just example shell-lifecycle`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-shell-lifecycle"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+tokio          = { workspace = true }

@@ -1,0 +1,25 @@
+# ------------------------------------------------------------------------------
+# example-shell-templates — a shell sandbox saved as an image, a new sandbox
+# created from it, and the image exported to a file and loaded back.
+#
+# Run it with `just example shell-templates`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-shell-templates"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+serde_json     = { workspace = true }
+tokio          = { workspace = true }

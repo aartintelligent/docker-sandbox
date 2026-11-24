@@ -1,0 +1,23 @@
+# ------------------------------------------------------------------------------
+# example-shell-exec — commands in a shell sandbox: outputs, exit codes, users, environment, deadlines, standard input.
+#
+# Run it with `just example shell-exec`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-shell-exec"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+tokio          = { workspace = true }

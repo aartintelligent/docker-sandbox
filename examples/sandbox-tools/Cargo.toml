@@ -1,0 +1,30 @@
+# ------------------------------------------------------------------------------
+# example-sandbox-tools — the programs the examples run inside a sandbox, in
+# one static binary built with hyper: a static web server, and an HTTP client
+# that goes through the proxy of the sandbox.
+#
+# `shell-ports` serves a page with it, `shell-secrets` sends the placeholders
+# of its secrets to a public echo service; `common/src/program.rs` builds it
+# for the sandbox and copies it there.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-sandbox-tools"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+bytes          = { workspace = true }
+http-body-util = { workspace = true }
+# The client side of hyper too, for `get`.
+hyper      = { workspace = true, features = ["client"] }
+hyper-util = { workspace = true }
+tokio      = { workspace = true }

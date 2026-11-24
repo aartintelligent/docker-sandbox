@@ -1,0 +1,24 @@
+# ------------------------------------------------------------------------------
+# example-shell-ssh — SSH into a shell sandbox through the socket: the tunnel
+# of the library, relayed to the SSH client of the system.
+#
+# Run it with `just example shell-ssh`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-shell-ssh"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+tokio          = { workspace = true }

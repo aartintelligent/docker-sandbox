@@ -1,0 +1,32 @@
+# ------------------------------------------------------------------------------
+# example-common — what the examples share: connection, kit cache, throw-away
+# sandboxes, terminal relay, agent credentials, and the MCP servers and client
+# of the MCP examples.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-common"
+description            = "Shared helpers of the docker-sandbox examples"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+bytes          = { workspace = true }
+crossterm      = { workspace = true }
+docker-sandbox = { workspace = true }
+http-body-util = { workspace = true }
+hyper          = { workspace = true }
+hyper-util     = { workspace = true }
+# The MCP server of the examples, also over streamable HTTP.
+rmcp       = { workspace = true, features = ["transport-streamable-http-server"] }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+tokio      = { workspace = true }

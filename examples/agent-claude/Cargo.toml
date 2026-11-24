@@ -1,0 +1,22 @@
+# ------------------------------------------------------------------------------
+# example-agent-claude — Claude Code in a throw-away sandbox.
+#
+# Run it with `just example agent-claude`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-agent-claude"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+example-common = { workspace = true }
+tokio          = { workspace = true }

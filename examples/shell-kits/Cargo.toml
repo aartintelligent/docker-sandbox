@@ -1,0 +1,25 @@
+# ------------------------------------------------------------------------------
+# example-shell-kits — a mixin kit added to running shell sandboxes, in place
+# and by a swap of the container.
+#
+# Run it with `just example shell-kits`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-shell-kits"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+serde_json     = { workspace = true }
+tokio          = { workspace = true }
