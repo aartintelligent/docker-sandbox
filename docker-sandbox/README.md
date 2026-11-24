@@ -106,9 +106,9 @@ without an MCP server.
 
 ## Repository
 
-This crate is the library of the [docker-sbx](../README.md) repository, next
-to its examples and the audit tool that keeps the map of the daemon API. The
-audit's [README](../audit/README.md) is the workflow to follow when `sbx`
+This crate is the library of the [docker-sandbox](../README.md) repository,
+next to its examples and the audit tool that keeps the map of the daemon API.
+The audit's [README](../audit/README.md) is the workflow to follow when `sbx`
 changes.
 
 ## Documentation

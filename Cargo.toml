@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# docker-sbx — the workspace manifest: its member list, shared package
+# docker-sandbox — the workspace manifest: its member list, shared package
 # metadata, the single source of truth for dependency versions, the lint policy
 # every member inherits, and the release build profile.
 #

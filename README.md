@@ -1,4 +1,4 @@
-# docker-sbx
+# docker-sandbox
 
 [![Crates.io](https://img.shields.io/crates/v/docker-sandbox.svg)](https://crates.io/crates/docker-sandbox)
 [![docs.rs](https://img.shields.io/docsrs/docker-sandbox)](https://docs.rs/docker-sandbox)
