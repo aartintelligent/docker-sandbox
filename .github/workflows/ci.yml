@@ -50,6 +50,7 @@ jobs:
       pull-requests: read
     outputs:
       library: ${{ steps.areas.outputs.library }}
+      coverage: ${{ steps.areas.outputs.coverage }}
       rust: ${{ steps.areas.outputs.rust }}
       examples: ${{ steps.areas.outputs.examples }}
       audit-data: ${{ steps.areas.outputs.audit-data }}
@@ -81,6 +82,9 @@ jobs:
           # its changelog nothing that compiles.
           library="$shared|^docker-sandbox/(Cargo\.toml|README\.md)$|^docker-sandbox/(src|tests)/"
           area library "$library"
+          # What Codecov reports on: the library, and its own configuration,
+          # applied to the upload of the pull request that changes it.
+          area coverage "$library|^codecov\.yml$"
           area rust "$library|^audit/Cargo\.toml$|^audit/(src|assets)/"
           area examples "$shared|^examples/|^docker-sandbox/Cargo\.toml$|^docker-sandbox/src/"
           # What the privacy check reads: the audit data, and the files of the
@@ -187,7 +191,7 @@ jobs:
   coverage:
     name: Coverage
     needs: changes
-    if: needs.changes.outputs.library == 'true'
+    if: needs.changes.outputs.coverage == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # `id-token` lets the upload authenticate through OIDC, without a token
