@@ -5,46 +5,37 @@
     {
       "agent": "shell",
       "created_at": "2026-11-19T17:01:03Z",
-      "digest": "sha256:1936ccbe44e1d5a0475baf48b21da44eb0840e46263d659ce21d15b71b763fcf",
-      "id": "sha256:1936ccbe44e1d5a0475baf48b21da44eb0840e46263d659ce21d15b71b763fcf",
+      "digest": "sha256:86c259982cf8a5064329905f1923a4934cc0f23c5a8113dff8ad6980dc4a49d9",
+      "id": "sha256:86c259982cf8a5064329905f1923a4934cc0f23c5a8113dff8ad6980dc4a49d9",
       "repository": "docker.io/library/sandbox-kit-assembled",
-      "size": 229663595,
-      "tag": "652f680878198c72"
+      "size": 229782507,
+      "tag": "431da9a5fb8d6af9"
     },
     {
       "agent": "shell",
       "created_at": "2026-11-19T17:01:03Z",
-      "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
-      "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+      "id": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
       "repository": "docker.io/library/sandbox-kit-assembled",
-      "size": 229758983,
-      "tag": "652f680878198c72-kit-0"
+      "size": 229877895,
+      "tag": "431da9a5fb8d6af9-kit-0"
     },
     {
-      "created_at": "2026-11-24T18:16:06Z",
-      "digest": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
-      "id": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
+      "created_at": "2026-11-25T00:22:26Z",
+      "digest": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
+      "id": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
       "repository": "docker.io/library/sandbox-kit-assembled",
       "size": 6077,
-      "tag": "652f680878198c72-kit-1"
+      "tag": "431da9a5fb8d6af9-kit-1"
     },
     {
       "agent": "shell",
       "created_at": "2026-11-19T17:01:03Z",
-      "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
-      "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+      "id": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
       "repository": "docker.io/library/sandbox-kit-assembled",
-      "size": 229758983,
-      "tag": "652f680878198c72-template"
-    },
-    {
-      "agent": "shell",
-      "created_at": "2026-11-24T18:15:15Z",
-      "digest": "sha256:e7d95d532345308576847721a07c0e3d98777e8b10472a4fcd41903e1077f4f5",
-      "id": "sha256:e7d95d532345308576847721a07c0e3d98777e8b10472a4fcd41903e1077f4f5",
-      "repository": "docker.io/library/sandbox-kit-assembled",
-      "size": 230131795,
-      "tag": "9d427a999698531e"
+      "size": 229877895,
+      "tag": "431da9a5fb8d6af9-template"
     },
     {
       "agent": "claude",
@@ -65,9 +56,27 @@
       "tag": "c1400a176754093d"
     },
     {
-      "created_at": "2026-11-24T18:16:06Z",
-      "digest": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
-      "id": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
+      "agent": "shell",
+      "created_at": "2026-11-25T00:21:35Z",
+      "digest": "sha256:5251e696feab778ead7cc5f6bc7bd8063faedd0ba045128bf0042f4047481969",
+      "id": "sha256:5251e696feab778ead7cc5f6bc7bd8063faedd0ba045128bf0042f4047481969",
+      "repository": "docker.io/library/sandbox-kit-assembled",
+      "size": 230250725,
+      "tag": "f184372adc805314"
+    },
+    {
+      "agent": "shell",
+      "created_at": "2026-11-19T17:01:03Z",
+      "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+      "id": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+      "repository": "docker.io/library/sandbox-kit-assembled",
+      "size": 229877895,
+      "tag": "fe5b2d2d76ca72cb"
+    },
+    {
+      "created_at": "2026-11-25T00:22:26Z",
+      "digest": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
+      "id": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
       "repository": "docker.io/library/sbx-kit-src",
       "size": 6077,
       "tag": "spec-fa77e12c00c8"
@@ -75,11 +84,11 @@
     {
       "agent": "shell",
       "created_at": "2026-11-19T17:01:03Z",
-      "digest": "sha256:999335ea5cb0fdad1fc16a0fcd2694afc2b23fed311f77854f42db699ae9f2b0",
-      "id": "sha256:999335ea5cb0fdad1fc16a0fcd2694afc2b23fed311f77854f42db699ae9f2b0",
+      "digest": "sha256:59426eef5d2879fd910879057bc0ffd26077972d51b7eea3989cf8f0d1196ee6",
+      "id": "sha256:59426eef5d2879fd910879057bc0ffd26077972d51b7eea3989cf8f0d1196ee6",
       "repository": "docker.io/sandboxes-swap/audit-a",
-      "size": 229806594,
-      "tag": "f20cabc9"
+      "size": 229925482,
+      "tag": "374d60cc"
     },
     {
       "agent": "claude",
@@ -100,6 +109,14 @@
     {
       "agent": "shell",
       "created_at": "2026-11-19T17:01:03Z",
+      "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "repository": "docker.io/sbx/shell",
+      "size": 229758983
+    },
+    {
+      "agent": "shell",
+      "created_at": "2026-11-19T17:01:03Z",
       "digest": "sha256:f3c1b4f30c801e014735efbd300e16853cc21988dcd1ffcd9383c96389234c83",
       "id": "sha256:f3c1b4f30c801e014735efbd300e16853cc21988dcd1ffcd9383c96389234c83",
       "repository": "docker.io/sbx/shell",
@@ -108,10 +125,10 @@
     {
       "agent": "shell",
       "created_at": "2026-11-19T17:01:03Z",
-      "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
-      "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+      "id": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
       "repository": "docker.io/sbx/shell",
-      "size": 229758983,
+      "size": 229877895,
       "tag": "latest"
     }
   ],

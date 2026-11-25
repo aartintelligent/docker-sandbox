@@ -1,0 +1,44 @@
+{
+  "api_version": "0.52.0",
+  "audited_on": "2026-11-25",
+  "contract": {
+    "exchanges": 1197,
+    "observed": 63,
+    "operations": 64,
+    "unmatched": 0
+  },
+  "events": 140,
+  "routes": 53,
+  "sbx_version": "v0.54.1",
+  "suites": [
+    {
+      "name": "lifecycle",
+      "scenarios": 43
+    },
+    {
+      "name": "coverage",
+      "scenarios": 39
+    },
+    {
+      "name": "templates",
+      "scenarios": 12
+    },
+    {
+      "name": "sessions",
+      "scenarios": 55
+    },
+    {
+      "name": "kits",
+      "scenarios": 17
+    },
+    {
+      "name": "errors",
+      "scenarios": 48
+    },
+    {
+      "name": "agents",
+      "scenarios": 28
+    }
+  ],
+  "tool_version": "0.1.0"
+}

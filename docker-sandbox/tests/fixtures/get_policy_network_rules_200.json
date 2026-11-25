@@ -80,11 +80,11 @@
         "applies_to": "sandbox:audit-s",
         "decision": "deny",
         "editable": true,
-        "id": "8b484bba-ba44-4530-b550-0f87dd5863e2",
+        "id": "9d2ef6ea-029f-4828-969a-7768a148dc98",
         "layer": "local",
-        "name": "8b484bba-ba44-4530-b550-0f87dd5863e2",
+        "name": "9d2ef6ea-029f-4828-969a-7768a148dc98",
         "origin": "scoped",
-        "policy_id": "5a76121b-ffdb-4cdf-b142-bbbbb5ff2643",
+        "policy_id": "e729ca27-46bd-47c4-aca8-74ff34ab3d06",
         "provenance": {
           "created_via": "added"
         },
