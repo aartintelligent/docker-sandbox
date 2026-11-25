@@ -34,7 +34,7 @@ repository = "https://github.com/aartintelligent/docker-sandbox"
 # rust-toolchain.toml pins the newer development toolchain used locally and by
 # every other CI job.
 rust-version = "1.88"
-version      = "0.1.0"
+version      = "0.1.1"
 
 # ------------------------------------------------------------------------------
 # Workspace dependencies — every version is declared here exactly once; members
@@ -44,7 +44,7 @@ version      = "0.1.0"
 [workspace.dependencies]
 # The library, used by `audit` through its path; release-plz raises the
 # `version` with each release of the crate.
-docker-sandbox = { version = "0.1.0", path = "docker-sandbox" }
+docker-sandbox = { version = "0.1.1", path = "docker-sandbox" }
 
 # Serialization of the daemon payloads in the library, and of the captures and
 # snapshots of the audit.
