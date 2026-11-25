@@ -252,7 +252,10 @@ the squash commit). Fill in the template; `CI OK` must be green.
 [release-plz](https://release-plz.dev) opens a release pull request from the
 Conventional Commits on `main`; merging it publishes `docker-sandbox` to
 crates.io, tags the version (`v<version>`) and creates the GitHub release. The
-other members are never published (`publish = false`).
+other members are never published (`publish = false`). The release workflow
+also carries the new version into `examples/Cargo.lock`, the lockfile of the
+examples workspace, which release-plz does not know, with a commit of its own
+on the branch of the release pull request.
 
 crates.io trusts the release workflow (trusted publishing: `release-plz.yml`,
 environment `release`), so no crates.io token is stored. A new crate cannot be
