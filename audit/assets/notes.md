@@ -1,7 +1,8 @@
 ## Observed behaviors (not inferable from the captures)
 
-Measured on sbx v0.54.0 (api_version 0.52.0). Check them again after every
-`sbx` upgrade.
+Measured on sbx v0.54.0 (api_version 0.52.0), checked again on v0.54.1 (same
+API) by the live tests and the `shell-network` example. Check them again after
+every `sbx` upgrade.
 
 ### Life cycle and sessions
 

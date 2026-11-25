@@ -1,28 +1,15 @@
 {
   "method": "POST",
   "request": {
-    "additional_workspaces": [
-      {
-        "dir": "/tmp/docker-sandbox-audit-work/fixtures/docs",
-        "read_only": true
-      },
-      {
-        "dir": "/tmp/docker-sandbox-audit-work/fixtures/data",
-        "target": "/workspace/data"
-      },
-      {
-        "dir": "/tmp/docker-sandbox-audit-work/fixtures/mountdir/hello.txt",
-        "read_only": true
-      }
-    ],
     "agent": "shell",
     "bindings_path": "/home/user/.config/sbx/credentials.yaml",
+    "clone": true,
     "enable_virtiofs_cache": true,
     "kit_artifacts": [
       {
         "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of its own: outbound access, including the apt sources\n(deb.debian.org, dhi.io), is whatever the sandbox policy and\ncomposed kits allow. Install more with apt where that permits;\ncomposed kits list their own capabilities below.\n",
         "kitHubPublication": {
-          "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+          "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
           "repository": "sbx/shell"
         },
         "kitUsage": {
@@ -48,7 +35,7 @@
           ],
           "schemaVersion": "3",
           "sourceURL": "https://github.com/docker-hardened-images/definitions",
-          "template": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d"
+          "template": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6"
         },
         "storageSource": "oci://docker.io/sbx/shell:latest",
         "v3": {
@@ -311,7 +298,7 @@
           "sourceUrl": "https://github.com/docker-hardened-images/definitions",
           "version": "1.1.0"
         },
-        "v3Digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "v3Digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
         "v3Effective": {
           "author": "Docker, Inc. https://docker.com",
           "capabilities": [
@@ -570,7 +557,7 @@
           "exec \"$@\"",
           "bash"
         ],
-        "v3Reference": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "v3Reference": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
         "v3Selection": {
           "capabilities": [
             {
@@ -668,12 +655,12 @@
       }
     ],
     "kits": [
-      "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d"
+      "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6"
     ],
-    "name": "audit-w",
+    "name": "audit-c",
     "pull_policy": "missing",
     "ssh_agent_socket_path": "/run/user/1000/gcr/ssh",
-    "workspace": "/tmp/docker-sandbox-audit-work/fixtures/mountdir"
+    "workspace": "/tmp/docker-sandbox-audit-work/repo"
   },
   "response": {
     "ndjson": [
@@ -683,16 +670,16 @@
       {
         "result": {
           "agent": "shell",
-          "id": "948eb612-4418-4705-97f6-a8e2b143dee7",
+          "id": "a3a14bbf-80f8-4e63-a695-515d75521b26",
           "mcp": {
-            "port": 39725,
+            "port": 38067,
             "state": "ready",
             "static": false,
             "url": "http://mcp-gateway.docker.internal/mcp"
           },
-          "name": "audit-w",
+          "name": "audit-c",
           "status": "running",
-          "workspace": "/tmp/docker-sandbox-audit-work/fixtures/mountdir"
+          "workspace": "/tmp/docker-sandbox-audit-work/repo"
         }
       }
     ]

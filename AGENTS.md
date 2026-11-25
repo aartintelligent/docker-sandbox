@@ -90,9 +90,9 @@ the suites are embedded in the binary, and two suite steps run that same binary.
 
 ## The daemon
 
-- Measured on `sbx` v0.54.0, API 0.52.0. Anything about the daemon comes from an audit snapshot,
-  not from memory: a new route or field goes into a suite first, then into the library, with a
-  fixture.
+- Measured on `sbx` v0.54.1, API 0.52.0, as v0.54.0 was before it (`audit/snapshots/` keeps
+  both). Anything about the daemon comes from an audit snapshot, not from memory: a new route or
+  field goes into a suite first, then into the library, with a fixture.
 - A sandbox only stays running while a `GET /sandbox/{name}/session` stream is open, and stops about
   30 s after the last one closes. `POST /sandbox/{name}/start` is idempotent.
 - `POST /sandbox` answers HTTP 200 and reports failures inside its NDJSON stream.

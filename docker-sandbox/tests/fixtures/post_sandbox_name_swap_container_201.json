@@ -1,12 +1,12 @@
 {
   "method": "POST",
   "request": {
-    "docker_name_override": "audit-a-swap-c04fbb83",
+    "docker_name_override": "audit-a-swap-4b34ef84",
     "kit_artifacts": [
       {
         "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of its own: outbound access, including the apt sources\n(deb.debian.org, dhi.io), is whatever the sandbox policy and\ncomposed kits allow. Install more with apt where that permits;\ncomposed kits list their own capabilities below.\n",
         "kitHubPublication": {
-          "digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+          "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
           "repository": "sbx/shell"
         },
         "kitUsage": {
@@ -32,9 +32,9 @@
           ],
           "schemaVersion": "3",
           "sourceURL": "https://github.com/docker-hardened-images/definitions",
-          "template": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d"
+          "template": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6"
         },
-        "storageSource": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "storageSource": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
         "v3": {
           "author": "Docker, Inc. https://docker.com",
           "capabilities": [
@@ -295,7 +295,7 @@
           "sourceUrl": "https://github.com/docker-hardened-images/definitions",
           "version": "1.1.0"
         },
-        "v3Digest": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "v3Digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
         "v3Effective": {
           "author": "Docker, Inc. https://docker.com",
           "capabilities": [
@@ -554,12 +554,12 @@
           "exec \"$@\"",
           "bash"
         ],
-        "v3Reference": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "v3Reference": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
         "v3Selection": {
           "capabilities": [
             {
               "source": {
-                "kit": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+                "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
                 "path": "capabilities[0]"
               },
               "type": "com.docker.sandbox/sbx@1"
@@ -571,7 +571,7 @@
               },
               "optional": true,
               "source": {
-                "kit": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+                "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
                 "path": "capabilities[2]"
               },
               "type": "com.docker.sandbox/agent-context@2"
@@ -586,7 +586,7 @@
               ],
               "memberSources": [
                 {
-                  "kit": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+                  "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
                   "path": "capabilities[0]"
                 }
               ],
@@ -595,7 +595,7 @@
               ],
               "path": "capabilities[0]",
               "source": {
-                "kit": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+                "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
                 "path": "capabilities[0]"
               }
             },
@@ -607,7 +607,7 @@
               ],
               "memberSources": [
                 {
-                  "kit": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+                  "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
                   "path": "capabilities[2]"
                 }
               ],
@@ -616,7 +616,7 @@
               ],
               "path": "capabilities[2]",
               "source": {
-                "kit": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+                "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
                 "path": "capabilities[2]"
               }
             }
@@ -631,7 +631,7 @@
               ],
               "memberSources": [
                 {
-                  "kit": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+                  "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
                   "path": "capabilities[1]"
                 }
               ],
@@ -643,7 +643,7 @@
                 "capabilities[1]"
               ],
               "source": {
-                "kit": "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+                "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
                 "path": "capabilities[1]"
               }
             }
@@ -693,7 +693,7 @@
           "schemaVersion": "3",
           "version": "0.1.0"
         },
-        "v3Digest": "sha256:2c17b4feaf78217c48275470d3147b3fe0d2f523e647542ce5df1fc5104b1306",
+        "v3Digest": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
         "v3Effective": {
           "capabilities": [
             {
@@ -766,14 +766,14 @@
       }
     ],
     "kit_refs": [
-      "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+      "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
       "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3"
     ]
   },
   "response": {
-    "committed_image_id": "sha256:10f715e4ce1adb8211a8fc4e8f7bd40a9bd0861d63cc119edddc9f6c6dc531f8",
-    "container_id": "7c0071e3090e86230d05af70be02a86179dc7e3b00531284358616891aa600df",
-    "docker_name": "audit-a-swap-c04fbb83"
+    "committed_image_id": "sha256:a112ace240858f94d5774e1ee865bbda5f39999c842b23ccdf00725f02235807",
+    "container_id": "e6171664681459e164ef028d5ce5f6dcc21f1547f98399b62a6b893eb56ee2d0",
+    "docker_name": "audit-a-swap-4b34ef84"
   },
   "route": "/sandbox/{name}/swap-container",
   "status": 201

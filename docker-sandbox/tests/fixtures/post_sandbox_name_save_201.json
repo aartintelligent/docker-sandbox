@@ -4,7 +4,7 @@
     "tag": "audit-snap:v1"
   },
   "response": {
-    "image_id": "sha256:e7d95d532345308576847721a07c0e3d98777e8b10472a4fcd41903e1077f4f5",
+    "image_id": "sha256:5251e696feab778ead7cc5f6bc7bd8063faedd0ba045128bf0042f4047481969",
     "tag": "docker.io/library/audit-snap:v1"
   },
   "route": "/sandbox/{name}/save",
