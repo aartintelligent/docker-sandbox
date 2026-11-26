@@ -1109,6 +1109,415 @@
         "-f"
       ],
       "note": "a replay of part of the block finds only its own sandboxes: the others are reported missing"
+    },
+    {
+      "name": "kit-forge-base",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-g",
+        "--base-image",
+        "docker.io/sbx/shell:latest",
+        "--out",
+        "{work}/kit-forged-base",
+        "--compare",
+        "{work}/kit-package-json"
+      ],
+      "note": "a package written without the CLI at all: the base kit rebuilt from docker.io/sbx/shell:latest pulled and exported through the socket (every field the CLI writes), and audit-mixin-json-g"
+    },
+    {
+      "name": "load-forged-base",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-base/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-g-forged",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-base/create-body.json",
+        "replace": {
+          "{{name}}": "audit-g"
+        }
+      },
+      "note": "the base kit rebuilt through the socket and the forged mixin, nothing from the CLI: accepted, the install command runs, the network rule applies and the agent context of the base kit is written to /home/agent/AGENTS.md as with the compiled package"
+    },
+    {
+      "name": "session-hold-g",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-g/session",
+        "hold": "audit-g"
+      }
+    },
+    {
+      "name": "credentials-g",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-g/credentials",
+        "body": {}
+      }
+    },
+    {
+      "name": "start-g",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-g/start",
+        "body": {}
+      }
+    },
+    {
+      "name": "verify-g-forged",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-g/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json-g.txt 2>&1; ls /var/log/sbx-kits 2>&1; for f in $(find / -xdev -name AGENTS.md -not -path \"/proc/*\" 2>/dev/null); do echo \"context $f: $(head -c 60 $f)\"; done"
+          ]
+        }
+      },
+      "note": "whether the install command of the mixin ran, and where the agent context of the base kit was written"
+    },
+    {
+      "name": "policy-ls-g",
+      "category": "kit-forge-base",
+      "args": [
+        "policy",
+        "ls",
+        "audit-g"
+      ]
+    },
+    {
+      "name": "inspect-g",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-g"
+      }
+    },
+    {
+      "name": "session-release-g",
+      "category": "kit-forge-base",
+      "release": "audit-g"
+    },
+    {
+      "name": "kit-forge-base-min",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-h",
+        "--base-image",
+        "docker.io/sbx/shell:latest",
+        "--out",
+        "{work}/kit-forged-base-min",
+        "--omit-base",
+        "v3Effective,v3Selection,v3Digest,v3Reference,v3Entrypoint,storageSource,kitUsage,kitHubPublication,licenses,agentContext"
+      ],
+      "note": "a package written without the CLI at all: the base kit rebuilt from docker.io/sbx/shell:latest pulled and exported through the socket (its manifest and descriptor only), and audit-mixin-json-h"
+    },
+    {
+      "name": "load-forged-base-min",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-base-min/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-h-forged",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "expect_error": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-base-min/create-body.json",
+        "replace": {
+          "{{name}}": "audit-h"
+        }
+      },
+      "note": "refused with 400 invalid_input: without v3Effective the daemon composes the raw descriptor, whose agent-context@1 and @2 cannot compose"
+    },
+    {
+      "name": "kit-forge-base-sel",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-i",
+        "--base-image",
+        "docker.io/sbx/shell:latest",
+        "--out",
+        "{work}/kit-forged-base-sel",
+        "--omit-base",
+        "v3Digest,v3Reference,v3Entrypoint,storageSource,kitUsage,kitHubPublication,licenses,agentContext"
+      ],
+      "note": "the base kit rebuilt through the socket and kept to its manifest, descriptor, normalized descriptor and selection"
+    },
+    {
+      "name": "load-forged-base-sel",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-base-sel/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-i-forged",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-base-sel/create-body.json",
+        "replace": {
+          "{{name}}": "audit-i"
+        }
+      },
+      "note": "the base kit kept to manifest, v3, v3Effective and v3Selection: accepted"
+    },
+    {
+      "name": "session-hold-i",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-i/session",
+        "hold": "audit-i"
+      }
+    },
+    {
+      "name": "credentials-i",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-i/credentials",
+        "body": {}
+      }
+    },
+    {
+      "name": "start-i",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-i/start",
+        "body": {}
+      }
+    },
+    {
+      "name": "verify-i-forged",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-i/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json-i.txt 2>&1; ls /var/log/sbx-kits 2>&1; for f in $(find / -xdev -name AGENTS.md -not -path \"/proc/*\" 2>/dev/null); do echo \"context $f: $(head -c 60 $f)\"; done"
+          ]
+        }
+      }
+    },
+    {
+      "name": "policy-ls-i",
+      "category": "kit-forge-base",
+      "args": [
+        "policy",
+        "ls",
+        "audit-i"
+      ]
+    },
+    {
+      "name": "session-release-i",
+      "category": "kit-forge-base",
+      "release": "audit-i"
+    },
+    {
+      "name": "kit-forge-base-eff",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-j",
+        "--base-image",
+        "docker.io/sbx/shell:latest",
+        "--out",
+        "{work}/kit-forged-base-eff",
+        "--omit-base",
+        "v3Digest,v3Reference,v3Entrypoint,storageSource,kitUsage,kitHubPublication,licenses,agentContext,v3Selection"
+      ],
+      "note": "the base kit rebuilt through the socket and kept to its manifest, descriptor and normalized descriptor"
+    },
+    {
+      "name": "load-forged-base-eff",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-base-eff/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-j-forged",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-base-eff/create-body.json",
+        "replace": {
+          "{{name}}": "audit-j"
+        }
+      },
+      "note": "the base kit kept to manifest, v3 and v3Effective: accepted, the agent context written all the same; v3Selection and agentContext are not needed"
+    },
+    {
+      "name": "session-hold-j",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-j/session",
+        "hold": "audit-j"
+      }
+    },
+    {
+      "name": "credentials-j",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-j/credentials",
+        "body": {}
+      }
+    },
+    {
+      "name": "start-j",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-j/start",
+        "body": {}
+      }
+    },
+    {
+      "name": "verify-j-forged",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-j/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json-j.txt 2>&1; ls /var/log/sbx-kits 2>&1; for f in $(find / -xdev -name AGENTS.md -not -path \"/proc/*\" 2>/dev/null); do echo \"context $f: $(head -c 60 $f)\"; done"
+          ]
+        }
+      }
+    },
+    {
+      "name": "policy-ls-j",
+      "category": "kit-forge-base",
+      "args": [
+        "policy",
+        "ls",
+        "audit-j"
+      ]
+    },
+    {
+      "name": "session-release-j",
+      "category": "kit-forge-base",
+      "release": "audit-j"
+    },
+    {
+      "name": "load-ref-source",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-package-json/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-gr-ref",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-package-json/create-body.json",
+        "replace": {
+          "{{name}}": "audit-gr"
+        }
+      },
+      "note": "the package the CLI compiled, replayed through the socket, for the agent context to compare with"
+    },
+    {
+      "name": "session-hold-gr",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-gr/session",
+        "hold": "audit-gr"
+      }
+    },
+    {
+      "name": "verify-gr-ref",
+      "category": "kit-forge-base",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-gr/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json.txt 2>&1; ls /var/log/sbx-kits 2>&1; for f in $(find / -xdev -name AGENTS.md -not -path \"/proc/*\" 2>/dev/null); do echo \"context $f: $(head -c 60 $f)\"; done"
+          ]
+        }
+      }
+    },
+    {
+      "name": "session-release-gr",
+      "category": "kit-forge-base",
+      "release": "audit-gr"
+    },
+    {
+      "name": "rm-forged-base-sandboxes",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-g",
+        "audit-i",
+        "audit-j",
+        "audit-gr",
+        "-f"
+      ],
+      "note": "a replay of part of the block finds only its own sandboxes: the others are reported missing"
     }
   ]
 }

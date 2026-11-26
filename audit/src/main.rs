@@ -44,6 +44,7 @@ mod assets;
 mod client;
 mod compare;
 mod fixtures;
+mod kitbase;
 mod kitc;
 mod kitforge;
 mod mcp_echo;
@@ -173,7 +174,7 @@ impl Cmd {
                 state::run(sock, &args.sbx, &args.file, args.save, args.check).await
             }
             Self::KitCompile(args) => args.run(sock).await,
-            Self::KitForge(args) => args.run(),
+            Self::KitForge(args) => args.run(sock).await,
             Self::Replay(args) => {
                 raw::replay(sock, &args.capture, args.conn, args.seq, args.dry_run).await
             }
@@ -731,32 +732,52 @@ struct KitForgeArgs {
     /// Kit directory of a v3 mixin, its `spec.yaml` written in the JSON subset of YAML
     kit: PathBuf,
     /// Package compiled by `kit-compile` whose base kit is reused
+    #[arg(
+        long,
+        required_unless_present = "base_image",
+        conflicts_with = "base_image"
+    )]
+    base_package: Option<PathBuf>,
+    /// Published base kit rebuilt through the socket, e.g. `docker.io/sbx/shell:latest`
     #[arg(long)]
-    base_package: PathBuf,
+    base_image: Option<String>,
     /// Output directory (default: `target/audit/kits/<kit name>-forged`)
     #[arg(long)]
     out: Option<PathBuf>,
     /// Top-level fields left out of the mixin artifact, e.g. `commands,v3Selection`
     #[arg(long, value_delimiter = ',')]
     omit: Vec<String>,
-    /// Package compiled by the CLI for the same kit, to compare the artifacts
+    /// Top-level fields left out of the base kit artifact
+    #[arg(long, value_delimiter = ',')]
+    omit_base: Vec<String>,
+    /// Package compiled by the CLI for the same kits, to compare the artifacts
     #[arg(long)]
     compare: Option<PathBuf>,
 }
 
 impl KitForgeArgs {
-    fn run(self) -> Result<()> {
+    async fn run(self, sock: &Path) -> Result<()> {
         let out = self
             .out
             .clone()
             .unwrap_or_else(|| kitforge::default_out(Path::new(OUTPUT), &self.kit));
+        let base = match (&self.base_package, &self.base_image) {
+            (Some(package), _) => kitforge::BaseSource::Package(package),
+            (None, Some(reference)) => kitforge::BaseSource::Image {
+                reference,
+                socket: sock,
+            },
+            (None, None) => bail!("--base-package or --base-image is required"),
+        };
         kitforge::run(&kitforge::ForgeOpts {
             kit: &self.kit,
-            base_package: &self.base_package,
+            base,
             out: &out,
             omit: &self.omit,
+            omit_base: &self.omit_base,
             compare: self.compare.as_deref(),
         })
+        .await
     }
 }
 

@@ -4,12 +4,14 @@
 //! The CLI turns a kit source into two things the daemon takes: an OCI image
 //! layout holding the descriptor, loaded with `POST /docker/images/load` under
 //! `sbx-kit-src:<stem>-<hash>`, and a kit artifact in the creation request.
-//! This command writes both from the kit directory alone, and takes the
-//! artifact of the base kit from a package compiled before, so that only the
-//! mixin is forged. The output has the layout of a `KitPackage`:
+//! This command writes both from the kit directory alone. The artifact of the
+//! base kit is either taken from a package compiled before (`--base-package`)
+//! or rebuilt from the published image of the kit through the socket
+//! (`--base-image`, see [`crate::kitbase`]): then nothing comes from the CLI.
+//! The output has the layout of a `KitPackage`:
 //!
 //! ```text
-//! <out>/kit.json            metadata: forged, base package, omitted fields, image
+//! <out>/kit.json            metadata: forged, base kit, omitted fields, image
 //! <out>/create-body.json    creation request template, "name": "{{name}}"
 //! <out>/images/00.oci.tar   source image of the mixin
 //! ```
@@ -17,16 +19,19 @@
 //! It is an experiment of the audit, not a resolver: the descriptor is read as
 //! JSON (a `spec.yaml` written in the JSON subset of YAML, after its comment
 //! lines), only declarative mixins are handled (`lifecycle@1` commands and
-//! `network-policy@1` runtime rules), `--omit` drops artifact fields to find the
-//! ones the daemon requires, and `--compare` prints how the forged artifact
-//! differs from the one the CLI wrote for the same directory.
+//! `network-policy@1` runtime rules), `--omit` and `--omit-base` drop artifact
+//! fields to find the ones the daemon requires, and `--compare` prints how the
+//! forged artifacts differ from the ones the CLI wrote for the same kits.
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
+use docker_sandbox::Client;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
+
+use crate::kitbase;
 
 /// Directory of the descriptor inside the layer of a source image.
 const KIT_DIR: &str = "usr/share/sandbox/kit";
@@ -54,18 +59,45 @@ const INSTALL_ENV: &[&str] = &[
     "NODE_EXTRA_CA_CERTS",
 ];
 
+/// Where the artifact of the base kit comes from.
+pub(crate) enum BaseSource<'a> {
+    /// A package compiled by the CLI, whose base kit is reused.
+    Package(&'a Path),
+    /// A published kit image, rebuilt through the daemon socket.
+    Image {
+        /// Reference of the kit, e.g. `docker.io/sbx/shell:latest`.
+        reference: &'a str,
+        /// Daemon socket.
+        socket: &'a Path,
+    },
+}
+
 /// Options of the `kit-forge` command.
 pub(crate) struct ForgeOpts<'a> {
     /// Kit directory holding `spec.yaml`.
     pub kit: &'a Path,
-    /// Package compiled by the CLI whose base kit is reused.
-    pub base_package: &'a Path,
+    /// Where the base kit comes from.
+    pub base: BaseSource<'a>,
     /// Output directory of the package, replaced when it exists.
     pub out: &'a Path,
     /// Top-level fields left out of the mixin artifact.
     pub omit: &'a [String],
-    /// Package compiled by the CLI for the same kit, to compare with.
+    /// Top-level fields left out of the base kit artifact.
+    pub omit_base: &'a [String],
+    /// Package compiled by the CLI for the same kits, to compare with.
     pub compare: Option<&'a Path>,
+}
+
+/// The base kit of a forged package.
+struct Base {
+    /// The creation template the package starts from.
+    template: Value,
+    /// Reference of the base kit, the first entry of `kits`.
+    reference: String,
+    /// Artifact of the base kit.
+    artifact: Value,
+    /// Where it came from, for `kit.json`.
+    origin: Value,
 }
 
 /// The source image of a mixin, as an OCI image layout archive.
@@ -78,8 +110,9 @@ struct SourceImage {
     manifest_digest: String,
 }
 
-/// Writes the package of the mixin of `opts.kit`, then compares it when asked.
-pub(crate) fn run(opts: &ForgeOpts<'_>) -> Result<()> {
+/// Writes the package of the mixin of `opts.kit` on its base kit, then
+/// compares it when asked.
+pub(crate) async fn run(opts: &ForgeOpts<'_>) -> Result<()> {
     let kit_dir = opts
         .kit
         .canonicalize()
@@ -100,26 +133,79 @@ pub(crate) fn run(opts: &ForgeOpts<'_>) -> Result<()> {
         &image.reference,
         &image.manifest_digest,
     );
-    if let Some(fields) = artifact.as_object_mut() {
-        for field in opts.omit {
-            fields.remove(field);
-        }
-    }
+    omit(&mut artifact, opts.omit);
 
-    let base = read_json(&opts.base_package.join("create-body.json"))?;
-    let template = compose(&base, &reference_path, artifact.clone())?;
-    write_package(opts, &name, &template, &image)?;
+    let mut base = base(&opts.base).await?;
+    omit(&mut base.artifact, opts.omit_base);
+    let template = compose(&base, &reference_path, artifact.clone());
+    write_package(opts, &name, &template, &base.origin, &image)?;
     eprintln!(
-        "[kit-forge] package written to {} (mixin {name}, image {}, {} field(s) omitted)",
+        "[kit-forge] package written to {} (base {}, mixin {name}, image {}, {} and {} field(s) omitted)",
         opts.out.display(),
+        base.reference,
         image.reference,
+        opts.omit_base.len(),
         opts.omit.len()
     );
 
     if let Some(other) = opts.compare {
-        compare(&artifact, &name, other)?;
+        for forged in [&base.artifact, &artifact] {
+            compare(forged, other)?;
+        }
     }
     Ok(())
+}
+
+/// Removes the top-level `fields` of `artifact`.
+fn omit(artifact: &mut Value, fields: &[String]) {
+    if let Some(object) = artifact.as_object_mut() {
+        for field in fields {
+            object.remove(field);
+        }
+    }
+}
+
+/// The base kit `source` names: taken from a compiled package, or rebuilt
+/// from its image through the socket.
+async fn base(source: &BaseSource<'_>) -> Result<Base> {
+    match source {
+        BaseSource::Package(package) => {
+            let template = read_json(&package.join("create-body.json"))?;
+            let reference = template
+                .pointer("/kits/0")
+                .and_then(Value::as_str)
+                .context("the base package has no kit reference")?
+                .to_owned();
+            let artifact = template
+                .pointer("/kit_artifacts/0")
+                .cloned()
+                .context("the base package has no kit artifact")?;
+            Ok(Base {
+                template,
+                reference,
+                artifact,
+                origin: json!({ "package": package.display().to_string() }),
+            })
+        }
+        BaseSource::Image { reference, socket } => {
+            let client = Client::builder()
+                .with_socket(*socket)
+                .connect()
+                .await
+                .context("connecting to sandboxd")?;
+            let kit = kitbase::forge(&client, reference).await?;
+            Ok(Base {
+                template: json!({
+                    "agent": kit.name,
+                    "enable_virtiofs_cache": true,
+                    "pull_policy": "missing",
+                }),
+                origin: json!({ "image": reference, "pinned": kit.reference }),
+                reference: kit.reference,
+                artifact: kit.artifact,
+            })
+        }
+    }
 }
 
 /// The text of `spec.yaml` and its descriptor, read as JSON after the comment
@@ -512,29 +598,23 @@ fn network(descriptor: &Value) -> Option<Value> {
     (!rules.is_empty()).then_some(Value::Object(rules))
 }
 
-/// The creation template of `base` with the mixin appended: its base kit, then
+/// The creation template of `base` with the mixin appended: the base kit, then
 /// the forged artifact.
-fn compose(base: &Value, reference_path: &str, artifact: Value) -> Result<Value> {
-    let base_ref = base
-        .pointer("/kits/0")
-        .cloned()
-        .context("the base package has no kit reference")?;
-    let base_artifact = base
-        .pointer("/kit_artifacts/0")
-        .cloned()
-        .context("the base package has no kit artifact")?;
-    let mut template = base.clone();
+fn compose(base: &Base, reference_path: &str, artifact: Value) -> Value {
+    let mut template = base.template.clone();
     template["name"] = json!("{{name}}");
-    template["kits"] = json!([base_ref, reference_path]);
-    template["kit_artifacts"] = Value::Array(vec![base_artifact, artifact]);
-    Ok(template)
+    template["kits"] = json!([base.reference, reference_path]);
+    template["kit_artifacts"] = Value::Array(vec![base.artifact.clone(), artifact]);
+    template
 }
 
-/// Writes the package of `template` and `image` into `opts.out`.
+/// Writes the package of `template` and `image` into `opts.out`, `origin`
+/// telling where its base kit came from.
 fn write_package(
     opts: &ForgeOpts<'_>,
     name: &str,
     template: &Value,
+    origin: &Value,
     image: &SourceImage,
 ) -> Result<()> {
     let _ = std::fs::remove_dir_all(opts.out);
@@ -544,9 +624,9 @@ fn write_package(
     std::fs::write(opts.out.join(file), &image.archive)?;
     let metadata = json!({
         "forged_by": { "name": "docker-sandbox/audit", "version": env!("CARGO_PKG_VERSION") },
-        "base_package": opts.base_package.display().to_string(),
+        "base": origin,
         "mixins": [name],
-        "omitted": opts.omit,
+        "omitted": { "base": opts.omit_base, "mixin": opts.omit },
         "images": [{
             "file": file,
             "ref": image.reference,
@@ -560,11 +640,16 @@ fn write_package(
     Ok(())
 }
 
-/// Prints how the forged `artifact` of `name` differs from the artifact of the
-/// same mixin in the package `other`, top-level field by field.
-fn compare(artifact: &Value, name: &str, other: &Path) -> Result<()> {
+/// Prints how the forged `artifact` differs from the artifact of the same kit
+/// (by manifest name) in the package `other`, top-level field by field, or
+/// that `other` has no such artifact.
+fn compare(artifact: &Value, other: &Path) -> Result<()> {
+    let name = artifact
+        .pointer("/manifest/name")
+        .and_then(Value::as_str)
+        .context("the forged artifact has no manifest name")?;
     let body = read_json(&other.join("create-body.json"))?;
-    let theirs = body
+    let Some(theirs) = body
         .get("kit_artifacts")
         .and_then(Value::as_array)
         .and_then(|artifacts| {
@@ -572,7 +657,10 @@ fn compare(artifact: &Value, name: &str, other: &Path) -> Result<()> {
                 .iter()
                 .find(|a| a.pointer("/manifest/name").and_then(Value::as_str) == Some(name))
         })
-        .with_context(|| format!("{}: no artifact of {name}", other.display()))?;
+    else {
+        println!("[kit-forge] {name}: no artifact in {}", other.display());
+        return Ok(());
+    };
     let empty = Map::new();
     let ours = artifact.as_object().unwrap_or(&empty);
     let theirs = theirs.as_object().unwrap_or(&empty);

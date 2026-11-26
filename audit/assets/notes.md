@@ -141,6 +141,22 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   `caps` can be left out. **Without `commands` the sandbox is created and no
   install command runs, without any error.** Startup commands run on `POST
   /sandbox/{name}/start`, as for a compiled package.
+- **A base kit rebuilt without the CLI** (`audit kit-forge --base-image
+  docker.io/sbx/shell:latest`): the image is pulled and exported through the
+  socket (`GET /docker/images/export`, an OCI image layout); its image index
+  carries the descriptor as JSON in the `vnd.docker.sandbox.kit.descriptor`
+  annotation (equal to the `v3` the CLI sends), and its configuration the
+  entrypoint and command (`manifest.binary`, `runOptions`, `v3Entrypoint`).
+  The artifact rebuilt from them is equal, field by field, to the one the CLI
+  writes, and a sandbox created from it and a forged mixin, with nothing from
+  the CLI, works as one from a compiled package (install command, network
+  rule, agent context in `/home/agent/AGENTS.md`). The daemon needs
+  `manifest`, `v3` and `v3Effective` of a base kit: without `v3Effective` it
+  composes the raw descriptor and refuses the creation with `400
+  invalid_input` ("agent-context: selected @1 and @2 requests cannot
+  compose"), the selection the CLI makes being missing. `v3Selection`,
+  `agentContext`, the digests, references and publication fields can be left
+  out.
 - **Tool**: `audit kit-compile <dir>… [--base shell] [--kit-arg k=v]` writes
   `target/audit/kits/<name>/` (`kit.json`, `create-body.json` with
   `"name": "{{name}}"`, `images/NN.oci.tar`), cleans the daemon up, then verifies
