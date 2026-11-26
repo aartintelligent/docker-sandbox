@@ -1,0 +1,25 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Audit mixin credential
+description: Test mixin of the docker-sbx audit, declares an optional credential of a service sbx does not know, injected into a host that never resolves.
+version: "0.1.0"
+capabilities:
+  # sbx refuses a credential whose inject domain the kit does not allow.
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      runtime:
+        allow:
+          - api.audit.invalid:443
+  - type: com.docker.sandbox/credential@1
+    name: Audit service
+    description: Dummy credential of the audit
+    optional: true
+    config:
+      service: audit-svc
+      phase: runtime
+      apiKey:
+        inject:
+          - domain: api.audit.invalid
+            header: X-Audit-Key
+            format: "%s"

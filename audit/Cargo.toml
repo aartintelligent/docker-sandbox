@@ -40,4 +40,6 @@ regex          = { workspace = true }
 docker-sandbox = { workspace = true, features = ["kit-compiler"] }
 serde          = { workspace = true }
 serde_json     = { workspace = true }
+sha2           = { workspace = true }
+tar            = { workspace = true }
 tokio          = { workspace = true, features = ["full"] }

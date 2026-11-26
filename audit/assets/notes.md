@@ -85,6 +85,62 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
 - **Source directories are not needed for a replay**: the daemon resolves each
   mixin by its `sbx-kit-src:spec-<hash>` image, not by the `v3Reference` path
   (tested with two mixins, one of whose directories had been deleted).
+- **Network rules of a mixin** (`assets/kits/audit-mixin-net`, a
+  `network-policy@1` with `runtime.allow` and `runtime.deny`): the CLI copies
+  them into the `caps.network` of the artifact and sends no policy request; the
+  **daemon** creates them at `POST /sandbox`, as a policy of its own (`SOURCE
+  kit` in `sbx policy ls`) holding an allow rule `kit:<sandbox>` (provenance
+  `provisioned`) and a deny rule `kit:<sandbox>:deny`, both scoped to the
+  sandbox and not editable, and removes them with the sandbox. The kit lock of
+  the sandbox records them as `networkRuntimeAllow`, `networkRuntimeDeny` and
+  their HTTP forms (`ANY <host>/**`). A package replayed through the socket alone
+  gets the same rules (`create-x-from-package`, `policy-ls-x`).
+- **Install-phase network rules in a mixin** (`install.allow`) are accepted on
+  this daemon and recorded in the kit lock as `networkInstallAllow`; the CLI
+  puts no `caps` in the artifact, the daemon reads the descriptor itself. The
+  binary refuses them on another backend ("accepts only from the workload
+  Kit").
+- **Credentials of a mixin** (`assets/kits/audit-mixin-cred`, a
+  `credential@1` with `apiKey.inject`): the CLI refuses a credential whose
+  inject domain is not in the runtime allow list of the kit ("inject domain …
+  is not in the network policy's runtime allow list"). A service `sbx` does not
+  know is accepted. Without a binding in the bindings file of the host
+  (`~/.config/sbx/credentials.yaml`), the credential is not injected: the CLI
+  says so and creates the sandbox, even for a credential not marked
+  `optional` (warnings only). A creation replayed through the socket answers
+  `"withheld": ["<service>"]` in its `result`. The kit lock records
+  `credentialsRuntime`. The artifact carries `credentials` and
+  `optionalCredentials`; `kit inspect` shows the descriptor as the CLI reads
+  it (`permissions.network`, `credentials`).
+- **MCP from a mixin**: no dedicated capability is needed. Install and startup
+  commands given `env: [MCP_GATEWAY_URL, MCP_SENTINEL_TOKEN_NAME]` get the
+  gateway of the sandbox (`http://mcp-gateway.docker.internal/mcp`) and its
+  sentinel token name (`assets/kits/audit-mixin-mcp`). Startup commands run on
+  `POST /sandbox/{name}/start`: a sandbox created through the socket runs them
+  once it is started, as `Sandbox::ensure_running` does.
+- **Adding permissions to an existing sandbox**: `sbx kit add` asks to approve
+  the permissions a mixin adds ("this change requests permissions beyond what
+  this sandbox was granted", refused with `--no-input`). The daemon asks for
+  nothing: `POST /sandbox/{name}/swap-container` with the network mixin applies
+  its allow and deny rules (`swap-y-net`). The approval is the CLI's alone. A
+  swap that would change the credentials of the sandbox is refused with `409`
+  ("binding-gated credential set, which the running proxy cannot pick up live;
+  remove and recreate the sandbox instead", `swap-y-caps`).
+- **A mixin forged without the CLI** (`audit kit-forge`, mixins
+  `assets/kits/audit-mixin-json*`, the base kit artifact taken from a package
+  the CLI compiled): the daemon accepts a source image and a kit artifact
+  written from the kit directory alone. The forged artifact is the one the CLI
+  writes but for the name of the source image and its digest. The daemon does
+  not check that name (`sbx-kit-src:spec-<hash>` with a hash of our own), the
+  `built-by` annotation, nor the form of `kit.yaml` in the layer (the source
+  text as is). What it needs, measured by leaving fields out
+  (`create-f…-forged`): `manifest` (with `template`, the source image), `v3`
+  (the descriptor, from which it derives the permissions and the network
+  rules: `caps` is not needed) and `commands` (the install commands it runs).
+  `v3Effective`, `v3Selection`, `v3Digest`, `v3Reference`, `kitUsage` and
+  `caps` can be left out. **Without `commands` the sandbox is created and no
+  install command runs, without any error.** Startup commands run on `POST
+  /sandbox/{name}/start`, as for a compiled package.
 - **Tool**: `audit kit-compile <dir>… [--base shell] [--kit-arg k=v]` writes
   `target/audit/kits/<name>/` (`kit.json`, `create-body.json` with
   `"name": "{{name}}"`, `images/NN.oci.tar`), cleans the daemon up, then verifies

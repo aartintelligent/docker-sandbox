@@ -194,6 +194,921 @@
         "audit-p",
         "-f"
       ]
+    },
+    {
+      "name": "kit-validate-net",
+      "category": "kit-capabilities",
+      "args": [
+        "kit",
+        "validate",
+        "{kits}/audit-mixin-net"
+      ]
+    },
+    {
+      "name": "kit-inspect-cred",
+      "category": "kit-capabilities",
+      "args": [
+        "kit",
+        "inspect",
+        "{kits}/audit-mixin-cred",
+        "--format",
+        "json"
+      ],
+      "note": "how the CLI reads a credential a mixin declares for a service it does not know"
+    },
+    {
+      "name": "create-n-net",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-n",
+        "--kit",
+        "{kits}/audit-mixin-net",
+        "shell"
+      ],
+      "note": "a mixin that allows and denies dummy hosts at run time"
+    },
+    {
+      "name": "policy-ls-n",
+      "category": "kit-capabilities",
+      "args": [
+        "policy",
+        "ls",
+        "audit-n"
+      ],
+      "note": "whether the rules of the mixin are sandbox rules, and their provenance"
+    },
+    {
+      "name": "create-ni-net-install",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-ni",
+        "--kit",
+        "{kits}/audit-mixin-net-install",
+        "shell"
+      ],
+      "note": "install-phase network rules in a mixin: accepted, the daemon records them in the kit lock (networkInstallAllow); the binary refuses them on its Runtime backend only"
+    },
+    {
+      "name": "create-cr-cred",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-cr",
+        "--kit",
+        "{kits}/audit-mixin-cred",
+        "shell"
+      ],
+      "note": "an optional credential of an unknown service, no secret bound"
+    },
+    {
+      "name": "inspect-cr",
+      "category": "kit-capabilities",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-cr"
+      },
+      "note": "what the sandbox records of the declared credential"
+    },
+    {
+      "name": "create-cq-cred-required",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-cq",
+        "--kit",
+        "{kits}/audit-mixin-cred-required",
+        "shell"
+      ],
+      "note": "a required credential no secret answers, with --no-input: created all the same, with warnings"
+    },
+    {
+      "name": "create-m-mcp",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-m",
+        "--kit",
+        "{kits}/audit-mixin-mcp",
+        "shell"
+      ],
+      "note": "install and startup commands given the MCP gateway variables"
+    },
+    {
+      "name": "verify-m-mcp",
+      "category": "kit-capabilities",
+      "args": [
+        "exec",
+        "audit-m",
+        "--",
+        "sh",
+        "-c",
+        "cat /home/agent/audit-mcp-install.txt; for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /tmp/audit-mcp-startup.txt ] && break; sleep 1; done; cat /tmp/audit-mcp-startup.txt 2>&1"
+      ]
+    },
+    {
+      "name": "kit-compile-caps",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-compile",
+        "{kits}/audit-mixin-net",
+        "{kits}/audit-mixin-cred",
+        "{kits}/audit-mixin-mcp",
+        "--out",
+        "{work}/kit-package-caps"
+      ],
+      "note": "the three mixins compiled with the shell kit, then replayed through the socket by kit-compile itself"
+    },
+    {
+      "name": "load-caps-source-0",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-package-caps/images/00.oci.tar"
+      },
+      "note": "the source images of the package, removed by kit-compile, loaded first as KitPackage::create does"
+    },
+    {
+      "name": "load-caps-source-1",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-package-caps/images/01.oci.tar"
+      }
+    },
+    {
+      "name": "load-caps-source-2",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-package-caps/images/02.oci.tar"
+      }
+    },
+    {
+      "name": "kit-compile-net",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-compile",
+        "{kits}/audit-mixin-net",
+        "--out",
+        "{work}/kit-package-net"
+      ],
+      "note": "the network mixin alone with the shell kit, for a swap through the socket"
+    },
+    {
+      "name": "load-net-source",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-package-net/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-x-from-package",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-package-caps/create-body.json",
+        "replace": {
+          "{{name}}": "audit-x"
+        }
+      },
+      "note": "the compiled package replayed through the socket alone: no CLI around the creation"
+    },
+    {
+      "name": "session-hold-x",
+      "category": "kit-capabilities",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-x/session",
+        "hold": "audit-x"
+      }
+    },
+    {
+      "name": "credentials-x",
+      "category": "kit-capabilities",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-x/credentials",
+        "body": {}
+      },
+      "note": "what Sandbox::ensure_running sends after the session, as the CLI does"
+    },
+    {
+      "name": "start-x",
+      "category": "kit-capabilities",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-x/start",
+        "body": {}
+      },
+      "note": "whether the start request runs the startup commands of the kits"
+    },
+    {
+      "name": "policy-ls-x",
+      "category": "kit-capabilities",
+      "args": [
+        "policy",
+        "ls",
+        "audit-x"
+      ],
+      "note": "whether the network rules of the mixin survive a replay without the CLI"
+    },
+    {
+      "name": "inspect-x",
+      "category": "kit-capabilities",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-x"
+      }
+    },
+    {
+      "name": "verify-x-mcp",
+      "category": "kit-capabilities",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-x/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mcp-install.txt; for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /tmp/audit-mcp-startup.txt ] && break; sleep 1; done; cat /tmp/audit-mcp-startup.txt 2>&1"
+          ]
+        }
+      }
+    },
+    {
+      "name": "session-release-x",
+      "category": "kit-capabilities",
+      "release": "audit-x"
+    },
+    {
+      "name": "create-y-plain",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-y",
+        "shell"
+      ],
+      "note": "a sandbox of the base kit only, for kit add"
+    },
+    {
+      "name": "kit-add-net-y",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "expect_error": true,
+      "args": [
+        "kit",
+        "add",
+        "audit-y",
+        "{kits}/audit-mixin-net"
+      ],
+      "note": "kit add asks to approve the permissions the mixin adds; --no-input refuses the prompt"
+    },
+    {
+      "name": "policy-ls-y",
+      "category": "kit-capabilities",
+      "args": [
+        "policy",
+        "ls",
+        "audit-y"
+      ]
+    },
+    {
+      "name": "kit-add-cred-y",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "expect_error": true,
+      "args": [
+        "kit",
+        "add",
+        "audit-y",
+        "{kits}/audit-mixin-cred"
+      ],
+      "note": "kit add asks to approve the permissions and the credential the mixin adds; --no-input refuses the prompt"
+    },
+    {
+      "name": "session-hold-y",
+      "category": "kit-capabilities",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-y/session",
+        "hold": "audit-y"
+      }
+    },
+    {
+      "name": "swap-y-caps",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "expect_error": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-y/swap-container",
+        "body_file": "{work}/kit-package-caps/create-body.json",
+        "replace": {
+          "\"kits\":": "\"kit_refs\":",
+          "\"name\": \"{{name}}\"": "\"docker_name_override\": \"audit-y-swap-caps\""
+        },
+        "wait_ms": 180000
+      },
+      "note": "the kit list of the package swapped in through the socket, as KitPackage::add_to does: refused with 409, a swap cannot change the credentials of a sandbox"
+    },
+    {
+      "name": "swap-y-net",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-y/swap-container",
+        "body_file": "{work}/kit-package-net/create-body.json",
+        "replace": {
+          "\"kits\":": "\"kit_refs\":",
+          "\"name\": \"{{name}}\"": "\"docker_name_override\": \"audit-y-swap-net\""
+        },
+        "wait_ms": 180000
+      },
+      "note": "network rules swapped in through the socket: whether the daemon asks for the approval kit add asks for"
+    },
+    {
+      "name": "session-release-y",
+      "category": "kit-capabilities",
+      "release": "audit-y"
+    },
+    {
+      "name": "policy-ls-y-swapped",
+      "category": "kit-capabilities",
+      "args": [
+        "policy",
+        "ls",
+        "audit-y"
+      ],
+      "note": "whether the swap applied the network rules the CLI would have asked to approve"
+    },
+    {
+      "name": "inspect-y-swapped",
+      "category": "kit-capabilities",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-y"
+      }
+    },
+    {
+      "name": "rm-kit-capability-sandboxes",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-n",
+        "audit-ni",
+        "audit-cr",
+        "audit-cq",
+        "audit-m",
+        "audit-x",
+        "audit-y",
+        "-f"
+      ]
+    },
+    {
+      "name": "policy-ls-after-rm",
+      "category": "kit-capabilities",
+      "args": [
+        "policy",
+        "ls"
+      ],
+      "note": "whether the rules of the mixins go with their sandboxes"
+    },
+    {
+      "name": "kit-compile-json",
+      "category": "kit-forge",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-compile",
+        "{kits}/audit-mixin-json",
+        "--out",
+        "{work}/kit-package-json"
+      ],
+      "note": "the reference: the JSON mixin compiled by the CLI, whose base kit artifact the forged packages reuse"
+    },
+    {
+      "name": "kit-forge-json",
+      "category": "kit-forge",
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json",
+        "--base-package",
+        "{work}/kit-package-json",
+        "--out",
+        "{work}/kit-forged-json",
+        "--compare",
+        "{work}/kit-package-json"
+      ],
+      "note": "the package of audit-mixin-json written without the CLI, every field the CLI writes"
+    },
+    {
+      "name": "kit-forge-json-b",
+      "category": "kit-forge",
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-b",
+        "--base-package",
+        "{work}/kit-package-json",
+        "--out",
+        "{work}/kit-forged-json-b",
+        "--omit",
+        "commands"
+      ],
+      "note": "the package of audit-mixin-json-b written without the CLI, without the commands the CLI wraps"
+    },
+    {
+      "name": "kit-forge-json-c",
+      "category": "kit-forge",
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-c",
+        "--base-package",
+        "{work}/kit-package-json",
+        "--out",
+        "{work}/kit-forged-json-c",
+        "--omit",
+        "v3Selection,v3Effective"
+      ],
+      "note": "the package of audit-mixin-json-c written without the CLI, without the selection and the normalized descriptor"
+    },
+    {
+      "name": "kit-forge-json-d",
+      "category": "kit-forge",
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-d",
+        "--base-package",
+        "{work}/kit-package-json",
+        "--out",
+        "{work}/kit-forged-json-d",
+        "--omit",
+        "commands,v3Selection,v3Effective,kitUsage,v3Reference"
+      ],
+      "note": "the package of audit-mixin-json-d written without the CLI, with the manifest, the descriptor and the digest only"
+    },
+    {
+      "name": "load-forged-json",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-json/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-f-forged",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-json/create-body.json",
+        "replace": {
+          "{{name}}": "audit-f"
+        }
+      },
+      "note": "the forged package, every field the CLI writes: accepted, its install and startup commands run and its network rule applies"
+    },
+    {
+      "name": "session-hold-f",
+      "category": "kit-forge",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-f/session",
+        "hold": "audit-f"
+      }
+    },
+    {
+      "name": "credentials-f",
+      "category": "kit-forge",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-f/credentials",
+        "body": {}
+      }
+    },
+    {
+      "name": "start-f",
+      "category": "kit-forge",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-f/start",
+        "body": {}
+      },
+      "note": "the start request, which runs the startup commands"
+    },
+    {
+      "name": "verify-f-forged",
+      "category": "kit-forge",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-f/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json.txt; for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /tmp/audit-mixin-json-startup.txt ] && break; sleep 1; done; cat /tmp/audit-mixin-json-startup.txt 2>&1; ls /var/log/sbx-kits"
+          ]
+        }
+      },
+      "note": "whether the install command of the forged mixin ran"
+    },
+    {
+      "name": "policy-ls-f",
+      "category": "kit-forge",
+      "args": [
+        "policy",
+        "ls",
+        "audit-f"
+      ],
+      "note": "whether the network rule of the forged mixin was applied"
+    },
+    {
+      "name": "inspect-f",
+      "category": "kit-forge",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-f"
+      }
+    },
+    {
+      "name": "session-release-f",
+      "category": "kit-forge",
+      "release": "audit-f"
+    },
+    {
+      "name": "load-forged-json-b",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-json-b/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-fb-forged",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-json-b/create-body.json",
+        "replace": {
+          "{{name}}": "audit-fb"
+        }
+      },
+      "note": "without commands: the daemon creates the sandbox and runs no install command, without any error"
+    },
+    {
+      "name": "session-hold-fb",
+      "category": "kit-forge",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-fb/session",
+        "hold": "audit-fb"
+      }
+    },
+    {
+      "name": "verify-fb-forged",
+      "category": "kit-forge",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-fb/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json-b.txt 2>&1; ls /var/log/sbx-kits 2>&1"
+          ]
+        }
+      },
+      "note": "whether the install command of the forged mixin ran"
+    },
+    {
+      "name": "session-release-fb",
+      "category": "kit-forge",
+      "release": "audit-fb"
+    },
+    {
+      "name": "load-forged-json-c",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-json-c/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-fc-forged",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-json-c/create-body.json",
+        "replace": {
+          "{{name}}": "audit-fc"
+        }
+      },
+      "note": "without v3Selection and v3Effective: accepted, the install command runs"
+    },
+    {
+      "name": "session-hold-fc",
+      "category": "kit-forge",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-fc/session",
+        "hold": "audit-fc"
+      }
+    },
+    {
+      "name": "verify-fc-forged",
+      "category": "kit-forge",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-fc/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json-c.txt 2>&1; ls /var/log/sbx-kits 2>&1"
+          ]
+        }
+      },
+      "note": "whether the install command of the forged mixin ran"
+    },
+    {
+      "name": "session-release-fc",
+      "category": "kit-forge",
+      "release": "audit-fc"
+    },
+    {
+      "name": "load-forged-json-d",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-json-d/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-fd-forged",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-json-d/create-body.json",
+        "replace": {
+          "{{name}}": "audit-fd"
+        }
+      },
+      "note": "with the manifest, the descriptor and the digest only: created, no install command runs (commands is missing)"
+    },
+    {
+      "name": "session-hold-fd",
+      "category": "kit-forge",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-fd/session",
+        "hold": "audit-fd"
+      }
+    },
+    {
+      "name": "verify-fd-forged",
+      "category": "kit-forge",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-fd/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json-d.txt 2>&1; ls /var/log/sbx-kits 2>&1"
+          ]
+        }
+      },
+      "note": "whether the install command of the forged mixin ran"
+    },
+    {
+      "name": "session-release-fd",
+      "category": "kit-forge",
+      "release": "audit-fd"
+    },
+    {
+      "name": "kit-forge-json-e",
+      "category": "kit-forge",
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-e",
+        "--base-package",
+        "{work}/kit-package-json",
+        "--out",
+        "{work}/kit-forged-json-e",
+        "--omit",
+        "v3Selection,v3Effective,kitUsage,v3Reference,caps"
+      ],
+      "note": "the package of audit-mixin-json-e without v3Selection, v3Effective, kitUsage, v3Reference, caps"
+    },
+    {
+      "name": "load-forged-json-e",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-json-e/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-fe-forged",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-json-e/create-body.json",
+        "replace": {
+          "{{name}}": "audit-fe"
+        }
+      },
+      "note": "with commands, the manifest, the descriptor and the digest: accepted, the install command runs and the network rule applies without caps"
+    },
+    {
+      "name": "session-hold-fe",
+      "category": "kit-forge",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-fe/session",
+        "hold": "audit-fe"
+      }
+    },
+    {
+      "name": "verify-fe-forged",
+      "category": "kit-forge",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-fe/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json-e.txt 2>&1; ls /var/log/sbx-kits 2>&1"
+          ]
+        }
+      },
+      "note": "whether the install command ran"
+    },
+    {
+      "name": "policy-ls-fe",
+      "category": "kit-forge",
+      "args": [
+        "policy",
+        "ls",
+        "audit-fe"
+      ],
+      "note": "whether the network rule was applied without caps in the artifact"
+    },
+    {
+      "name": "session-release-fe",
+      "category": "kit-forge",
+      "release": "audit-fe"
+    },
+    {
+      "name": "kit-forge-json-f",
+      "category": "kit-forge",
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-f",
+        "--base-package",
+        "{work}/kit-package-json",
+        "--out",
+        "{work}/kit-forged-json-f",
+        "--omit",
+        "v3Selection,v3Effective,kitUsage,v3Reference,caps,v3Digest"
+      ],
+      "note": "the package of audit-mixin-json-f without v3Selection, v3Effective, kitUsage, v3Reference, caps, v3Digest"
+    },
+    {
+      "name": "load-forged-json-f",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-json-f/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-ff-forged",
+      "category": "kit-forge",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-json-f/create-body.json",
+        "replace": {
+          "{{name}}": "audit-ff"
+        }
+      },
+      "note": "with commands, the manifest and the descriptor only: accepted as well, the digest is not needed"
+    },
+    {
+      "name": "session-hold-ff",
+      "category": "kit-forge",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-ff/session",
+        "hold": "audit-ff"
+      }
+    },
+    {
+      "name": "verify-ff-forged",
+      "category": "kit-forge",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ff/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json-f.txt 2>&1; ls /var/log/sbx-kits 2>&1"
+          ]
+        }
+      },
+      "note": "whether the install command ran"
+    },
+    {
+      "name": "policy-ls-ff",
+      "category": "kit-forge",
+      "args": [
+        "policy",
+        "ls",
+        "audit-ff"
+      ],
+      "note": "whether the network rule was applied without caps in the artifact"
+    },
+    {
+      "name": "session-release-ff",
+      "category": "kit-forge",
+      "release": "audit-ff"
+    },
+    {
+      "name": "rm-forged-sandboxes",
+      "category": "kit-forge",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-f",
+        "audit-fb",
+        "audit-fc",
+        "audit-fd",
+        "audit-fe",
+        "audit-ff",
+        "-f"
+      ],
+      "note": "a replay of part of the block finds only its own sandboxes: the others are reported missing"
     }
   ]
 }
