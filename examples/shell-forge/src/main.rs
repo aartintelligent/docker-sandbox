@@ -22,11 +22,12 @@
 //! creation request and its images, the request assembled again from its
 //! parts (`CreateRequest::for_agent`). Then it creates the sandbox and checks
 //! that both mixins ran, and that the daemon applied the network rule of the
-//! first and removed it with the sandbox. A forged package is a package like
-//! any other: the example then takes its base kit for another composition
-//! (`KitForge::with_base_package`), without pulling the image again. The
-//! packages are written under `examples/target/forged/`, and their source
-//! images stay on the daemon, as the kit images of the other examples do.
+//! first and removed it with the sandbox. The package is built in memory
+//! (`KitForge::build`): nothing is written until the example saves it
+//! (`KitPackage::save`) under `examples/target/forged/`, to take its base kit
+//! for another composition (`KitForge::with_base_package`), without pulling
+//! the image again. The source images of the mixins stay on the daemon, as the
+//! kit images of the other examples do.
 //!
 //! ```sh
 //! just example shell-forge
@@ -45,7 +46,7 @@ use serde_json::json;
 /// The published base kit, rebuilt from its image.
 const BASE: &str = "docker.io/sbx/shell:latest";
 
-/// Where the package is written.
+/// Where the package is saved.
 const OUTPUT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/forged/shell-forge");
 
 /// The mixin read from its directory.
@@ -102,8 +103,9 @@ async fn main() -> Result<()> {
         .with_base(BASE)
         .with_mixin(tools)
         .with_mixin(read)
-        .forge(OUTPUT)
+        .build()
         .await?;
+    ensure!(package.dir().is_none(), "the package was written");
     println!(
         "the package holds {} kits, compiled by no sbx ({:?}), for the daemon API {}:",
         package.kit_refs().len(),
@@ -158,10 +160,17 @@ async fn main() -> Result<()> {
     );
     println!("the daemon removed the rules with the sandbox");
 
-    // The base kit of the forged package, composed again with another mixin:
-    // nothing is pulled or exported this time.
+    // Kept on disk, the base kit of the package is composed again with
+    // another mixin: nothing is pulled or exported this time.
+    let saved = package.save(OUTPUT)?;
+    println!(
+        "the package, built in memory, saved to {}",
+        saved
+            .dir()
+            .map_or_else(String::new, |dir| dir.display().to_string())
+    );
     let reused = KitForge::new(client.clone())
-        .with_base_package(package)
+        .with_base_package(saved)
         .with_mixin(Mixin::read(JSON_MIXIN)?)
         .forge(REUSED)
         .await?;

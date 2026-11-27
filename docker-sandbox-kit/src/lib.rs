@@ -48,9 +48,12 @@
 //! # }
 //! ```
 //!
-//! The package stays on disk: [`KitPackage::open`] takes it again for the
-//! next sandboxes, without forging it again, and
-//! [`KitForge::with_base_package`] takes its base kit for another composition.
+//! [`KitForge::build`] forges the same package in memory, without writing
+//! anything: it creates sandboxes as it is, and
+//! [`KitPackage::save`](docker_sandbox::kit::KitPackage::save) writes it when it
+//! is to be kept. A package on disk is taken again by [`KitPackage::open`] for
+//! the next sandboxes, and [`KitForge::with_base_package`] takes its base kit
+//! for another composition.
 //!
 //! # Errors
 //!

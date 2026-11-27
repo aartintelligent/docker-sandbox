@@ -49,7 +49,7 @@ use self::artifact::MixinParts;
 use crate::Agent;
 use crate::error::{Error, Result};
 use docker_sandbox::Client;
-use docker_sandbox::kit::KitPackage;
+use docker_sandbox::kit::{KitPackage, PackageImage};
 use docker_sandbox::sandbox::CreateRequest;
 
 /// Setting of the daemon that allows kits from local directories.
@@ -346,8 +346,8 @@ impl KitForge {
         self
     }
 
-    /// Writes the package into `output`, replaced when it exists, and opens
-    /// it.
+    /// Forges the package ([`KitForge::build`]) and saves it to `output`,
+    /// replacing a package already there ([`KitPackage::save`]).
     ///
     /// # Errors
     ///
@@ -364,6 +364,27 @@ impl KitForge {
 
     /// [`KitForge::forge`], compiled once whatever the type of path.
     async fn forge_to(&self, output: PathBuf) -> Result<KitPackage> {
+        self.build().await?.save(output).map_err(Error::from)
+    }
+
+    /// Forges the package in memory: nothing is written. The package creates
+    /// sandboxes as it is, and [`KitPackage::save`] writes it to a directory
+    /// when it is to be kept.
+    ///
+    /// ```no_run
+    /// # async fn run(client: docker_sandbox::Client) -> docker_sandbox_kit::Result<()> {
+    /// use docker_sandbox_kit::{Agent, KitForge};
+    ///
+    /// let package = KitForge::agent(client.clone(), Agent::Shell).build().await?;
+    /// package.create(&client, "job-42").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// As [`KitForge::forge`], but for the writing of the package.
+    pub async fn build(&self) -> Result<KitPackage> {
         let base = self.resolve_base().await?;
         let base_name = base
             .artifact
@@ -419,9 +440,10 @@ impl KitForge {
         let mut request = base.request;
         request.kits = kits;
         request.kit_artifacts = artifacts;
-        let archives: Vec<&[u8]> = images.iter().map(|i| i.archive.as_slice()).collect();
-        write_package(&output, &to_json(&request), &to_json(&metadata), &archives)?;
-        KitPackage::open(&output).map_err(Error::from)
+        let images = images
+            .into_iter()
+            .map(|image| PackageImage::in_memory(image.reference, image.archive));
+        KitPackage::in_memory(to_json(&request), to_json(&metadata), images).map_err(Error::from)
     }
 
     /// The base kit, once the kit policy of the daemon is checked: taken from
@@ -555,43 +577,6 @@ fn mixin_name(reference: &str) -> Result<String> {
     Ok(name.to_owned())
 }
 
-/// Writes a package into `output` through a staging directory renamed into
-/// place at the end, as the compiler does.
-fn write_package(
-    output: &Path,
-    template: &Value,
-    metadata: &Value,
-    archives: &[&[u8]],
-) -> Result<()> {
-    let staging = output.with_extension("staging");
-    let failed = |error: std::io::Error| package_error(&staging, &error);
-    let _ = std::fs::remove_dir_all(&staging);
-    std::fs::create_dir_all(staging.join("images")).map_err(failed)?;
-    // Serializing a `Value` cannot fail: its map keys are strings.
-    let pretty = |value: &Value| serde_json::to_vec_pretty(value).unwrap_or_default();
-    let files = archives
-        .iter()
-        .enumerate()
-        .map(|(index, archive)| (image_file(index), archive.to_vec()))
-        .chain([
-            ("create-body.json".to_owned(), pretty(template)),
-            ("kit.json".to_owned(), pretty(metadata)),
-        ]);
-    for (file, bytes) in files {
-        std::fs::write(staging.join(file), bytes).map_err(failed)?;
-    }
-    let _ = std::fs::remove_dir_all(output);
-    std::fs::rename(&staging, output).map_err(|error| package_error(output, &error))
-}
-
-/// A [`docker_sandbox::Error::Package`] about `path`, as an [`Error::Client`].
-fn package_error(path: &Path, error: &std::io::Error) -> Error {
-    Error::Client(docker_sandbox::Error::Package {
-        path: path.to_owned(),
-        message: error.to_string(),
-    })
-}
-
 /// `error`, an [`Error::InvalidKit`] named after `kit` when it is one.
 fn renamed(error: Error, kit: &Path) -> Error {
     match error {
@@ -605,7 +590,6 @@ fn renamed(error: Error, kit: &Path) -> Error {
 
 #[cfg(test)]
 mod tests {
-    use std::os::unix::fs::PermissionsExt;
 
     use super::*;
 
@@ -676,58 +660,6 @@ mod tests {
         let error = Mixin::read("/").unwrap_err().to_string();
         assert!(
             error.ends_with("the reference of a mixin is a path that names it"),
-            "{error}"
-        );
-    }
-
-    #[test]
-    fn packages_are_written_through_a_staging_directory() {
-        let dir = tempfile::tempdir().unwrap();
-        let output = dir.path().join("pkg");
-        std::fs::create_dir_all(output.join("old")).unwrap();
-        write_package(&output, &json!({ "name": "{{name}}" }), &json!({}), &[b"a"]).unwrap();
-        assert_eq!(
-            std::fs::read(output.join("images/00.oci.tar")).unwrap(),
-            b"a"
-        );
-        assert!(output.join("create-body.json").is_file() && output.join("kit.json").is_file());
-        assert!(
-            !output.join("old").exists(),
-            "the previous package is replaced"
-        );
-        assert!(!output.with_extension("staging").exists());
-    }
-
-    #[test]
-    fn packages_that_cannot_be_written_are_package_errors() {
-        let dir = tempfile::tempdir().unwrap();
-        let refusal = |output: &Path| {
-            let error = write_package(output, &json!({}), &json!({}), &[]).unwrap_err();
-            error.to_string()
-        };
-
-        // The staging directory cannot be made under a file.
-        let file = dir.path().join("file");
-        std::fs::write(&file, "x").unwrap();
-        assert!(refusal(&file.join("pkg")).starts_with("invalid kit package at "));
-
-        // The package cannot replace a file.
-        let error = refusal(&file);
-        assert!(
-            error.starts_with(&format!("invalid kit package at {}:", file.display())),
-            "{error}"
-        );
-
-        // A staging directory left read-only by another user cannot be
-        // emptied nor written to; the tests do not run as root.
-        let output = dir.path().join("locked");
-        let staging = output.with_extension("staging");
-        std::fs::create_dir_all(staging.join("images")).unwrap();
-        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o555)).unwrap();
-        let error = refusal(&output);
-        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o755)).unwrap();
-        assert!(
-            error.starts_with(&format!("invalid kit package at {}:", staging.display())),
             "{error}"
         );
     }

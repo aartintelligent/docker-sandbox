@@ -117,9 +117,14 @@ let package = KitCompiler::new("sbx", client.clone(), "/tmp/kc").compile(&job).a
 # }
 ```
 
-## Reusing a package
+## In memory, or on disk
 
-A package stays on disk: `KitPackage::open` takes it again for the next
+`KitForge::build` forges the same package in memory: nothing is written, and
+the package creates sandboxes as it is, the images of its mixins loaded from
+memory. `forge(dir)` is `build` followed by `KitPackage::save(dir)`, which
+writes it beside `dir` and renames it into place.
+
+A package on disk is taken again by `KitPackage::open` for the next
 sandboxes, without forging it again. `KitForge::with_base_package` takes its
 base kit, forged or compiled, for another composition, without pulling the
 image again. A forged package is tied to the API of the daemon it was forged

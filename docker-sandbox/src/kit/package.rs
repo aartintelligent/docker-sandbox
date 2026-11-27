@@ -1,10 +1,17 @@
-//! Reading and replaying a compiled kit package.
+//! Reading, holding and replaying a kit package.
+//!
+//! A package lives in a directory ([`KitPackage::open`]) or in memory
+//! ([`KitPackage::in_memory`]), as a kit forger writes it: nothing then
+//! reaches the disk, and [`KitPackage::save`] writes it when it is to be
+//! kept.
 
 use std::collections::BTreeSet;
+use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde_json::Value;
+use bytes::Bytes;
+use serde_json::{Map, Value};
 
 use super::KitAgent;
 use crate::client::Client;
@@ -14,13 +21,45 @@ use crate::sandbox::{CreateRequest, Created, Sandbox, SwapOutcome, SwapRequest};
 /// An image shipped with a kit package.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackageImage {
-    /// Archive to load with `POST /docker/images/load`.
-    pub path: PathBuf,
-    /// Reference the archive is loaded under, when recorded in `kit.json`.
+    /// The archive to load with `POST /docker/images/load`.
+    pub archive: ImageArchive,
+    /// Reference the archive is loaded under, when recorded in `kit.json`:
+    /// an image the daemon already holds under it is not loaded again.
     pub reference: Option<String>,
 }
 
-/// A compiled kit package.
+/// Where the archive of a [`PackageImage`] is.
+#[derive(Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ImageArchive {
+    /// A file of the directory of the package.
+    File(PathBuf),
+    /// The archive itself, for a package held in memory.
+    Memory(Bytes),
+}
+
+impl PackageImage {
+    /// An image whose archive `archive` is held in memory, loaded under
+    /// `reference` when the daemon does not hold it yet.
+    pub fn in_memory(reference: impl Into<String>, archive: impl Into<Bytes>) -> Self {
+        Self {
+            archive: ImageArchive::Memory(archive.into()),
+            reference: Some(reference.into()),
+        }
+    }
+}
+
+impl fmt::Debug for ImageArchive {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::File(path) => f.debug_tuple("File").field(path).finish(),
+            Self::Memory(bytes) => write!(f, "Memory({} bytes)", bytes.len()),
+        }
+    }
+}
+
+/// A kit package: a creation request template whose kit artifacts are
+/// resolved, and the images of its local kits.
 ///
 /// ```no_run
 /// use docker_sandbox::Client;
@@ -37,10 +76,12 @@ pub struct PackageImage {
 /// ```
 #[derive(Debug, Clone)]
 pub struct KitPackage {
-    /// Directory the package was read from.
-    dir: PathBuf,
+    /// Directory the package was read from, none for a package in memory.
+    dir: Option<PathBuf>,
     /// Creation request template, `"name": "{{name}}"`.
     template: Value,
+    /// Its metadata, the content of `kit.json`: an object, empty when none.
+    metadata: Map<String, Value>,
     /// `sbx` version the package was compiled with.
     compiled_with: Option<String>,
     /// API version of the daemon the package was compiled or forged for.
@@ -63,39 +104,154 @@ impl KitPackage {
             return Err(package_error(&dir, "create-body.json is not a JSON object"));
         }
         let metadata = match dir.join("kit.json") {
-            path if path.exists() => Some(read_json(&path)?),
-            _ => None,
+            path if path.exists() => match read_json(&path)? {
+                Value::Object(metadata) => metadata,
+                _ => return Err(package_error(&path, "kit.json is not a JSON object")),
+            },
+            _ => Map::new(),
         };
-        let recorded = |pointer: &str| {
-            metadata
-                .as_ref()
-                .and_then(|m| m.pointer(pointer))
-                .and_then(Value::as_str)
-                .map(str::to_owned)
-        };
-        let compiled_with = recorded("/compiled_with/sbx");
-        let compiled_api = recorded("/compiled_with/api_version");
-        let images = match metadata
-            .as_ref()
-            .and_then(|m| m.get("images"))
-            .and_then(Value::as_array)
-        {
+        let images = match metadata.get("images").and_then(Value::as_array) {
             Some(entries) => images_from_metadata(&dir, entries)?,
             None => images_from_directory(&dir)?,
         };
-        Ok(Self {
+        Ok(Self::assembled(Some(dir), template, metadata, images))
+    }
+
+    /// A package held in memory, as a kit forger writes it: the creation
+    /// request template `template` (`"name": "{{name}}"`), its metadata
+    /// `metadata` (what `kit.json` holds, `null` for none) and its images.
+    /// Nothing is written: [`KitPackage::save`] writes it to a directory.
+    ///
+    /// ```
+    /// use docker_sandbox::kit::{KitPackage, PackageImage};
+    ///
+    /// let template = serde_json::json!({ "name": "{{name}}", "agent": "shell", "kits": [], "kit_artifacts": [] });
+    /// let image = PackageImage::in_memory("sbx-kit-src:spec-abc", b"an OCI archive".to_vec());
+    /// let package = KitPackage::in_memory(template, serde_json::Value::Null, [image])?;
+    /// assert_eq!(package.dir(), None);
+    /// assert_eq!(package.request("job-42")?.name, "job-42");
+    /// # Ok::<(), docker_sandbox::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidRequest`] when `template` is not a JSON object,
+    /// or `metadata` neither an object nor `null`.
+    pub fn in_memory(
+        template: Value,
+        metadata: Value,
+        images: impl IntoIterator<Item = PackageImage>,
+    ) -> Result<Self> {
+        Self::checked(template, metadata, images.into_iter().collect())
+    }
+
+    /// [`KitPackage::in_memory`], compiled once whatever the type of its
+    /// images.
+    fn checked(template: Value, metadata: Value, images: Vec<PackageImage>) -> Result<Self> {
+        if !template.is_object() {
+            return Err(Error::InvalidRequest(
+                "the template of a kit package is a JSON object".to_owned(),
+            ));
+        }
+        let metadata = match metadata {
+            Value::Object(metadata) => metadata,
+            Value::Null => Map::new(),
+            _ => {
+                return Err(Error::InvalidRequest(
+                    "the metadata of a kit package is a JSON object".to_owned(),
+                ));
+            }
+        };
+        Ok(Self::assembled(None, template, metadata, images))
+    }
+
+    /// The package of `dir`, `template`, `metadata` and `images`, the versions
+    /// it records read from its metadata.
+    fn assembled(
+        dir: Option<PathBuf>,
+        template: Value,
+        metadata: Map<String, Value>,
+        images: Vec<PackageImage>,
+    ) -> Self {
+        let recorded = |key: &str| {
+            metadata
+                .get("compiled_with")
+                .and_then(|compiled| compiled.get(key))
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        };
+        let compiled_with = recorded("sbx");
+        let compiled_api = recorded("api_version");
+        Self {
             dir,
             template,
+            metadata,
             compiled_with,
             compiled_api,
             images,
-        })
+        }
     }
 
-    /// Directory the package was read from.
+    /// Directory the package was read from or saved to; none for a package
+    /// held in memory.
     #[must_use]
-    pub fn dir(&self) -> &Path {
-        &self.dir
+    pub fn dir(&self) -> Option<&Path> {
+        self.dir.as_deref()
+    }
+
+    /// Writes the package to `dir`, replacing a package already there, and
+    /// returns it as read from there. It is written beside `dir` under
+    /// another name, then renamed: a package is never found half written.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Package`] when the package cannot be written, an
+    /// archive of its own directory included.
+    pub fn save(&self, dir: impl Into<PathBuf>) -> Result<Self> {
+        self.save_to(dir.into())
+    }
+
+    /// [`KitPackage::save`], compiled once whatever the type of path.
+    fn save_to(&self, output: PathBuf) -> Result<Self> {
+        let staging = output.with_extension("staging");
+        let failed = |error: std::io::Error| package_error(&staging, &error.to_string());
+        let _ = std::fs::remove_dir_all(&staging);
+        std::fs::create_dir_all(staging.join("images")).map_err(failed)?;
+        let recorded = self.metadata.get("images").and_then(Value::as_array);
+        let mut entries = Vec::new();
+        for (index, image) in self.images.iter().enumerate() {
+            let file = format!("images/{index:02}.oci.tar");
+            let target = staging.join(&file);
+            match &image.archive {
+                ImageArchive::File(path) => std::fs::copy(path, &target).map(drop),
+                ImageArchive::Memory(bytes) => std::fs::write(&target, bytes),
+            }
+            .map_err(failed)?;
+            // The entry recorded for the image, its other fields kept.
+            let mut entry = recorded
+                .and_then(|entries| entries.get(index))
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default();
+            entry.insert("file".to_owned(), Value::String(file));
+            if let Some(reference) = &image.reference {
+                entry.insert("ref".to_owned(), Value::String(reference.clone()));
+            }
+            entries.push(Value::Object(entry));
+        }
+        let mut metadata = self.metadata.clone();
+        metadata.insert("images".to_owned(), Value::Array(entries));
+        // Serializing a `Value` cannot fail: its map keys are strings.
+        let pretty = |value: &Value| serde_json::to_vec_pretty(value).unwrap_or_default();
+        for (file, value) in [
+            ("create-body.json", self.template.clone()),
+            ("kit.json", Value::Object(metadata)),
+        ] {
+            std::fs::write(staging.join(file), pretty(&value)).map_err(failed)?;
+        }
+        let _ = std::fs::remove_dir_all(&output);
+        std::fs::rename(&staging, &output).map_err(|e| package_error(&output, &e.to_string()))?;
+        Self::open(output)
     }
 
     /// `sbx` version the package was compiled with, if recorded.
@@ -187,7 +343,10 @@ impl KitPackage {
             {
                 continue;
             }
-            client.images().load_file(&image.path).await?;
+            match &image.archive {
+                ImageArchive::File(path) => client.images().load_file(path).await?,
+                ImageArchive::Memory(bytes) => client.images().load(bytes.clone()).await?,
+            }
             loaded += 1;
         }
         Ok(loaded)
@@ -270,12 +429,12 @@ impl KitPackage {
         if let Some(compiled) = self.compiled_with.as_deref()
             && compiled != health.version
         {
-            tracing::warn!(package = %self.dir.display(), compiled, running = %health.version, "kit package compiled for another sbx version");
+            tracing::warn!(package = ?self.dir, compiled, running = %health.version, "kit package compiled for another sbx version");
         }
         if let Some(compiled) = self.compiled_api.as_deref()
             && compiled != health.api_version
         {
-            tracing::warn!(package = %self.dir.display(), compiled, running = %health.api_version, "kit package written for another daemon API");
+            tracing::warn!(package = ?self.dir, compiled, running = %health.api_version, "kit package written for another daemon API");
         }
     }
 }
@@ -323,7 +482,10 @@ fn images_from_metadata(dir: &Path, entries: &[Value]) -> Result<Vec<PackageImag
                 .and_then(Value::as_str)
                 .filter(|r| !r.is_empty())
                 .map(str::to_owned);
-            Ok(PackageImage { path, reference })
+            Ok(PackageImage {
+                archive: ImageArchive::File(path),
+                reference,
+            })
         })
         .collect()
 }
@@ -343,7 +505,7 @@ fn images_from_directory(dir: &Path) -> Result<Vec<PackageImage>> {
     Ok(paths
         .into_iter()
         .map(|path| PackageImage {
-            path,
+            archive: ImageArchive::File(path),
             reference: None,
         })
         .collect())
@@ -359,6 +521,8 @@ fn package_error(path: &Path, message: &str) -> Error {
 
 #[cfg(test)]
 mod tests {
+    use std::os::unix::fs::PermissionsExt;
+
     use super::*;
 
     /// Writes `content` to `path`, creating its directory.
@@ -446,7 +610,7 @@ mod tests {
             r#"{"name":"{{name}}","agent":"shell","kit_artifacts":[{"manifest":{"name":"shell"}}]}"#,
         );
         let package = KitPackage::open(dir.path()).unwrap();
-        assert_eq!(package.dir(), dir.path());
+        assert_eq!(package.dir(), Some(dir.path()));
         assert_eq!(package.compiled_with(), None);
         assert!(package.images().is_empty(), "no images directory");
         assert_eq!(package.agent().unwrap().name, "shell");
@@ -455,17 +619,167 @@ mod tests {
         write(&dir.path().join("images/00.oci.tar"), "a");
         write(&dir.path().join("images/README.md"), "not an image");
         let package = KitPackage::open(dir.path()).unwrap();
-        let names: Vec<_> = package
+        let archives: Vec<_> = package
             .images()
             .iter()
-            .map(|image| image.path.file_name().unwrap().to_owned())
+            .map(|image| image.archive.clone())
             .collect();
-        assert_eq!(names, ["00.oci.tar", "01.oci.tar"]);
+        assert_eq!(
+            archives,
+            ["00.oci.tar", "01.oci.tar"]
+                .map(|file| ImageArchive::File(dir.path().join("images").join(file)))
+        );
         assert!(
             package
                 .images()
                 .iter()
                 .all(|image| image.reference.is_none())
         );
+    }
+
+    /// A package in memory with one image, `a`, under `ref-a`.
+    fn in_memory() -> KitPackage {
+        let template = serde_json::json!({ "name": "{{name}}", "agent": "shell" });
+        let metadata = serde_json::json!({ "forged_by": { "name": "test" }, "compiled_with": { "api_version": "0.52.0" },
+                                           "images": [{ "file": "images/00.oci.tar", "ref": "ref-a", "bytes": 1 }] });
+        KitPackage::in_memory(
+            template,
+            metadata,
+            [PackageImage::in_memory("ref-a", b"a".to_vec())],
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn packages_in_memory_are_checked_and_have_no_directory() {
+        let package = in_memory();
+        assert_eq!(package.dir(), None);
+        assert_eq!(package.compiled_api(), Some("0.52.0"));
+        assert_eq!(
+            format!("{:?}", package.images()[0].archive),
+            "Memory(1 bytes)"
+        );
+        assert_eq!(
+            format!("{:?}", ImageArchive::File(PathBuf::from("x.tar"))),
+            "File(\"x.tar\")"
+        );
+        let empty = KitPackage::in_memory(serde_json::json!({}), Value::Null, []).unwrap();
+        assert!(empty.images().is_empty() && empty.compiled_with().is_none());
+
+        let refused = KitPackage::in_memory(serde_json::json!([]), Value::Null, []).unwrap_err();
+        assert!(
+            refused
+                .to_string()
+                .contains("the template of a kit package is a JSON object")
+        );
+        let refused =
+            KitPackage::in_memory(serde_json::json!({}), serde_json::json!([]), []).unwrap_err();
+        assert!(
+            refused
+                .to_string()
+                .contains("the metadata of a kit package is a JSON object")
+        );
+    }
+
+    #[test]
+    fn packages_are_saved_through_a_staging_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let output = dir.path().join("pkg");
+        std::fs::create_dir_all(output.join("old")).unwrap();
+        let saved = in_memory().save(&output).unwrap();
+        assert_eq!(saved.dir(), Some(output.as_path()));
+        assert_eq!(
+            std::fs::read(output.join("images/00.oci.tar")).unwrap(),
+            b"a"
+        );
+        assert!(
+            !output.join("old").exists(),
+            "the previous package is replaced"
+        );
+        assert!(!output.with_extension("staging").exists());
+        let metadata = read_json(&output.join("kit.json")).unwrap();
+        assert_eq!(metadata["forged_by"]["name"], "test");
+        assert_eq!(
+            metadata["images"],
+            serde_json::json!([{ "file": "images/00.oci.tar", "ref": "ref-a", "bytes": 1 }])
+        );
+        assert_eq!(saved.images()[0].reference.as_deref(), Some("ref-a"));
+
+        // A package of a directory saved to another: its archives are copied.
+        let copy = saved.save(dir.path().join("copy")).unwrap();
+        assert_eq!(
+            std::fs::read(dir.path().join("copy/images/00.oci.tar")).unwrap(),
+            b"a"
+        );
+        assert_eq!(copy.compiled_api(), Some("0.52.0"));
+
+        // An image without a reference or an entry gets a file of its own.
+        let template = serde_json::json!({ "name": "{{name}}" });
+        let bare = PackageImage {
+            archive: ImageArchive::Memory(Bytes::from_static(b"b")),
+            reference: None,
+        };
+        let saved = KitPackage::in_memory(template, Value::Null, [bare])
+            .unwrap()
+            .save(&output)
+            .unwrap();
+        assert_eq!(
+            read_json(&output.join("kit.json")).unwrap()["images"],
+            serde_json::json!([{ "file": "images/00.oci.tar" }])
+        );
+        assert!(saved.images()[0].reference.is_none());
+    }
+
+    #[test]
+    fn packages_that_cannot_be_saved_are_package_errors() {
+        let dir = tempfile::tempdir().unwrap();
+        let refusal = |output: &Path| in_memory().save(output).unwrap_err().to_string();
+
+        // The staging directory cannot be made under a file.
+        let file = dir.path().join("file");
+        std::fs::write(&file, "x").unwrap();
+        assert!(refusal(&file.join("pkg")).starts_with("invalid kit package at "));
+
+        // The package cannot replace a file.
+        let error = refusal(&file);
+        assert!(
+            error.starts_with(&format!("invalid kit package at {}:", file.display())),
+            "{error}"
+        );
+
+        // A staging directory left read-only by another user cannot be
+        // emptied nor written to; the tests do not run as root.
+        let output = dir.path().join("locked");
+        let staging = output.with_extension("staging");
+        std::fs::create_dir_all(staging.join("images")).unwrap();
+        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o555)).unwrap();
+        let error = refusal(&output);
+        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(
+            error.starts_with(&format!("invalid kit package at {}:", staging.display())),
+            "{error}"
+        );
+
+        // An archive of the directory of a package that went away.
+        let gone = dir.path().join("gone");
+        let package = in_memory().save(&gone).unwrap();
+        std::fs::remove_file(gone.join("images/00.oci.tar")).unwrap();
+        let error = package
+            .save(dir.path().join("elsewhere"))
+            .unwrap_err()
+            .to_string();
+        assert!(error.starts_with("invalid kit package at "), "{error}");
+    }
+
+    #[test]
+    fn metadata_that_is_not_an_object_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        write(
+            &dir.path().join("create-body.json"),
+            r#"{"name":"{{name}}"}"#,
+        );
+        write(&dir.path().join("kit.json"), "[]");
+        let error = KitPackage::open(dir.path()).unwrap_err().to_string();
+        assert!(error.ends_with("kit.json is not a JSON object"), "{error}");
     }
 }
