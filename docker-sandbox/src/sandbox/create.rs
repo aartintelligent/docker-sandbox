@@ -24,8 +24,8 @@ pub type CreateStream = NdjsonStream<CreateEvent>;
 /// Body of `POST /sandbox`.
 ///
 /// `kit_artifacts` is treated as opaque. Start from
-/// [`KitPackage::request`](crate::kit::KitPackage::request) or
-/// [`CreateRequest::from_template`].
+/// [`KitPackage::request`](crate::kit::KitPackage::request),
+/// [`CreateRequest::from_template`] or [`CreateRequest::for_agent`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CreateRequest {
     /// Sandbox name.
@@ -134,10 +134,19 @@ impl CreateRequest {
 
     /// A request for the sandbox `name` whose agent, the name of its base kit,
     /// is `agent`, with the options the CLI gives a new sandbox: kit images
-    /// pulled when missing, the virtiofs cache on. Its kits are for the
-    /// caller to set.
-    #[cfg(feature = "kit-forge")]
-    pub(crate) fn for_agent(name: impl Into<String>, agent: impl Into<String>) -> Self {
+    /// pulled when missing, the virtiofs cache on. Its kits and their
+    /// artifacts are for the caller to set, as a kit forger does.
+    ///
+    /// ```
+    /// use docker_sandbox::sandbox::{CreateRequest, PullPolicy};
+    ///
+    /// let request = CreateRequest::for_agent("job-42", "claude");
+    /// assert_eq!((request.name.as_str(), request.agent.as_str()), ("job-42", "claude"));
+    /// assert_eq!(request.pull_policy, Some(PullPolicy::Missing));
+    /// assert!(request.kits.is_empty() && request.kit_artifacts.is_empty());
+    /// ```
+    #[must_use]
+    pub fn for_agent(name: impl Into<String>, agent: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             agent: agent.into(),
