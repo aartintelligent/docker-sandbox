@@ -6,8 +6,11 @@ every tool reads the same instructions.
 ## What this is
 
 The docker-sandbox repository: the `docker-sandbox` library crate, which drives Docker Sandboxes
-(`sbx`) through the private `sandboxd` Unix socket, its examples, and `audit`, the tool that maps
-that socket.
+(`sbx`) through the private `sandboxd` Unix socket; `docker-sandbox-kit`, which writes the kit
+packages it replays (what the `sbx` CLI does on the client side, as the daemon cannot resolve kits
+by itself); their examples; and `audit`, the tool that maps that socket. `docker-sandbox` holds
+what the daemon API offers, and `docker-sandbox-kit` the client-side work of the CLI without which
+the daemon cannot be used; the secret store and the other files of the CLI stay out of both.
 **Nothing else belongs here**: runners, operators, orchestration, agent management and any HTTP API
 built on top of the library live in another repository (project rule).
 
@@ -22,17 +25,26 @@ and the examples in a workspace of their own:
     credentials, sessions, files, SSH, kit changes (in place or by container swap);
   - `exec/`: specs, outputs, interactive sessions and the private stdcopy decoder;
   - `policy/`, `image/`, `event/`, `daemon/`, `mcp.rs`, `prompt.rs`;
-  - `kit/`: kit packages, `compiler/` (feature `kit-compiler`) and `forge/` (feature `kit-forge`:
-    packages written without the CLI, from kit descriptors);
+  - `kit/`: kit packages, as the daemon replays them, and the agent their base kit declares;
   - `transport/` (private): HTTP/1.1 over the socket, upgrades, NDJSON streams;
   - `error.rs`, `prelude.rs`.
 
   `tests/` has one file per domain against the fake daemon of `tests/support/`, plus `fixtures.rs`
-  (daemon responses exported from the audit), `compiler.rs` (the kit compiler, with the test binary
-  re-executed as a fake `sbx`), `forge.rs` (kit packages forged without the CLI) and `live.rs`
-  (feature `live`, its forged packages with `kit-forge` too), with `tests/live-probe/`, the
-  program the live tests upload and run inside sandboxes (a workspace member, built statically by
-  `just test-live`).
+  (daemon responses exported from the audit) and `live.rs` (feature `live`), with
+  `tests/live-probe/`, the program the live tests upload and run inside sandboxes (a workspace
+  member, built statically by `just test-live`).
+- `docker-sandbox-kit/` (the version of `docker-sandbox`, which release-plz gives both crates;
+  `README.md`, `CHANGELOG.md`):
+  - `forge/` (feature `forge`, default): `KitForge`, packages written without the CLI, the base
+    kit rebuilt from its published image and mixins from kit descriptors (`KitDescriptor`,
+    `LifecycleStep`, `Mixin`);
+  - `compiler/` (feature `compiler`): `KitCompiler`, packages compiled once by the CLI behind a
+    capturing proxy;
+  - `error.rs`: its `Error`, whose `Client` variant keeps the errors of `docker-sandbox`.
+
+  `tests/` holds `forge.rs` and `compiler.rs` (the test binary re-executed as a fake `sbx`) against
+  the fake daemon of `docker-sandbox/tests/support/`, included by path rather than copied, and
+  `live.rs` (feature `live`), its packages forged without the CLI.
 - `audit/`: the `audit` binary, never published. Suites, kits and
   inputs are embedded from `assets/`; each audited `sbx` version gets a snapshot in
   `snapshots/<version>/`. Its README is the upgrade workflow.
@@ -40,7 +52,7 @@ and the examples in a workspace of their own:
   `example-<directory>` per example: `base`, `daemon`, `images`, `shell-*`, `mcp-*`,
   `agent-<agent>`, `agent-<agent>-mcp` and `agent-<agent>-automation` for every agent `sbx` knows,
   `agent-kit-args`, and `agent-kit-forge` and `shell-forge`. The agent examples, `agent-kit-forge`
-  and `shell-forge` forge their packages without the CLI; the others compile theirs once with it. Together they call every public function of the library. Programs run
+  and `shell-forge` forge their packages without the CLI; the others compile theirs once with it. Together they call every public function of the two published crates. Programs run
   inside a sandbox are static musl binaries of the workspace, built and installed by
   `common/src/program.rs`: `mcp-client` (the gateway checked from inside by the `mcp-*` examples)
   and `sandbox-tools` (the web server and HTTP client of `shell-ports` and `shell-secrets`).
@@ -73,8 +85,8 @@ this file covers architecture and conventions.
 just                 # list the recipes
 just ci              # every local gate: fmt-check clippy typos test doctest coverage deny privacy
 just test            # nextest, no daemon needed (fakes and fixtures)
-just coverage        # every line of the library run by its tests
-just test-live       # the live tests, against the real daemon of the current user
+just coverage        # every line of the two published crates run by their tests
+just test-live       # the live tests of both crates, against the real daemon of the current user
 just state-save      # record the state of the daemon before a run that changes it
 just state-check     # check it after
 just audit           # replay the suites into audit/snapshots/<sbx version>/

@@ -79,7 +79,7 @@ const OUTPUT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/audit");
 const WORKSPACE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
 /// The crates the workspace publishes, whose files the privacy check covers.
 const PUBLISHED_CRATES: &[&str] = &["docker-sandbox", "docker-sandbox-kit"];
-/// Test fixtures of the library crate.
+/// Test fixtures of `docker-sandbox`.
 const LIBRARY_FIXTURES: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../docker-sandbox/tests/fixtures"
@@ -758,7 +758,7 @@ struct KitForgeArgs {
     /// Package compiled by the CLI for the same kits, to compare the artifacts
     #[arg(long)]
     compare: Option<PathBuf>,
-    /// Forge with the `KitForge` of the library instead of this experiment
+    /// Forge with the `KitForge` of docker-sandbox-kit instead of this experiment
     #[arg(long, conflicts_with_all = ["omit", "omit_base"])]
     library: bool,
 }

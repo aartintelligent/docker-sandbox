@@ -132,12 +132,13 @@ audit *ARGS:
     cargo run --quiet -p audit -- audit {{ARGS}}
 
 # Audit the installed sbx version NEW and bring the fixtures up to it: snapshot, API changes since
-# OLD (target/audit/compare-OLD-NEW.md), fixtures; then adapt the library until `just ci` passes.
+# OLD (target/audit/compare-OLD-NEW.md), fixtures; then adapt docker-sandbox and docker-sandbox-kit
+# until `just ci` passes (audit/README.md, "When `sbx` changes").
 upgrade OLD NEW:
     cargo run --quiet -p audit -- audit
     cargo run --quiet -p audit -- compare audit/snapshots/{{OLD}} audit/snapshots/{{NEW}} --out target/audit/compare-{{OLD}}-{{NEW}}.md
     cargo run --quiet -p audit -- fixtures audit/snapshots/{{NEW}}
-    @echo "API changes: target/audit/compare-{{OLD}}-{{NEW}}.md; next: adapt the library until 'just ci' passes, then 'just test-live'"
+    @echo "API changes: target/audit/compare-{{OLD}}-{{NEW}}.md; kit artifacts: audit/snapshots/{{NEW}}/results/kits.json; next: adapt docker-sandbox and docker-sandbox-kit until 'just ci' passes, then 'just test-live'"
 
 # List the API changes between two snapshot versions, e.g. `just compare v0.54.0 v0.55.0`.
 compare OLD NEW:

@@ -1,9 +1,11 @@
 # audit
 
 Maps what the private `sandboxd` socket of Docker Sandboxes (`sbx`) lets a
-program drive, and keeps that map up to date when `sbx` changes. The library of
-the workspace, `docker-sandbox`, is built on what it measures, and its test
-fixtures are exported from the audit snapshots.
+program drive, and keeps that map up to date when `sbx` changes. The two crates
+of the workspace are built on what it measures: `docker-sandbox` on the routes
+and payloads of the daemon, its test fixtures exported from the audit
+snapshots, and `docker-sandbox-kit` on the kit artifacts the CLI compiles,
+which the `kits` suite compares with the ones it forges.
 
 Everything the audit needs is in this crate, and everything it records is free
 of personal data.
@@ -54,7 +56,7 @@ collector it finds in the daemon log, so that a reference it took is not
 blamed on the run.
 
 A sandbox of an agent kit (`claude`, `codex`, …) created through the socket
-from a package the CLI compiled or the library forged gets the credential the
+from a package the CLI compiled or `docker-sandbox-kit` forged gets the credential the
 daemon holds for the kit, a subscription of the user for instance: start no
 agent in it unless the user asks, since the agent would use their account.
 The CLI also pushes the stored credentials of the user into a sandbox before
@@ -107,13 +109,45 @@ new or removed operations, fields, statuses, routes and event kinds. Adapt
 `docker-sandbox` (types and routes) until the tests pass, then run the live tests
 (`just test-live`).
 
-The kit artifacts the library forges follow the private contract between the
-CLI and the daemon. The `kits` suite compares them field by field with the ones
-the new CLI compiles (`kit-forge-library`, `kit-forge-library-shell`): a field
-reported `differs`, `sbx only` or `forged only` in their output is a change the
-forging of the library (`docker-sandbox/src/kit/forge/`) has to follow before
-`SUPPORTED_API` is widened. Only the name and digest of the source image of a
-mixin differ by design.
+### What `docker-sandbox-kit` has to follow
+
+`docker-sandbox-kit` does on the client side what the CLI does, without the
+CLI: the kit artifacts it forges follow a private contract between the CLI and
+the daemon, which a new `sbx` can change without changing a route. Check, before
+`SUPPORTED_API` is widened:
+
+1. **The artifacts.** The `kits` suite compares the ones the crate forges, field
+   by field, with the ones the new CLI compiles (`kit-forge-library`,
+   `kit-forge-library-shell`, in `snapshots/<new>/results/kits.json`). Every
+   field is `same` but the `template` and `v3Digest` of the mixin, the name
+   and digest of its source image, which differ by design; a field reported
+   `differs`, `sbx only` or `forged only` is a change `docker-sandbox-kit/src/forge/`
+   has to follow.
+2. **The capability types.** The crate places the capabilities of a kit in the
+   order the CLI gives them (`RESOLVED` in `forge/artifact.rs`), which decides
+   whether the daemon authorizes the credential of a published kit, and skips
+   the optional types the CLI does not support (`UNSUPPORTED`). A published kit
+   that declares a type outside both is refused ("not one this crate knows the
+   CLI to resolve"): find where the CLI places it, in the `v3Effective` of a
+   package it compiled (`audit kit-compile`), then add it there.
+3. **The mixin descriptor.** The crate refuses any field it does not know in a
+   mixin. A field the new CLI accepts is measured with a scenario of the `kits`
+   suite before `forge/descriptor.rs` accepts it.
+4. **The compilation by the CLI.** `KitCompiler` captures `POST /sandbox` and
+   `POST /docker/images/load` from the CLI (`CAPTURE_RULES` in
+   `compiler/mod.rs`). `just test-live` compiles the package of the live tests
+   with it, through `audit kit-compile`: a CLI that sends them otherwise fails
+   there.
+5. **For real.** `just test-live` forges `shell` and `claude`, with two of its
+   arguments, against the new daemon. The other agent kits are forged by their
+   examples (`agent-<agent>`), which start their agent: run them only when the
+   maintainer asks.
+
+A forged package records the API it was forged for (`kit.json`), and creating a
+sandbox from it logs a warning once the daemon speaks another: forge the
+packages again after the upgrade.
+The two crates share one version, so the release of the adaptation carries
+both.
 
 When a suite fails on the new version, fix the suite first (`sbx <cmd> --help`
 tells the new syntax), then replay it alone:
@@ -156,12 +190,16 @@ this way.
    version again, then `just fixtures <version>` exports the fixtures and
    `cargo run -p audit -- spec audit/snapshots/<version>` refreshes `API.md`
    after a later edit of the notes.
-6. **Code it** in `docker-sandbox`: types and builders shaped on the measured
+6. **Code it** in `docker-sandbox`, or in `docker-sandbox-kit` when it lies in a
+   kit artifact or descriptor: types and builders shaped on the measured
    bodies, a test asserting those bodies against the fake daemon, coverage
-   kept (`just coverage`). The changelog is not edited: release-plz writes it
-   from the commit message (`feat(sandbox): …`).
-7. **Check it for real** with a live test (`tests/live.rs`, `just test-live`),
-   then the examples that use it.
+   kept (`just coverage`). A kit feature is then checked to be forged as the
+   CLI compiles it:
+   `audit kit-forge <mixin> --base-image <kit> --library --compare <package>`.
+   The changelog is not edited: release-plz writes it from the commit message
+   (`feat(sandbox): …`).
+7. **Check it for real** with a live test (`tests/live.rs` of the crate that
+   has the feature, `just test-live`), then the examples that use it.
 
 ## Suites
 
@@ -213,7 +251,7 @@ Add any other private value (a Docker account name, for instance) with
 `--private <value>` or `DOCKER_SANDBOX_AUDIT_PRIVATE`. Check files at any time with:
 
 ```sh
-cargo run -p audit -- privacy-check            # snapshots, fixtures, published crate
+cargo run -p audit -- privacy-check            # snapshots, fixtures, published crates
 cargo run -p audit -- scrub <in> <out>         # clean an external capture
 ```
 
@@ -230,8 +268,8 @@ cargo run -p audit -- scrub <in> <out>         # clean an external capture
 | `summarize <capture>` | Route catalog and scenario matrix of a capture |
 | `requests <capture>` | What each scenario of a capture sent, bodies included (`just requests`) |
 | `state` | Records the state of the daemon (`--save`), checks it against the record (`--check`) |
-| `kit-compile <dir>…` | Kit package replayable through the socket alone |
-| `kit-forge <dir> --base-package <pkg>` or `--base-image <ref>` | Experiment: the package of a v3 mixin written without the CLI, its base kit taken from a compiled package or rebuilt from its image through the socket (`--base-arg name=value` for its arguments, `--omit`, `--omit-base` fields, `--compare` with the CLI); `--library` forges it with the `KitForge` of the library instead |
+| `kit-compile <dir>…` | Kit package replayable through the socket alone, compiled by the `KitCompiler` of `docker-sandbox-kit` |
+| `kit-forge <dir> --base-package <pkg>` or `--base-image <ref>` | Experiment: the package of a v3 mixin written without the CLI, its base kit taken from a compiled package or rebuilt from its image through the socket (`--base-arg name=value` for its arguments, `--omit`, `--omit-base` fields, `--compare` with the CLI); `--library` forges it with the `KitForge` of `docker-sandbox-kit` instead |
 | `raw`, `replay` | Arbitrary or captured requests |
 
 Destructive daemon routes (`/daemon/reset`, `/daemon/shutdown`) and the global
