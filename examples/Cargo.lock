@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "docker-sandbox"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bytes",
  "futures-core",
@@ -289,7 +289,7 @@ dependencies = [
 
 [[package]]
 name = "docker-sandbox-kit"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bytes",
  "docker-sandbox",
