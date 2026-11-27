@@ -20,52 +20,37 @@
 //!
 //! # Example
 //!
+//! The published claude kit, rebuilt from its image with two of its
+//! arguments, and a mixin described in Rust: an install command and a network
+//! rule. Everything is checked before the package is written.
+//!
 //! ```no_run
 //! # #[cfg(feature = "forge")]
 //! # async fn run() -> docker_sandbox_kit::Result<()> {
-//! use std::time::Duration;
-//!
-//! use docker_sandbox::prelude::*;
-//! use docker_sandbox_kit::KitForge;
+//! use docker_sandbox::Client;
+//! use docker_sandbox_kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
 //!
 //! let client = Client::connect().await?;
-//!
-//! // The claude kit, rebuilt from its published image through the socket.
-//! // The daemon treats the sandbox as one the CLI created, and gives the
-//! // agent the credential it holds for the kit, a Claude subscription for
-//! // instance.
+//! let tools = KitDescriptor::mixin("Project tools")
+//!     .with_install(LifecycleStep::new("pip install --user ruff").as_user("agent"))
+//!     .with_network_deny(["*.pastebin.com"]);
 //! let package = KitForge::new(client.clone())
 //!     .with_base("docker.io/sbx/claude:latest")
 //!     .with_arg("model", "claude-haiku-5-5")
-//!     .forge("/var/lib/kits/claude")
+//!     .with_mixin(Mixin::new("/kits/project-tools", tools)?)
+//!     .forge("/var/lib/kits/claude+tools")
 //!     .await?;
+//!
+//! // docker-sandbox replays the package through the socket.
 //! let created = package.create(&client, "job-42").await?;
-//!
-//! let sandbox = client.sandbox(created.name);
-//! let _running = sandbox.ensure_running().await?;
-//! sandbox.upload_dir("./repo", "/home/agent").await?;
-//! let output = sandbox
-//!     .exec(
-//!         &ExecSpec::new([
-//!             "claude",
-//!             "--dangerously-skip-permissions",
-//!             "-p",
-//!             "Run the tests, fix what fails, and summarize the fix.",
-//!         ])
-//!         .with_working_dir("/home/agent/repo")
-//!         .with_timeout(Duration::from_secs(900)),
-//!     )
-//!     .await?
-//!     .check()?;
-//! println!("{}", output.stdout);
-//!
-//! sandbox.force_delete().await?;
+//! # let _ = created;
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! The package stays on disk: [`KitPackage::open`] takes it again for the
-//! next sandboxes, without forging it again.
+//! next sandboxes, without forging it again, and
+//! [`KitForge::with_base_package`] takes its base kit for another composition.
 //!
 //! # Errors
 //!
