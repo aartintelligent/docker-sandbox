@@ -118,7 +118,7 @@ async fn verify(client: &Client, package: &KitPackage) -> Result<()> {
 }
 
 /// Parses `name=value` kit arguments.
-fn parse_kit_args(args: &[String]) -> Result<BTreeMap<String, String>> {
+pub(crate) fn parse_kit_args(args: &[String]) -> Result<BTreeMap<String, String>> {
     args.iter()
         .map(|arg| match arg.split_once('=') {
             Some((name, value)) if !name.is_empty() => Ok((name.to_owned(), value.to_owned())),

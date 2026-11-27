@@ -157,6 +157,29 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   compose"), the selection the CLI makes being missing. `v3Selection`,
   `agentContext`, the digests, references and publication fields can be left
   out.
+- **The claude kit rebuilt without the CLI** (`kit-forge --base-image
+  docker.io/sbx/claude:latest --base-arg model=… --base-arg
+  reasoningEffort=…`): beyond the fields of the shell kit, its artifact holds
+  `commands` (install commands wrapped, startup commands kept as the lists
+  the kit writes), `caps`, `credentials` and `optionalCredentials` (the
+  declaration of `credential@1`: service, description, `apiKey` named `""`
+  when unnamed, `oauth`; no value), `skillsRequests` (mode `readonly`),
+  `args` (the declarations without their variable, build arguments left
+  out), `v3ArgValues` and `environment.variables`; the creation request gets
+  `kit_args`. The values are checked against the declared values or pattern
+  and substituted for `${{ kit.args.<name> }}` everywhere but in `v3`.
+  Compared with the packages the CLI compiled for the same image digests,
+  with and without arguments, every field is equal but the order of the
+  capabilities in `v3Effective`, which the CLI sorts (network policy first,
+  agent context last); the daemon accepts ours. A sandbox created from it
+  gets `CLAUDE_MODEL` and `CLAUDE_REASONING_EFFORT`, the `model` and
+  `effortLevel` its install commands write to `~/.claude/settings.json`, its
+  agent context in `/home/agent/.claude/CLAUDE.md`, and the network rule of
+  the mixin. The creation answers `"withheld": ["anthropic"]`: created
+  through the socket without a bindings file, even a built-in kit gets no
+  credential of its own declaration. The suite never runs the CLI on the
+  claude kit: `exec`, `run`, `cp`, `kit add` and `port publish` push the
+  stored credentials of the user before acting (`policy ls` and `rm` do not).
 - **Tool**: `audit kit-compile <dir>… [--base shell] [--kit-arg k=v]` writes
   `target/audit/kits/<name>/` (`kit.json`, `create-body.json` with
   `"name": "{{name}}"`, `images/NN.oci.tar`), cleans the daemon up, then verifies

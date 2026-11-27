@@ -23,6 +23,7 @@
 //! fields to find the ones the daemon requires, and `--compare` prints how the
 //! forged artifacts differ from the ones the CLI wrote for the same kits.
 
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -69,6 +70,8 @@ pub(crate) enum BaseSource<'a> {
         reference: &'a str,
         /// Daemon socket.
         socket: &'a Path,
+        /// Values of the arguments the kit declares, by name.
+        args: BTreeMap<String, String>,
     },
 }
 
@@ -187,19 +190,27 @@ async fn base(source: &BaseSource<'_>) -> Result<Base> {
                 origin: json!({ "package": package.display().to_string() }),
             })
         }
-        BaseSource::Image { reference, socket } => {
+        BaseSource::Image {
+            reference,
+            socket,
+            args,
+        } => {
             let client = Client::builder()
                 .with_socket(*socket)
                 .connect()
                 .await
                 .context("connecting to sandboxd")?;
-            let kit = kitbase::forge(&client, reference).await?;
+            let kit = kitbase::forge(&client, reference, args).await?;
+            let mut template = json!({
+                "agent": kit.name,
+                "enable_virtiofs_cache": true,
+                "pull_policy": "missing",
+            });
+            if !kit.kit_args.is_empty() {
+                template["kit_args"] = json!(kit.kit_args);
+            }
             Ok(Base {
-                template: json!({
-                    "agent": kit.name,
-                    "enable_virtiofs_cache": true,
-                    "pull_policy": "missing",
-                }),
+                template,
                 origin: json!({ "image": reference, "pinned": kit.reference }),
                 reference: kit.reference,
                 artifact: kit.artifact,
@@ -461,7 +472,7 @@ fn lifecycle_phases(capability: &Value) -> impl Iterator<Item = (&str, &Vec<Valu
 
 /// `descriptor` normalized as the CLI does: lifecycle commands written as
 /// `["sh", "-c", command]`.
-fn effective(descriptor: &Value) -> Value {
+pub(crate) fn effective(descriptor: &Value) -> Value {
     let mut effective = descriptor.clone();
     if let Some(capabilities) = effective
         .get_mut("capabilities")
@@ -519,8 +530,11 @@ fn capabilities_of(descriptor: &Value) -> impl Iterator<Item = &Value> {
 
 /// The commands of the artifact: install commands wrapped in a cleared
 /// environment that keeps [`INSTALL_ENV`] and the variables the step names,
-/// startup commands as `["sh", "-c", command]`. `None` without lifecycle.
-fn commands(descriptor: &Value) -> Option<Value> {
+/// startup commands as `["sh", "-c", command]`. A command the kit already
+/// writes as an argument list is kept as it is (measured for startup
+/// commands; no kit measured so far writes an install command that way).
+/// `None` without lifecycle.
+pub(crate) fn commands(descriptor: &Value) -> Option<Value> {
     let mut phases = Map::new();
     for capability in capabilities_of(descriptor) {
         for (phase, steps) in lifecycle_phases(capability) {
@@ -528,15 +542,15 @@ fn commands(descriptor: &Value) -> Option<Value> {
                 .entry(phase)
                 .or_insert_with(|| Value::Array(Vec::new()));
             for step in steps {
-                let Some(command) = step.get("command").and_then(Value::as_str) else {
-                    continue;
+                let wrapped = match step.get("command") {
+                    Some(Value::String(command)) if phase == "install" => {
+                        json!(wrap_install(command, step))
+                    }
+                    Some(Value::String(command)) => json!(["sh", "-c", command]),
+                    Some(list @ Value::Array(_)) => list.clone(),
+                    _ => continue,
                 };
                 let mut entry = Map::new();
-                let wrapped = if phase == "install" {
-                    json!(wrap_install(command, step))
-                } else {
-                    json!(["sh", "-c", command])
-                };
                 entry.insert("command".into(), wrapped);
                 for key in ["description", "user", "background"] {
                     if let Some(value) = step.get(key) {
@@ -571,7 +585,7 @@ fn wrap_install(command: &str, step: &Value) -> String {
 
 /// The runtime network rules of the `network-policy@1` capabilities, as the
 /// `caps.network` of the artifact. `None` without any.
-fn network(descriptor: &Value) -> Option<Value> {
+pub(crate) fn network(descriptor: &Value) -> Option<Value> {
     let mut rules = Map::new();
     for capability in capabilities_of(descriptor) {
         if capability.get("type").and_then(Value::as_str)
@@ -753,7 +767,10 @@ mod tests {
                 { "type": "com.docker.sandbox/lifecycle@1",
                   "config": {
                     "install": [{ "command": "echo 'hi' > /tmp/x", "user": "agent", "env": ["EXTRA"] }],
-                    "startup": [{ "command": "date", "user": "agent", "background": true }]
+                    "startup": [
+                        { "command": "date", "user": "agent", "background": true },
+                        { "command": ["sh", "-c", "uptime"], "user": "0" }
+                    ]
                   } }
             ]
         })
@@ -795,6 +812,11 @@ mod tests {
         );
         assert_eq!(artifact["commands"]["startup"][0]["background"], true);
         assert_eq!(
+            artifact["commands"]["startup"][1]["command"],
+            json!(["sh", "-c", "uptime"]),
+            "a command written as a list is kept"
+        );
+        assert_eq!(
             artifact["v3Effective"]["capabilities"][1]["config"]["install"][0]["command"],
             json!(["sh", "-c", "echo 'hi' > /tmp/x"])
         );
@@ -812,7 +834,7 @@ mod tests {
     fn the_source_image_is_a_consistent_oci_layout() {
         let image = source_image("spec", "{}", &mixin()).unwrap();
         let mut archive = tar::Archive::new(image.archive.as_slice());
-        let mut files = std::collections::BTreeMap::new();
+        let mut files = BTreeMap::new();
         for entry in archive.entries().unwrap() {
             let mut entry = entry.unwrap();
             let path = entry.path().unwrap().display().to_string();

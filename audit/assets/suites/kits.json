@@ -1518,6 +1518,119 @@
         "-f"
       ],
       "note": "a replay of part of the block finds only its own sandboxes: the others are reported missing"
+    },
+    {
+      "name": "kit-forge-claude",
+      "category": "kit-forge-claude",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-k",
+        "--base-image",
+        "docker.io/sbx/claude:latest",
+        "--base-arg",
+        "model=claude-haiku-5-5",
+        "--base-arg",
+        "reasoningEffort=low",
+        "--out",
+        "{work}/kit-forged-claude"
+      ],
+      "note": "the claude kit rebuilt from its image through the socket with two kit arguments, and a forged mixin: nothing from the CLI, which is never run on the claude kit (it would push the stored credentials of the user)"
+    },
+    {
+      "name": "load-forged-claude",
+      "category": "kit-forge-claude",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-claude/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-ck-forged",
+      "category": "kit-forge-claude",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-claude/create-body.json",
+        "replace": {
+          "{{name}}": "audit-ck"
+        }
+      },
+      "note": "the rebuilt claude kit is accepted; the creation answers withheld [\"anthropic\"]: without a bindings file, no credential of the kit is given to the sandbox"
+    },
+    {
+      "name": "session-hold-ck",
+      "category": "kit-forge-claude",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-ck/session",
+        "hold": "audit-ck"
+      }
+    },
+    {
+      "name": "credentials-ck",
+      "category": "kit-forge-claude",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ck/credentials",
+        "body": {}
+      },
+      "note": "the empty update Sandbox::ensure_running sends: no credential is pushed"
+    },
+    {
+      "name": "start-ck",
+      "category": "kit-forge-claude",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ck/start",
+        "body": {}
+      }
+    },
+    {
+      "name": "verify-ck-forged",
+      "category": "kit-forge-claude",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ck/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "cat /home/agent/audit-mixin-json-k.txt; echo \"model=$CLAUDE_MODEL effort=$CLAUDE_REASONING_EFFORT\"; python3 -c \"import json; d = json.load(open('/home/agent/.claude/settings.json')); print('settings model=%s effortLevel=%s' % (d.get('model'), d.get('effortLevel')))\"; for f in $(find / -xdev -name CLAUDE.md -not -path \"/proc/*\" 2>/dev/null); do echo \"context $f\"; done; ls /var/log/sbx-kits"
+          ]
+        }
+      },
+      "note": "the marker of the mixin, CLAUDE_MODEL and CLAUDE_REASONING_EFFORT from the kit arguments, the model and effortLevel the install commands of the kit wrote to settings.json, the agent context in /home/agent/.claude/CLAUDE.md; the agent is never started and nothing else of the environment or the settings is printed"
+    },
+    {
+      "name": "policy-ls-ck",
+      "category": "kit-forge-claude",
+      "args": [
+        "policy",
+        "ls",
+        "audit-ck"
+      ],
+      "note": "sbx policy ls pushes no credential"
+    },
+    {
+      "name": "session-release-ck",
+      "category": "kit-forge-claude",
+      "release": "audit-ck"
+    },
+    {
+      "name": "rm-forged-claude",
+      "category": "kit-forge-claude",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-ck",
+        "-f"
+      ],
+      "note": "sbx rm pushes no credential"
     }
   ]
 }

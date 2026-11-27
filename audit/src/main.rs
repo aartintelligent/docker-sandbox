@@ -750,6 +750,9 @@ struct KitForgeArgs {
     /// Top-level fields left out of the base kit artifact
     #[arg(long, value_delimiter = ',')]
     omit_base: Vec<String>,
+    /// Value of an argument the base kit declares, as `name=value` (with `--base-image`)
+    #[arg(long = "base-arg", requires = "base_image")]
+    base_args: Vec<String>,
     /// Package compiled by the CLI for the same kits, to compare the artifacts
     #[arg(long)]
     compare: Option<PathBuf>,
@@ -766,6 +769,7 @@ impl KitForgeArgs {
             (None, Some(reference)) => kitforge::BaseSource::Image {
                 reference,
                 socket: sock,
+                args: kitc::parse_kit_args(&self.base_args)?,
             },
             (None, None) => bail!("--base-package or --base-image is required"),
         };

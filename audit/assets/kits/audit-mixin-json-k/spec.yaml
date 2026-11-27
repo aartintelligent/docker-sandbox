@@ -1,0 +1,32 @@
+# syntax=docker/sandbox-kit:3
+{
+  "schemaVersion": "3",
+  "kind": "mixin",
+  "displayName": "Audit mixin JSON K",
+  "description": "Test mixin of the docker-sbx audit for kit-forge: an install command and a dummy allowed host, forged on the claude kit rebuilt through the socket with kit arguments.",
+  "version": "0.1.0",
+  "capabilities": [
+    {
+      "type": "com.docker.sandbox/network-policy@1",
+      "config": {
+        "runtime": {
+          "allow": [
+            "audit-forge-k.example.com:443"
+          ]
+        }
+      }
+    },
+    {
+      "type": "com.docker.sandbox/lifecycle@1",
+      "config": {
+        "install": [
+          {
+            "command": "echo \"audit-mixin-json-k installed\" > /home/agent/audit-mixin-json-k.txt",
+            "user": "agent",
+            "description": "Writes a marker file"
+          }
+        ]
+      }
+    }
+  ]
+}
