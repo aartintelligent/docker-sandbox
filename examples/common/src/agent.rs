@@ -193,7 +193,7 @@ pub async fn run(agent: &Agent, with_mcp: bool) -> Result<()> {
     let server = registration.as_ref().map(|r| r.name().to_owned());
     // What `sbx run` adds from the host: the SSH agent of the sandbox, and
     // the terminal, time zone and desktop session of the agent session.
-    let keys = credentials::proxied_keys(&package, agent.credentials)?;
+    let keys = credentials::proxied_keys(&package, agent.credentials);
     let mut request = package.request(&name)?;
     for key in &keys {
         request = request.with_proxied_key(key);

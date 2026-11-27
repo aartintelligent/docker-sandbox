@@ -189,7 +189,7 @@ fn tools_mixin() -> Result<Mixin> {
             .with_description("Writes the marker of the forged tools")
             // Install commands run in an emptied environment: the step names
             // the variables it needs.
-            .with_env(["MCP_GATEWAY_URL"]),
+            .with_gateway_env(),
         )
         .with_startup(
             LifecycleStep::new(format!("date > {STARTED}"))

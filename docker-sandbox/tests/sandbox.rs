@@ -11,6 +11,7 @@ mod support;
 use std::time::Duration;
 
 use docker_sandbox::Error;
+use docker_sandbox::kit::KitPackage;
 use docker_sandbox::sandbox::{
     CreateEvent, CreateRequest, CredentialsUpdate, CustomSecret, DeleteOptions, PortBinding,
     ProxiedKey, PullPolicy, SandboxState, Secret, ServiceCredential, SkillsMode, StartOptions,
@@ -382,6 +383,47 @@ async fn credentials_are_pushed_in_the_daemon_format() {
     assert_eq!(
         daemon.request("POST", "/sandbox/job-42/credentials").json(),
         json!({ "custom_secrets": [{ "env_name": "API_KEY", "sentinel": "sbx-cs-1", "target": "api.example.com", "targets": ["api.example.com"], "value": "dummy" }] })
+    );
+}
+
+#[test]
+fn proxied_keys_find_their_hosts_in_the_kits_of_a_package() {
+    let dir = tempfile::tempdir().unwrap();
+    let inject = |domains: &[&str]| json!({ "inject": domains.iter().map(|d| json!({ "domain": d, "header": "x-api-key" })).collect::<Vec<_>>() });
+    let template = json!({
+        "name": "{{name}}", "agent": "claude", "kits": ["docker.io/sbx/claude@sha256:aa", "/kits/tools"],
+        "kit_artifacts": [
+            { "credentials": [
+                { "service": "anthropic", "apiKey": inject(&["api.anthropic.com", "mcp-proxy.anthropic.com"]) },
+                { "service": "github", "oauth": {} }
+              ],
+              "optionalCredentials": [{ "service": "anthropic", "apiKey": inject(&["api.anthropic.com", "claude.ai"]) }] },
+            { "manifest": { "name": "tools" } }
+        ]
+    });
+    std::fs::write(dir.path().join("create-body.json"), template.to_string()).unwrap();
+    let package = KitPackage::open(dir.path()).unwrap();
+
+    let key = ProxiedKey::for_service(&package, "anthropic", "ANTHROPIC_API_KEY", "dummy").unwrap();
+    assert_eq!(key.env(), "ANTHROPIC_API_KEY");
+    assert_eq!(
+        key.hosts(),
+        ["api.anthropic.com", "mcp-proxy.anthropic.com", "claude.ai"]
+    );
+
+    let error = ProxiedKey::for_service(&package, "github", "GH_TOKEN", "dummy").unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("no kit of the package declares where the key of github goes"),
+        "{error}"
+    );
+    let error = ProxiedKey::for_service(&package, "anthropic", "not a name", "dummy").unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("is not the name of an environment variable"),
+        "{error}"
     );
 }
 

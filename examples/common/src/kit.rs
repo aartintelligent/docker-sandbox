@@ -18,16 +18,13 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use docker_sandbox::Client;
 use docker_sandbox::kit::KitPackage;
-use docker_sandbox_kit::{CompileJob, KitCompiler, KitForge};
+use docker_sandbox_kit::{Agent, CompileJob, KitCompiler, KitForge};
 
 /// Directory of the cached packages, in the target directory of the examples.
 const CACHE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/kits");
 
 /// Directory of the forged packages, in the target directory of the examples.
 const FORGED: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/forged");
-
-/// Repository of the published kits of `sbx`, one per agent and `shell`.
-const PUBLISHED: &str = "docker.io/sbx";
 
 /// The package of the published kit `kit` (`claude`, `codex`, …), forged
 /// without the `sbx` CLI from `docker.io/sbx/<kit>:latest`. The daemon
@@ -39,10 +36,12 @@ const PUBLISHED: &str = "docker.io/sbx";
 /// Fails when the image cannot be pulled or exported, or when the kit holds
 /// a capability the library does not know the CLI to resolve.
 pub async fn forged(client: &Client, kit: &str) -> Result<KitPackage> {
-    let reference = format!("{PUBLISHED}/{kit}:latest");
-    eprintln!("forging the {kit} kit from {reference}, without the sbx CLI");
-    KitForge::new(client.clone())
-        .with_base(&reference)
+    let agent: Agent = kit.parse()?;
+    eprintln!(
+        "forging the {agent} kit from {}, without the sbx CLI",
+        agent.reference()
+    );
+    KitForge::agent(client.clone(), agent)
         .forge(PathBuf::from(FORGED).join(kit))
         .await
         .with_context(|| format!("forging the {kit} kit"))
