@@ -16,7 +16,9 @@
 //!
 //! Before anything is forged, the example shows what a forged mixin may not
 //! declare: the library refuses it with a message, rather than sending the
-//! daemon a kit it would half apply. Then it creates the sandbox and checks
+//! daemon a kit it would half apply. It then shows that the package is a
+//! creation request and its images, the request assembled again from its
+//! parts (`CreateRequest::for_agent`). Then it creates the sandbox and checks
 //! that both mixins ran, and that the daemon applied the network rule of the
 //! first and removed it with the sandbox. A forged package is a package like
 //! any other: the example then takes its base kit for another composition
@@ -34,7 +36,7 @@ use anyhow::{Context, Result, ensure};
 use docker_sandbox::Client;
 use docker_sandbox::exec::ExecSpec;
 use docker_sandbox::kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
-use docker_sandbox::sandbox::Sandbox;
+use docker_sandbox::sandbox::{CreateRequest, Sandbox};
 use example_common::{connect, sandbox};
 use serde_json::json;
 
@@ -109,6 +111,21 @@ async fn main() -> Result<()> {
     for reference in package.kit_refs() {
         println!("  {reference}");
     }
+    // A package is a creation request and the images it needs: the request
+    // assembled from its parts, as a kit forger assembles it, is the one the
+    // package replays.
+    let agent = package.agent().context("the package names no agent")?.name;
+    let mut assembled = CreateRequest::for_agent("{{name}}", &agent);
+    assembled.kits = package.kit_refs();
+    assembled.kit_artifacts = package.kit_artifacts();
+    ensure!(
+        assembled == package.request("{{name}}")?,
+        "the request assembled from the package differs from its own"
+    );
+    println!(
+        "its creation request is a request for the {agent} agent with these kits and their \
+         artifacts (CreateRequest::for_agent)"
+    );
 
     let name = sandbox::unique_name("forge");
     let rule = format!("kit:{name}");
