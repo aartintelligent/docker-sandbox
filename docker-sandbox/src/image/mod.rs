@@ -5,18 +5,23 @@
 //! are passed as the daemon prints them, e.g. `docker.io/sbx/shell@sha256:…`
 //! or `docker.io/library/snap:v1`.
 
+mod export;
 mod types;
 
 use std::path::Path;
 
 use bytes::Bytes;
 
+pub use self::export::ExportStream;
 pub use self::types::{
     ImageInspect, ImageSummary, LocalImageMetadata, ProgressDetail, PullProgress,
 };
 use crate::client::Client;
 use crate::error::{Error, Result};
 use crate::transport::{NdjsonStream, OCTET_STREAM, Request, TAR};
+
+/// Operation named by the export requests and their errors.
+const EXPORT: &str = "image export";
 
 /// Progress stream of an image pull, returned by [`Images::pull_stream`].
 pub type PullStream = NdjsonStream<PullProgress>;
@@ -163,11 +168,40 @@ impl Images {
     ///
     /// Fails with a not-found [`Error::Api`] if the image is not present.
     pub async fn export(&self, reference: &str) -> Result<Bytes> {
-        let request = Request::get("image export", "/docker/images/export")
-            .query("name", reference)
-            .accept(TAR)
-            .long_running();
-        self.client.transport().bytes(request).await
+        self.client
+            .transport()
+            .bytes(export_request(reference))
+            .await
+    }
+
+    /// Exports an image as a tar archive read as the daemon sends it
+    /// (`GET /docker/images/export?name=…`): unlike [`Images::export`], the
+    /// archive is never held whole in memory.
+    ///
+    /// ```no_run
+    /// # async fn run(client: docker_sandbox::Client) -> docker_sandbox::Result<()> {
+    /// let mut archive = client.images().export_stream("docker.io/sbx/shell:latest").await?;
+    /// let mut size = 0;
+    /// while let Some(chunk) = archive.next().await {
+    ///     size += chunk?.len();
+    /// }
+    /// println!("{size} bytes");
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Fails with a not-found [`Error::Api`] if the image is not present. A
+    /// chunk fails with [`Error::Http`] when the connection breaks in the
+    /// middle of the archive.
+    pub async fn export_stream(&self, reference: &str) -> Result<ExportStream> {
+        let body = self
+            .client
+            .transport()
+            .stream(export_request(reference))
+            .await?;
+        Ok(ExportStream::new(EXPORT, body))
     }
 
     /// Removes an image reference (`DELETE /docker/images/remove?name=…`).
@@ -180,4 +214,12 @@ impl Images {
             Request::delete("image removal", "/docker/images/remove").query("name", reference);
         self.client.transport().unit(request).await
     }
+}
+
+/// The request exporting the image `reference` as a tar archive.
+fn export_request(reference: &str) -> Request {
+    Request::get(EXPORT, "/docker/images/export")
+        .query("name", reference)
+        .accept(TAR)
+        .long_running()
 }

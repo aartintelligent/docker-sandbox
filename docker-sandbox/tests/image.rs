@@ -95,6 +95,70 @@ async fn images_are_exported_and_removed() {
     );
 }
 
+#[tokio::test]
+async fn image_exports_are_streamed_chunk_by_chunk() {
+    let archive = vec![7_u8; 256 << 10];
+    let daemon = FakeDaemon::builder()
+        .route(
+            "GET",
+            "/docker/images/export",
+            Reply::raw(200, "application/x-tar", archive.clone()),
+        )
+        .start();
+    let client = connect(&daemon).await;
+
+    let mut stream = client
+        .images()
+        .export_stream("docker.io/sbx/shell:latest")
+        .await
+        .unwrap();
+    assert_eq!(
+        format!("{stream:?}"),
+        "ExportStream { operation: \"image export\", .. }"
+    );
+    let mut received = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        received.extend_from_slice(&chunk.unwrap());
+    }
+    assert_eq!(received, archive);
+    let export = daemon.request("GET", "/docker/images/export");
+    assert_eq!(export.query()["name"], "docker.io/sbx/shell:latest");
+    assert_eq!(export.headers["accept"], "application/x-tar");
+}
+
+#[tokio::test]
+async fn image_export_streams_report_a_missing_image_and_a_broken_archive() {
+    let daemon = FakeDaemon::builder()
+        .route(
+            "GET",
+            "/docker/images/export",
+            Reply::json(404, &json!({ "message": "image not found" })),
+        )
+        .start();
+    let client = connect(&daemon).await;
+    let error = client.images().export_stream("absent").await.unwrap_err();
+    assert!(error.is_not_found(), "{error}");
+
+    let daemon = FakeDaemon::builder()
+        .route(
+            "GET",
+            "/docker/images/export",
+            Reply::raw(200, "application/x-tar", b"half an archive".as_slice()).truncated(),
+        )
+        .start();
+    let client = connect(&daemon).await;
+    let mut stream = client.images().export_stream("broken").await.unwrap();
+    let mut chunks = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        chunks.push(chunk);
+    }
+    let error = chunks.pop().unwrap().unwrap_err().to_string();
+    assert!(
+        error.starts_with("image export: HTTP error while talking to sandboxd"),
+        "{error}"
+    );
+}
+
 #[test]
 fn references_prefer_the_tag_then_the_digest_then_the_identifier() {
     let reference = |image: serde_json::Value| {
