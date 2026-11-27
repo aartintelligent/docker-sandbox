@@ -45,9 +45,9 @@ commit_parsers = [
 ]
 
 # The library owns the changelog; the commits of the audit tool feed it too,
-# since they change what the library is validated against. It is the only
-# package released: its tags are pinned to `v<version>`, since the default
-# format depends on how many members release-plz counts as public.
+# since they change what the library is validated against. Its tags are pinned
+# to `v<version>`, since the default format depends on how many members
+# release-plz counts as public.
 # The two published crates share one version (`version_group`), as their
 # manifests share the version of the workspace: a release of either is a
 # release of both, each with its own tag and changelog.
@@ -58,15 +58,14 @@ changelog_update  = true
 git_tag_name      = "v{{ version }}"
 version_group     = "docker-sandbox"
 
-# The kit crate has tags of its own. Its first version is published by hand,
-# as trusted publishing needs (CONTRIBUTING.md): until then, release-plz
-# leaves it alone.
+# The kit crate has tags, a changelog and GitHub releases of its own. Its
+# first version, 0.3.0, was published by hand, as trusted publishing needs
+# (CONTRIBUTING.md); release-plz releases it since.
 [[package]]
 name             = "docker-sandbox-kit"
 changelog_update = true
 git_tag_name     = "docker-sandbox-kit-v{{ version }}"
 git_release_name = "docker-sandbox-kit v{{ version }}"
-release          = false
 version_group    = "docker-sandbox"
 
 # The audit tool is a member that is never published, versioned or tagged.

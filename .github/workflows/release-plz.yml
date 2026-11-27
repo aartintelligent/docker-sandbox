@@ -11,7 +11,7 @@
 # crates.io trusts this workflow (trusted publishing): release-plz trades the
 # OIDC identity of the release job for a short-lived token, so no crates.io
 # token is stored. A new crate cannot be published that way, so its first
-# version, 0.1.0, is published by hand (CONTRIBUTING.md).
+# version is published by hand (CONTRIBUTING.md).
 #
 # `RELEASE_PLZ_TOKEN` is a fine-grained personal token with contents
 # and pull-requests write access: events raised with the automatic
