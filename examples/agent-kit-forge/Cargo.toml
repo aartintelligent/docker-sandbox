@@ -1,0 +1,25 @@
+# ------------------------------------------------------------------------------
+# example-agent-kit-forge — the arguments of the `claude` kit chosen without
+# the `sbx` CLI: the kit rebuilt from its image through the socket alone.
+#
+# Run it with `just example agent-kit-forge`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-agent-kit-forge"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+serde_json     = { workspace = true }
+tokio          = { workspace = true }

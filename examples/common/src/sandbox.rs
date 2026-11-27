@@ -50,7 +50,15 @@ where
 {
     let name = request.name.as_str();
     eprintln!("creating sandbox {name}");
-    package.create_with(client, request).await?;
+    let created = package.create_with(client, request).await?;
+    if !created.withheld.is_empty() {
+        // The kit declares these credentials, and no bindings file authorizes
+        // them: the daemon gives the sandbox none of their values.
+        eprintln!(
+            "the daemon withholds the credentials the kits declare: {}",
+            created.withheld.join(", ")
+        );
+    }
     let sandbox = client.sandbox(name);
     let outcome = tokio::select! {
         outcome = run(sandbox.clone()) => outcome,
