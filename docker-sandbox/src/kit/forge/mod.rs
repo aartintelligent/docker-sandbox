@@ -42,12 +42,14 @@ pub use self::descriptor::{KitDescriptor, LifecycleStep};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
 use serde_json::{Value, json};
 
 use self::artifact::MixinParts;
 use super::KitPackage;
 use crate::client::Client;
 use crate::error::{Error, Result};
+use crate::sandbox::CreateRequest;
 
 /// Setting of the daemon that allows kits from local directories.
 const ALLOW_LOCAL_KITS: &str = "kit.allowLocalKits";
@@ -61,6 +63,74 @@ const ALLOWED_SOURCES: &str = "kit.allowedSources";
 
 /// Default of [`ALLOWED_SOURCES`], as the daemon describes it.
 const DEFAULT_SOURCES: &[&str] = &["docker.io/", "dhi.io/"];
+
+/// Name of the sandbox in the creation template of a package, replaced when
+/// a sandbox is created from it.
+const NAME_PLACEHOLDER: &str = "{{name}}";
+
+/// What wrote a kit or a package: this crate, at its version.
+#[derive(Debug, Serialize)]
+struct Producer {
+    /// Name of the crate.
+    name: &'static str,
+    /// Version of the crate.
+    version: &'static str,
+}
+
+/// The metadata of a forged package, its `kit.json`.
+#[derive(Debug, Serialize)]
+struct Metadata {
+    /// What forged it.
+    forged_by: Producer,
+    /// The daemon it was forged for.
+    compiled_with: CompiledWith,
+    /// Reference of the base kit.
+    base: String,
+    /// The published reference the base kit was rebuilt from, if it was.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    base_image: Option<String>,
+    /// References of the mixins.
+    mixins: Vec<String>,
+    /// The source images of the mixins.
+    images: Vec<ImageEntry>,
+}
+
+/// The daemon a package was forged for.
+#[derive(Debug, Serialize)]
+struct CompiledWith {
+    /// Its API version, which `KitPackage` checks when it creates a sandbox.
+    api_version: String,
+}
+
+/// A source image of a package.
+#[derive(Debug, Serialize)]
+struct ImageEntry {
+    /// Path of its archive in the package.
+    file: String,
+    /// Name the daemon stores it under.
+    #[serde(rename = "ref")]
+    reference: String,
+    /// Digest of its manifest.
+    manifest_digest: String,
+    /// Size of its archive, in bytes.
+    bytes: usize,
+}
+
+impl Producer {
+    /// This crate.
+    fn this_crate() -> Self {
+        Self {
+            name: env!("CARGO_PKG_NAME"),
+            version: env!("CARGO_PKG_VERSION"),
+        }
+    }
+}
+
+/// `value` as JSON. Serializing the types of this module cannot fail: their
+/// maps have string keys.
+fn to_json(value: &impl Serialize) -> Value {
+    serde_json::to_value(value).unwrap_or_default()
+}
 
 /// A mixin to forge: its descriptor, and the reference the kit list of the
 /// sandbox shows it under.
@@ -172,8 +242,9 @@ enum Base {
 
 /// The base kit of a package being forged.
 struct ResolvedBase {
-    /// Creation template, without `kits` and `kit_artifacts`.
-    template: Value,
+    /// Creation template, named `{{name}}`, without `kits` and
+    /// `kit_artifacts`.
+    request: CreateRequest,
     /// Reference of the kit, the first entry of `kits`.
     reference: String,
     /// The kit artifact, the first entry of `kit_artifacts`.
@@ -301,38 +372,43 @@ impl KitForge {
         let mut artifacts = vec![base.artifact];
         let mut images = Vec::new();
         for mixin in &self.mixins {
-            let image = oci::source_image(&mixin.spec, mixin.descriptor.as_json())?;
-            artifacts.push(artifact::mixin(&MixinParts {
+            let image = oci::source_image(&mixin.spec, &mixin.descriptor)?;
+            let artifact = artifact::mixin(&MixinParts {
                 name: &mixin.name,
                 reference: &mixin.reference,
-                descriptor: mixin.descriptor.as_json(),
+                descriptor: &mixin.descriptor,
                 image: &image.reference,
                 manifest_digest: &image.manifest_digest,
-            }));
+            });
+            artifacts.push(artifact.into_json());
             kits.push(mixin.reference.clone());
             images.push(image);
         }
 
-        let mut template = base.template;
-        template["kits"] = json!(kits);
-        template["kit_artifacts"] = Value::Array(artifacts);
-        let mut metadata = json!({
-            "forged_by": { "name": "docker-sandbox", "version": env!("CARGO_PKG_VERSION") },
-            "compiled_with": { "api_version": self.client.health().api_version },
-            "base": kits.first(),
-            "mixins": kits.get(1..),
-            "images": images.iter().enumerate().map(|(index, image)| json!({
-                "file": image_file(index),
-                "ref": image.reference,
-                "manifest_digest": image.manifest_digest,
-                "bytes": image.archive.len(),
-            })).collect::<Vec<_>>(),
-        });
-        if let Some(image) = base.image {
-            metadata["base_image"] = json!(image);
-        }
+        let metadata = Metadata {
+            forged_by: Producer::this_crate(),
+            compiled_with: CompiledWith {
+                api_version: self.client.health().api_version.clone(),
+            },
+            base: base.reference,
+            base_image: base.image,
+            mixins: kits[1..].to_vec(),
+            images: images
+                .iter()
+                .enumerate()
+                .map(|(index, image)| ImageEntry {
+                    file: image_file(index),
+                    reference: image.reference.clone(),
+                    manifest_digest: image.manifest_digest.clone(),
+                    bytes: image.archive.len(),
+                })
+                .collect(),
+        };
+        let mut request = base.request;
+        request.kits = kits;
+        request.kit_artifacts = artifacts;
         let archives: Vec<&[u8]> = images.iter().map(|i| i.archive.as_slice()).collect();
-        write_package(&output, &template, &metadata, &archives)?;
+        write_package(&output, &to_json(&request), &to_json(&metadata), &archives)?;
         KitPackage::open(&output)
     }
 
@@ -359,10 +435,8 @@ impl KitForge {
                     ));
                 }
                 self.check_policy(None).await?;
-                let template = serde_json::to_value(package.request("{{name}}")?)
-                    .map_err(|e| package_error(package.dir(), e))?;
                 Ok(ResolvedBase {
-                    template,
+                    request: package.request(NAME_PLACEHOLDER)?,
                     reference: package.kit_refs().into_iter().next().unwrap_or_default(),
                     artifact: package
                         .kit_artifacts()
@@ -376,19 +450,16 @@ impl KitForge {
                 let reference = base::Reference::parse(requested)?;
                 self.check_policy(Some(&reference)).await?;
                 let kit = base::rebuild(&self.client, &reference, &self.args).await?;
-                let mut template = json!({
-                    "name": "{{name}}",
-                    "agent": kit.name,
-                    "enable_virtiofs_cache": true,
-                    "pull_policy": "missing",
-                });
+                let mut request = CreateRequest::for_agent(NAME_PLACEHOLDER, kit.name);
                 if !self.args.is_empty() {
-                    template["kit_args"] = json!(self.args);
+                    request
+                        .extra
+                        .insert("kit_args".to_owned(), json!(self.args));
                 }
                 Ok(ResolvedBase {
-                    template,
+                    request,
                     reference: kit.reference,
-                    artifact: kit.artifact,
+                    artifact: kit.artifact.into_json(),
                     image: Some(requested.clone()),
                 })
             }
