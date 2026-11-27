@@ -135,6 +135,45 @@ async fn create_resolves_the_progress_stream() {
     );
 }
 
+/// A credential a kit declares and no bindings file authorizes stays
+/// withheld: named at creation, and again in the answer to a value pushed for
+/// its service, which the proxy does not inject (`create-wc`,
+/// `push-wc-credential` of the `kits` suite).
+#[tokio::test]
+async fn withheld_credentials_are_reported() {
+    let daemon = FakeDaemon::builder()
+        .route(
+            "POST",
+            "/sandbox",
+            Reply::ndjson(&[
+                json!({ "result": { "id": "abc", "name": "job-42", "agent": "shell", "status": "running", "workspace": "", "withheld": ["example"] } }),
+            ]),
+        )
+        .route(
+            "POST",
+            "/sandbox/job-42/credentials",
+            Reply::json(
+                200,
+                &json!({ "credential_source_updates_applied": true, "message": "Credentials updated", "withheld": ["example"] }),
+            ),
+        )
+        .start();
+    let client = connect(&daemon).await;
+
+    let created = client.sandboxes().create(&request()).await.unwrap();
+    assert_eq!(created.withheld, ["example"]);
+    assert!(created.extra.is_empty(), "withheld is a typed field");
+
+    let outcome = client
+        .sandbox("job-42")
+        .push_service_secret("example", "dummy")
+        .await
+        .unwrap();
+    assert_eq!(outcome.withheld, ["example"]);
+    assert_eq!(outcome.credential_source_updates_applied, Some(true));
+    assert!(outcome.extra.is_empty());
+}
+
 #[tokio::test]
 async fn create_reports_in_band_failures() {
     let daemon = FakeDaemon::builder()
@@ -332,11 +371,13 @@ async fn credentials_are_pushed_in_the_daemon_format() {
     let update = CredentialsUpdate::default().with_custom_secret(
         CustomSecret::new(["api.example.com"], "sbx-cs-1", "dummy").with_env_name("API_KEY"),
     );
-    client
+    let outcome = client
         .sandbox("job-42")
         .push_credentials(&update)
         .await
         .unwrap();
+    assert_eq!(outcome.message.as_deref(), Some("Credentials updated"));
+    assert!(outcome.withheld.is_empty());
     assert_eq!(
         daemon.request("POST", "/sandbox/job-42/credentials").json(),
         json!({ "custom_secrets": [{ "env_name": "API_KEY", "sentinel": "sbx-cs-1", "target": "api.example.com", "targets": ["api.example.com"], "value": "dummy" }] })

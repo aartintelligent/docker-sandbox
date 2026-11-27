@@ -6,6 +6,14 @@
 //! requests. What a push carries stays with the sandbox, through restarts,
 //! until another push changes it or the sandbox goes: a push of custom secrets
 //! replaces the whole list of the sandbox, a push without them leaves it.
+//!
+//! A credential that a kit of the sandbox declares is injected only when the
+//! bindings file the sandbox was created with authorizes it
+//! ([`CreateRequest::with_bindings_path`](super::CreateRequest::with_bindings_path)).
+//! Otherwise the daemon withholds it, accepts a value pushed for its service
+//! all the same, and names the service in [`CredentialsOutcome::withheld`]:
+//! the value is not injected. Custom secrets, which target hosts rather than
+//! declared services, do not depend on bindings.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -13,6 +21,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use super::Sandbox;
+use crate::Extra;
 use crate::error::Result;
 use crate::transport::Request;
 
@@ -304,19 +313,56 @@ impl CredentialSource {
     }
 }
 
+/// Response of `POST /sandbox/{name}/credentials`.
+///
+/// The daemon accepts an update even when it withholds what it carries: read
+/// [`CredentialsOutcome::withheld`] to know which services get nothing.
+///
+/// ```
+/// use docker_sandbox::sandbox::CredentialsOutcome;
+///
+/// let outcome: CredentialsOutcome = serde_json::from_value(serde_json::json!({
+///     "message": "Credentials updated",
+///     "credential_source_updates_applied": true,
+///     "withheld": ["example"]
+/// }))?;
+/// assert_eq!(outcome.withheld, ["example"]);
+/// # Ok::<(), serde_json::Error>(())
+/// ```
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CredentialsOutcome {
+    /// Human-readable message, e.g. `Credentials updated`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// Services whose credential, declared by a kit of the sandbox, the
+    /// daemon withholds because no bindings file authorizes it: the proxy
+    /// injects nothing for them, a value just pushed included.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub withheld: Vec<String>,
+    /// Whether the credential sources of the update were applied; absent
+    /// when the update carries none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_source_updates_applied: Option<bool>,
+    /// Unknown fields.
+    #[serde(flatten)]
+    pub extra: Extra,
+}
+
 impl Sandbox {
     /// Pushes credentials to the sandbox proxy
-    /// (`POST /sandbox/{name}/credentials`).
+    /// (`POST /sandbox/{name}/credentials`), and returns what the daemon
+    /// made of them.
     ///
     /// Custom secrets replace those pushed before; service credentials and
-    /// sources are updated one by one.
+    /// sources are updated one by one. A service the outcome lists as
+    /// withheld gets no credential whatever this update carries.
     ///
     /// # Errors
     ///
     /// Fails if the sandbox does not exist or the update is rejected.
-    pub async fn push_credentials(&self, update: &CredentialsUpdate) -> Result<()> {
+    pub async fn push_credentials(&self, update: &CredentialsUpdate) -> Result<CredentialsOutcome> {
         let request = Request::post("credentials update", self.path("credentials")).json(update)?;
-        self.transport().unit(request).await
+        self.transport().json(request).await
     }
 
     /// Gives this sandbox the credential of `service` (`anthropic`,
@@ -324,11 +370,19 @@ impl Sandbox {
     /// The proxy of the sandbox injects it on outgoing requests; the value is
     /// never stored by the daemon nor readable back.
     ///
+    /// When a kit of the sandbox declares a credential for `service` and no
+    /// bindings file authorizes it, the daemon keeps it withheld and the
+    /// outcome names the service: the value is not injected.
+    ///
     /// # Errors
     ///
     /// Fails with a not-found [`Error::Api`](crate::Error::Api) if the sandbox
     /// does not exist.
-    pub async fn push_service_secret(&self, service: &str, value: impl Into<Secret>) -> Result<()> {
+    pub async fn push_service_secret(
+        &self,
+        service: &str,
+        value: impl Into<Secret>,
+    ) -> Result<CredentialsOutcome> {
         let update = CredentialsUpdate::default().with_sandbox_secret(self.name(), service, value);
         self.push_credentials(&update).await
     }
@@ -340,7 +394,7 @@ impl Sandbox {
     ///
     /// Fails with a not-found [`Error::Api`](crate::Error::Api) if the sandbox
     /// does not exist.
-    pub async fn remove_service_secret(&self, service: &str) -> Result<()> {
+    pub async fn remove_service_secret(&self, service: &str) -> Result<CredentialsOutcome> {
         let update = CredentialsUpdate::default().without_sandbox_secret(service);
         self.push_credentials(&update).await
     }

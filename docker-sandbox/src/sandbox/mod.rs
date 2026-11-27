@@ -25,7 +25,8 @@ pub use self::create::{
     CreateEvent, CreateRequest, CreateStream, Created, PullPolicy, SkillsMode, Workspace,
 };
 pub use self::credentials::{
-    CredentialSource, CredentialsUpdate, CustomSecret, Secret, ServiceCredential,
+    CredentialSource, CredentialsOutcome, CredentialsUpdate, CustomSecret, Secret,
+    ServiceCredential,
 };
 pub use self::info::{
     DeleteOptions, HostMount, RuntimeMount, SandboxInfo, SandboxState, SavedImage, StartOptions,

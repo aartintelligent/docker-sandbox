@@ -230,10 +230,15 @@ impl KitPackage {
     /// keeping the changes made inside it. Use it to add mixins to a sandbox
     /// whose base kit matches the package's.
     ///
+    /// Nothing asks for an approval: the network rules of the added mixins
+    /// apply at once, where `sbx kit add` asks the user first.
+    ///
     /// # Errors
     ///
     /// See [`KitPackage::load_images`] and
-    /// [`Sandbox::swap_container`](crate::sandbox::Sandbox::swap_container).
+    /// [`Sandbox::swap_container`](crate::sandbox::Sandbox::swap_container),
+    /// which is refused when the mixins would change the credentials of the
+    /// sandbox.
     pub async fn add_to(&self, sandbox: &Sandbox) -> Result<SwapOutcome> {
         self.load_images(sandbox.client()).await?;
         let request = SwapRequest {

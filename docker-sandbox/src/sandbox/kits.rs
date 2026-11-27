@@ -79,10 +79,18 @@ impl Sandbox {
     /// (`POST /sandbox/{name}/swap-container`). Changes made inside the
     /// sandbox are kept and the sandbox keeps its identifier.
     ///
+    /// The daemon asks for no approval: the network rules the new kits declare
+    /// apply at once, where `sbx kit add` first asks the user to approve the
+    /// permissions they add. A program that lets others choose the kits must
+    /// make that decision itself.
+    ///
     /// # Errors
     ///
     /// Fails if the request is rejected or the new container cannot be
-    /// started.
+    /// started, and with a conflict [`Error::Api`](crate::Error::Api) (`409`)
+    /// when the new kit list would change the credentials of the sandbox,
+    /// which the running proxy cannot take up: create the sandbox again
+    /// instead.
     pub async fn swap_container(&self, request: &SwapRequest) -> Result<SwapOutcome> {
         let request = Request::post("container swap", self.path("swap-container"))
             .json(request)?
