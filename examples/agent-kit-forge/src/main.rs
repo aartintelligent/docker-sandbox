@@ -24,12 +24,9 @@
 
 use anyhow::{Context, Result, ensure};
 use docker_sandbox::exec::ExecSpec;
-use docker_sandbox_kit::KitForge;
+use docker_sandbox_kit::{Agent, KitForge};
 use example_common::{connect, sandbox};
 use serde_json::Value;
-
-/// The published kit, rebuilt from its image.
-const BASE: &str = "docker.io/sbx/claude:latest";
 
 /// Where the package is written.
 const OUTPUT: &str = concat!(
@@ -46,11 +43,13 @@ const EFFORT: &str = "low";
 #[tokio::main]
 async fn main() -> Result<()> {
     let client = connect().await?;
+    // The published kit of the claude agent, rebuilt from its image.
+    let agent = Agent::Claude;
     eprintln!(
-        "forging the package: {BASE} rebuilt from its image, with model={MODEL} and reasoningEffort={EFFORT}"
+        "forging the package: {} rebuilt from its image, with model={MODEL} and reasoningEffort={EFFORT}",
+        agent.reference()
     );
-    let package = KitForge::new(client.clone())
-        .with_base(BASE)
+    let package = KitForge::agent(client.clone(), agent)
         .with_arg("model", MODEL)
         .with_arg("reasoningEffort", EFFORT)
         .forge(OUTPUT)

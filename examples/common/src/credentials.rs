@@ -12,10 +12,8 @@
 //! for the service of the key. Nothing is stored, the key never enters the
 //! sandbox, and it goes away with the sandbox.
 
-use anyhow::Result;
 use docker_sandbox::kit::KitPackage;
 use docker_sandbox::sandbox::ProxiedKey;
-use serde_json::Value;
 
 /// A credential an agent can use: an `sbx` service and the environment
 /// variables it is read from, first match wins.
@@ -60,26 +58,19 @@ pub fn find_in_env(credentials: &[Credential]) -> Vec<Found> {
 }
 
 /// The keys of `credentials` found in the environment, each for the hosts the
-/// kits of `package` inject the key of its service into. A key whose service
-/// no kit declares is left out, with a warning: it would have nowhere to go.
-///
-/// # Errors
-///
-/// Fails when a key cannot be made, for a variable that is not a valid name.
-pub fn proxied_keys(package: &KitPackage, credentials: &[Credential]) -> Result<Vec<ProxiedKey>> {
+/// kits of `package` inject the key of its service into
+/// (`ProxiedKey::for_service`). A key whose service no kit declares is left
+/// out, with the reason: it would have nowhere to go.
+#[must_use]
+pub fn proxied_keys(package: &KitPackage, credentials: &[Credential]) -> Vec<ProxiedKey> {
     let mut keys = Vec::new();
     for found in find_in_env(credentials) {
-        let hosts = declared_hosts(package, found.service);
-        if hosts.is_empty() {
-            eprintln!(
-                "{} is left out: no kit of the sandbox declares where the {} key goes",
-                found.env, found.service
-            );
-            continue;
+        match ProxiedKey::for_service(package, found.service, found.env, found.value) {
+            Ok(key) => keys.push(key),
+            Err(error) => eprintln!("{} is left out: {error}", found.env),
         }
-        keys.push(ProxiedKey::new(found.env, hosts, found.value)?);
     }
-    Ok(keys)
+    keys
 }
 
 /// A line naming `keys` and their hosts, for the terminal.
@@ -89,24 +80,4 @@ pub fn describe(keys: &[ProxiedKey]) -> String {
         .map(|key| format!("{} for {}", key.env(), key.hosts().join(", ")))
         .collect::<Vec<_>>()
         .join("; ")
-}
-
-/// The hosts the kits of `package` inject the API key of `service` into, as
-/// their credentials declare them (`apiKey.inject[].domain`).
-fn declared_hosts(package: &KitPackage, service: &str) -> Vec<String> {
-    let mut hosts: Vec<String> = package
-        .kit_artifacts()
-        .iter()
-        .flat_map(|artifact| list(&artifact["credentials"]))
-        .filter(|credential| credential["service"] == service)
-        .flat_map(|credential| list(&credential["apiKey"]["inject"]))
-        .filter_map(|inject| inject["domain"].as_str().map(str::to_owned))
-        .collect();
-    hosts.dedup();
-    hosts
-}
-
-/// The items of `value`, a JSON array, or none.
-fn list(value: &Value) -> Vec<Value> {
-    value.as_array().cloned().unwrap_or_default()
 }

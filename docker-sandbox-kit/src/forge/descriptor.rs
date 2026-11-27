@@ -37,6 +37,9 @@ pub(super) const LIFECYCLE: &str = "com.docker.sandbox/lifecycle@1";
 /// [`Capability::NetworkPolicy`].
 pub(super) const NETWORK: &str = "com.docker.sandbox/network-policy@1";
 
+/// The variables of the sandbox that name its MCP gateway, measured on the
+/// commands of the kits (`audit-mixin-mcp`).
+const GATEWAY_ENV: [&str; 2] = ["MCP_GATEWAY_URL", "MCP_SENTINEL_TOKEN_NAME"];
 /// A v3 kit descriptor (feature `forge`), read from JSON or built in Rust.
 ///
 /// ```
@@ -574,6 +577,14 @@ impl LifecycleStep {
         self
     }
 
+    /// Passes the MCP gateway of the sandbox to the command: its address,
+    /// `MCP_GATEWAY_URL`, and `MCP_SENTINEL_TOKEN_NAME`, the bearer token the
+    /// kits of the agents send it, as they register it for their agent.
+    #[must_use]
+    pub fn with_gateway_env(self) -> Self {
+        self.with_env(GATEWAY_ENV)
+    }
+
     /// Runs a startup command in the background.
     #[must_use]
     pub fn in_background(mut self) -> Self {
@@ -839,6 +850,12 @@ mod tests {
                 "install.allow: invalid host pattern \"pypi.org/simple\": a path",
             ),
         ]);
+    }
+
+    #[test]
+    fn a_step_can_be_given_the_mcp_gateway_of_the_sandbox() {
+        let step = LifecycleStep::new("echo $MCP_GATEWAY_URL").with_gateway_env();
+        assert_eq!(step.env, ["MCP_GATEWAY_URL", "MCP_SENTINEL_TOKEN_NAME"]);
     }
 
     #[test]

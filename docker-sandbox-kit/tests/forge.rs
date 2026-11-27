@@ -17,7 +17,7 @@ mod support;
 use std::path::Path;
 
 use docker_sandbox::kit::KitPackage;
-use docker_sandbox_kit::{Error, KitDescriptor, KitForge, LifecycleStep, Mixin};
+use docker_sandbox_kit::{Agent, Error, KitDescriptor, KitForge, LifecycleStep, Mixin};
 use serde_json::{Value, json};
 use support::{FakeDaemon, FakeDaemonBuilder, Reply, connect};
 
@@ -402,8 +402,8 @@ async fn published_base_kits_are_rebuilt_as_the_cli_writes_them() {
     let client = connect(&daemon).await;
     let output = dir.path().join("shell");
 
-    let package = KitForge::new(client.clone())
-        .with_base("docker.io/sbx/shell:latest")
+    // The shell kit named as an agent: its published image.
+    let package = KitForge::agent(client.clone(), Agent::Shell)
         .forge(&output)
         .await
         .unwrap();

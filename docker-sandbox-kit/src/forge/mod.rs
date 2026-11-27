@@ -46,6 +46,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use self::artifact::MixinParts;
+use crate::Agent;
 use crate::error::{Error, Result};
 use docker_sandbox::Client;
 use docker_sandbox::kit::KitPackage;
@@ -297,6 +298,14 @@ impl KitForge {
             args: BTreeMap::new(),
             mixins: Vec::new(),
         }
+    }
+
+    /// Forges on the published kit of `agent`, `docker.io/sbx/<name>:latest`:
+    /// [`KitForge::new`] with [`KitForge::with_base`] of
+    /// [`Agent::reference`].
+    #[must_use]
+    pub fn agent(client: Client, agent: Agent) -> Self {
+        Self::new(client).with_base(agent.reference())
     }
 
     /// Takes as base kit the published v3 workload kit `reference`, e.g.

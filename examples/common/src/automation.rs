@@ -115,7 +115,7 @@ pub async fn run(agent: &Agent, headless: Headless) -> Result<()> {
     write_task(&project)?;
     write_task(&original)?;
     let (project, original) = (canonical(&project)?, canonical(&original)?);
-    let keys = credentials::proxied_keys(&package, agent.credentials)?;
+    let keys = credentials::proxied_keys(&package, agent.credentials);
     let request = keys.iter().fold(
         package
             .request(&name)?

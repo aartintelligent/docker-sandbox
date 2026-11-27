@@ -70,12 +70,14 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+mod agent;
 #[cfg(feature = "compiler")]
 mod compiler;
 mod error;
 #[cfg(feature = "forge")]
 mod forge;
 
+pub use self::agent::Agent;
 #[cfg(feature = "compiler")]
 #[cfg_attr(docsrs, doc(cfg(feature = "compiler")))]
 pub use self::compiler::{CompileJob, KitCompiler};

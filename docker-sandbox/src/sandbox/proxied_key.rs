@@ -14,8 +14,9 @@
 //! in the requests to the hosts of the key ([`Sandbox::push_proxied_keys`]).
 //! The key itself only travels over the socket, to the daemon.
 //!
-//! The hosts are given explicitly: the key reaches no other one, whatever the
-//! network rules of the sandbox allow. The agent has to send the content of
+//! The hosts are given explicitly, or read from the kits of a package for the
+//! service of the key ([`ProxiedKey::for_service`]): the key reaches no other
+//! one, whatever the network rules of the sandbox allow. The agent has to send the content of
 //! the variable in a header of its requests, as an API client does with a key.
 
 use std::collections::hash_map::RandomState;
@@ -24,8 +25,11 @@ use std::hash::{BuildHasher, Hasher};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use serde_json::Value;
+
 use super::{CreateRequest, CredentialsOutcome, CredentialsUpdate, CustomSecret, Sandbox, Secret};
 use crate::error::{Error, Result};
+use crate::kit::KitPackage;
 
 /// Prefix of the placeholders this crate generates, the one of the custom
 /// secrets of the CLI.
@@ -87,6 +91,41 @@ impl ProxiedKey {
             hosts.into_iter().map(Into::into).collect(),
             value.into(),
         )
+    }
+
+    /// The key `value` of the service `service` (`anthropic` for the claude
+    /// kit, …), read by the agent from the variable `env`, for the hosts the
+    /// kits of `package` inject the key of that service into, as their
+    /// credentials declare them (`apiKey.inject[].domain`): the hosts of the
+    /// API of the agent, without writing them out.
+    ///
+    /// ```no_run
+    /// # fn run(package: docker_sandbox::kit::KitPackage) -> docker_sandbox::Result<()> {
+    /// use docker_sandbox::sandbox::ProxiedKey;
+    ///
+    /// let key = ProxiedKey::for_service(&package, "anthropic", "ANTHROPIC_API_KEY", "sk-…")?;
+    /// println!("{} goes to {}", key.env(), key.hosts().join(", "));
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidRequest`] when no kit of `package` declares
+    /// where the key of `service` goes, and as [`ProxiedKey::new`] otherwise.
+    pub fn for_service(
+        package: &KitPackage,
+        service: &str,
+        env: impl Into<String>,
+        value: impl Into<Secret>,
+    ) -> Result<Self> {
+        let hosts = injected_hosts(package, service);
+        if hosts.is_empty() {
+            return Err(Error::InvalidRequest(format!(
+                "no kit of the package declares where the key of {service} goes"
+            )));
+        }
+        Self::checked(env.into(), hosts, value.into())
     }
 
     /// [`ProxiedKey::new`], compiled once whatever the types of its
@@ -172,6 +211,30 @@ impl Sandbox {
     }
 }
 
+/// The hosts the kits of `package` inject the key of `service` into, in the
+/// order they declare them, required and optional credentials alike.
+fn injected_hosts(package: &KitPackage, service: &str) -> Vec<String> {
+    let mut hosts: Vec<String> = Vec::new();
+    let artifacts = package.kit_artifacts();
+    let credentials = artifacts
+        .iter()
+        .flat_map(|artifact| ["credentials", "optionalCredentials"].map(|key| &artifact[key]))
+        .filter_map(Value::as_array)
+        .flatten()
+        .filter(|credential| credential["service"] == service);
+    for credential in credentials {
+        let injects = credential["apiKey"]["inject"]
+            .as_array()
+            .into_iter()
+            .flatten();
+        for domain in injects.filter_map(|inject| inject["domain"].as_str()) {
+            if !hosts.iter().any(|host| host == domain) {
+                hosts.push(domain.to_owned());
+            }
+        }
+    }
+    hosts
+}
 /// A placeholder no other key uses: [`PLACEHOLDER_PREFIX`] and 32 hexadecimal
 /// digits, from the random keys of the standard hasher, the time and a count
 /// of the keys of this process.
