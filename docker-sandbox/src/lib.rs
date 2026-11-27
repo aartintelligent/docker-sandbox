@@ -3,9 +3,10 @@
 //!
 //! `sandboxd` serves a private HTTP/1.1 API on a per-user Unix socket. The
 //! `sbx` CLI is one client of that API; this crate is another, usable from any
-//! tokio application without the CLI: create sandboxes from compiled kits,
-//! keep them running, run commands and agent sessions, move files in and out,
-//! publish ports, push credentials and scope network access.
+//! tokio application without the CLI: create sandboxes from kits forged
+//! through the socket alone or compiled once with the CLI, keep them running,
+//! run commands and agent sessions, move files in and out, publish ports, give
+//! agents their credentials and scope network access.
 //!
 //! # Example
 //!
@@ -40,6 +41,30 @@
 //! # }
 //! ```
 //!
+//! With the `kit-forge` feature, the package needs no CLI at all:
+//! [`KitForge`](kit::KitForge) rebuilds a published kit from its image through
+//! the socket, with its kit arguments and mixins of your own, in the form the
+//! CLI would give it, so that the daemon treats the sandbox as one the CLI
+//! created, the credential of its agent included.
+//!
+//! ```no_run
+//! # #[cfg(feature = "kit-forge")]
+//! # async fn run() -> docker_sandbox::Result<()> {
+//! use docker_sandbox::Client;
+//! use docker_sandbox::kit::KitForge;
+//!
+//! let client = Client::connect().await?;
+//! let package = KitForge::new(client.clone())
+//!     .with_base("docker.io/sbx/claude:latest")
+//!     .with_arg("model", "claude-haiku-5-5")
+//!     .forge("/var/lib/kits/claude")
+//!     .await?;
+//! let created = package.create(&client, "job-43").await?;
+//! assert!(created.withheld.is_empty(), "the daemon withholds {:?}", created.withheld);
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! # Modules
 //!
 //! | Module | Entry point | Covers |
@@ -47,7 +72,7 @@
 //! | [`sandbox`] | [`Client::sandbox`], [`Client::sandboxes`] | Listing, creation, life cycle, sessions, ports, files, credentials, API keys through the proxy, SSH |
 //! | [`exec`] | [`Sandbox::exec`](sandbox::Sandbox::exec), [`Sandbox::attach`](sandbox::Sandbox::attach) | Commands, interactive executions, agent sessions |
 //! | [`policy`] | [`Client::policy`], [`Sandbox::allow_hosts`](sandbox::Sandbox::allow_hosts) | Network rules, checks, activity log |
-//! | [`kit`] | [`KitPackage`](kit::KitPackage) | Kit packages: creation, kits added in place or by recreation, compilation (feature `kit-compiler`), forging without the CLI (feature `kit-forge`) |
+//! | [`kit`] | [`KitPackage`](kit::KitPackage) | Kit packages: forged without the CLI (feature `kit-forge`) or compiled with it (feature `kit-compiler`), creation, kits added in place or by recreation |
 //! | [`image`] | [`Client::images`] | Images: list, pull, load, export, remove |
 //! | [`event`] | [`Client::events`] | The daemon event stream |
 //! | [`mcp`] | [`Client::mcp`], [`Sandbox::load_mcp_server`](sandbox::Sandbox::load_mcp_server) | MCP gateway, servers, policy checks |

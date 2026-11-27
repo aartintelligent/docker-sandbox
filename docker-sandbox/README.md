@@ -11,8 +11,9 @@
 A typed async Rust client for the `sandboxd` socket of
 [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) (`sbx`). It drives the
 daemon directly, without going through the `sbx` CLI: create sandboxes from
-compiled kits, keep them running, run commands and agent sessions, move files
-in and out, publish ports, push credentials and scope network access.
+kits forged through the socket alone or compiled once with the CLI, keep them
+running, run commands and agent sessions, move files in and out, publish
+ports, give agents their credentials and scope network access.
 
 ```rust,no_run
 use std::time::Duration;
@@ -46,6 +47,22 @@ async fn main() -> docker_sandbox::Result<()> {
 }
 ```
 
+With the `kit-forge` feature, the package needs no CLI at all: `KitForge`
+rebuilds a published kit from its image through the socket, with its kit
+arguments and mixins of your own, in the form the CLI would give it, so that
+the daemon treats the sandbox as one the CLI created.
+
+```rust,ignore
+use docker_sandbox::kit::KitForge;
+
+let package = KitForge::new(client.clone())
+    .with_base("docker.io/sbx/claude:latest")
+    .with_arg("model", "claude-haiku-5-5")
+    .forge("/var/lib/kits/claude")
+    .await?;
+let created = package.create(&client, "job-43").await?;
+```
+
 > This project is not affiliated with Docker, Inc. The `sandboxd` socket API is
 > private and changes with every `sbx` release: the audit tool of this
 > repository keeps a map of it per version, and the library is validated
@@ -58,7 +75,7 @@ async fn main() -> docker_sandbox::Result<()> {
 | `sandbox` | Listing, creation with its progress stream, start, stop, deletion, saving as a template, sessions that keep a sandbox running, ports, host paths, credentials and API keys given through the proxy alone (`ProxiedKey`), files and directories, SSH tunnels |
 | `exec` | Commands run to completion, interactive executions and agent sessions over upgraded connections, terminal resizing |
 | `policy` | Network rules (global or per sandbox), checks of a target, the activity log of the proxy |
-| `kit` | Kit packages compiled once with the CLI then replayed through the socket alone: creation, kits added to a running sandbox in place or by recreating its container, their compilation (feature `kit-compiler`), and packages forged without the CLI, base kit and mixins (feature `kit-forge`) |
+| `kit` | Kit packages replayed through the socket alone: forged without the CLI, a published base kit rebuilt with its arguments and mixins described in JSON or in Rust (feature `kit-forge`), or compiled once with the CLI (feature `kit-compiler`); sandboxes created from them, kits added to a running sandbox in place or by recreating its container |
 | `image` | Listing, inspection, pulls, loading, export, removal |
 | `event` | The daemon event stream, with or without the initial replay |
 | `mcp` | The MCP gateway of a sandbox, the servers loaded into it, and policy checks of a server before it is registered |
@@ -93,11 +110,19 @@ allow-lists are unknown.
   timeout; `ExecSpec::with_timeout` gives a command its own.
 - **Streams need no extra crate.** Creation progress, pulls, events, prompts and
   interactive output implement `futures_core::Stream` and an inherent `next()`.
+- **Agents get their credential from the daemon.** The kit of an agent declares
+  its credential, and the daemon gives the sandbox the one it holds for that
+  service, a subscription for instance, when it authorizes it: for a published
+  kit whose package is the one the CLI resolves, forged or compiled, or with a
+  bindings file. `Created::withheld` names what it withholds. To give an agent
+  a key of your own, use a `ProxiedKey`: the sandbox only holds a placeholder,
+  and the proxy writes the key into the requests to the hosts of the key.
 
 The [examples](../examples/README.md) of the repository are complete programs,
 one crate each: the basics, shell sandboxes (commands, files, network policy,
-ports, interactive shell, events) and every coding agent `sbx` knows, with and
-without an MCP server.
+ports, interactive shell, events), kits forged without the CLI, and every
+coding agent `sbx` knows, its kit forged through the socket, with and without
+an MCP server.
 
 ## Requirements
 
