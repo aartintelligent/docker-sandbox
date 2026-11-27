@@ -25,8 +25,8 @@ Versions, previous then new: $ARGUMENTS
    (`audit/snapshots/<new>/results/kits.json`): every field of the artifacts
    the library forges is `same` as the CLI's but the `template` and
    `v3Digest` of the mixin; any other `differs`, `sbx only` or `forged only` is
-   a change `docker-sandbox/src/kit/forge/` has to follow.
-5. Adapt `docker-sandbox` until `just ci` passes; widen `SUPPORTED_API` only
+   a change `docker-sandbox-kit/src/forge/` has to follow.
+5. Adapt `docker-sandbox` and `docker-sandbox-kit` until `just ci` passes; widen `SUPPORTED_API` only
    now that the new version is audited. The changelog is not written by hand:
    release-plz derives it from the Conventional Commits (`CONTRIBUTING.md`).
 6. `just test-live` in the background, then report what passed, what failed,

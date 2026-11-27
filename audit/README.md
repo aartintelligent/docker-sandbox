@@ -107,12 +107,13 @@ new or removed operations, fields, statuses, routes and event kinds. Adapt
 `docker-sandbox` (types and routes) until the tests pass, then run the live tests
 (`just test-live`).
 
-The kit artifacts the library forges follow the private contract between the
-CLI and the daemon. The `kits` suite compares them field by field with the ones
-the new CLI compiles (`kit-forge-library`, `kit-forge-library-shell`): a field
-reported `differs`, `sbx only` or `forged only` in their output is a change the
-forging of the library (`docker-sandbox/src/kit/forge/`) has to follow before
-`SUPPORTED_API` is widened. Only the name and digest of the source image of a
+The kit artifacts `docker-sandbox-kit` forges follow the private contract
+between the CLI and the daemon. The `kits` suite compares them field by field
+with the ones the new CLI compiles (`kit-forge-library`,
+`kit-forge-library-shell`): a field reported `differs`, `sbx only` or
+`forged only` in their output is a change its forging
+(`docker-sandbox-kit/src/forge/`) has to follow before `SUPPORTED_API` is
+widened. Only the name and digest of the source image of a
 mixin differ by design.
 
 When a suite fails on the new version, fix the suite first (`sbx <cmd> --help`
@@ -160,8 +161,8 @@ this way.
    bodies, a test asserting those bodies against the fake daemon, coverage
    kept (`just coverage`). The changelog is not edited: release-plz writes it
    from the commit message (`feat(sandbox): …`).
-7. **Check it for real** with a live test (`tests/live.rs`, `just test-live`),
-   then the examples that use it.
+7. **Check it for real** with a live test (`tests/live.rs` of the crate that
+   has the feature, `just test-live`), then the examples that use it.
 
 ## Suites
 
@@ -213,7 +214,7 @@ Add any other private value (a Docker account name, for instance) with
 `--private <value>` or `DOCKER_SANDBOX_AUDIT_PRIVATE`. Check files at any time with:
 
 ```sh
-cargo run -p audit -- privacy-check            # snapshots, fixtures, published crate
+cargo run -p audit -- privacy-check            # snapshots, fixtures, published crates
 cargo run -p audit -- scrub <in> <out>         # clean an external capture
 ```
 

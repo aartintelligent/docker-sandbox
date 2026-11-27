@@ -12,15 +12,22 @@ Rust tooling to drive [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)
 (`sbx`) through the private `sandboxd` Unix socket, without the `sbx` CLI.
 
 ```text
-docker-sandbox/   the library: a typed async client of the socket
-examples/         complete programs, one crate each, in a workspace of their own
-audit/            the audit of the daemon API, a tool that is never published
+docker-sandbox/       the library: a typed async client of the socket
+docker-sandbox-kit/   the kit packages it replays, forged or compiled
+examples/             complete programs, one crate each, in a workspace of their own
+audit/                the audit of the daemon API, a tool that is never published
 ```
 
-- **[`docker-sandbox`](docker-sandbox/README.md)** creates sandboxes from kits
-  forged through the socket alone or compiled once with the CLI, keeps them
-  running, runs commands and agent sessions, moves files in and out, publishes
-  ports, gives agents their credentials and scopes network access. Its README shows the API at a glance and what a runner needs to know.
+- **[`docker-sandbox`](docker-sandbox/README.md)** creates sandboxes from kit
+  packages, keeps them running, runs commands and agent sessions, moves files
+  in and out, publishes ports, gives agents their credentials and scopes
+  network access. Its README shows the API at a glance and what a runner needs
+  to know.
+- **[`docker-sandbox-kit`](docker-sandbox-kit/README.md)** writes the kit
+  packages: what the CLI does on the client side, since the daemon cannot
+  resolve kits by itself. It forges them through the socket alone, the base
+  kit rebuilt from its published image with its arguments and mixins described
+  in Rust or in JSON, or compiles them once with the CLI.
 - **[`examples`](examples/README.md)** are runnable programs: the basics, shell
   sandboxes (commands, files, network policy, ports, interactive shell,
   events), the MCP gateway checked from inside a sandbox with an `rmcp` client

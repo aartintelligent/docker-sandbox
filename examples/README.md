@@ -19,8 +19,8 @@ and caches the package under `examples/target/kits/`. The kit images pulled on
 that occasion stay on the daemon, as the cache of the next sandboxes.
 The agent examples, [`shell-forge`](shell-forge/src/main.rs) and
 [`agent-kit-forge`](agent-kit-forge/src/main.rs) need no CLI for their kits:
-they forge their packages through the socket alone (`KitForge`, feature
-`kit-forge`), under `examples/target/forged/`, at every run. The `-mcp`
+they forge their packages through the socket alone (`KitForge`, from
+`docker-sandbox-kit`), under `examples/target/forged/`, at every run. The `-mcp`
 variants still register their MCP server with `sbx mcp add`.
 
 When a kit declares a credential the daemon does not authorize, the creation

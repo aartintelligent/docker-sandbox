@@ -65,18 +65,18 @@ status check.
 | Lint | `just clippy` | Workspace lints and `clippy::pedantic`, warnings are errors |
 | Spelling | `just typos` | Sources and docs (`typos.toml`) |
 | Tests | `just test`, `just doctest` | The suite on Linux and macOS, plus the doctests |
-| Coverage | `just coverage` | Every line and 95 % of the regions of the library run under its tests ([Testing](#testing)); the report goes to Codecov |
+| Coverage | `just coverage` | Every line and 95 % of the regions of the two published crates run under their tests ([Testing](#testing)); the report goes to Codecov |
 | Examples | `just examples-clippy` | The examples workspace builds and passes clippy |
 | Docs | `just doc` | Nightly rustdoc with the docs.rs flags, warnings and broken links are errors |
 | Supply chain | `just deny` | Advisories, licences, bans and sources (`deny.toml`); licences and sources of the examples |
-| Privacy | `just privacy` | No personal data in the audit snapshots, the fixtures and the files of the published crate (the contact in `authors` aside) |
-| Features | `just hack` | Every feature combination of the library compiles |
+| Privacy | `just privacy` | No personal data in the audit snapshots, the fixtures and the files of the published crates (the contact in `authors` aside) |
+| Features | `just hack` | Every feature combination of the two published crates compiles |
 | MSRV | `just msrv` | The workspace compiles on `rust-version` |
 | Commits | CI only | `committed` validates every commit of a pull request, except Dependabot's |
 
 The live tests (`just test-live`) are not part of CI: they need a real daemon.
-Run them before merging a change to the library; the recipe records the state
-of the daemon before them and checks it after.
+Run them before merging a change to either crate; the recipe runs those of both,
+records the state of the daemon before them and checks it after.
 
 ## Pipeline
 
@@ -85,7 +85,7 @@ without a reason:
 
 | Stage | Where | What runs |
 |---|---|---|
-| Commit | lefthook | `pre-commit`: formatting, clippy, and the privacy check when audit data or the published crate changes; `commit-msg`: Conventional Commits |
+| Commit | lefthook | `pre-commit`: formatting, clippy, and the privacy check when audit data or a published crate changes; `commit-msg`: Conventional Commits |
 | Pull request | `ci.yml` | Only the jobs the changed files concern (below); format, spelling and commits always |
 | Merge queue, `main` | `ci.yml` | Every job, so that `main` is always fully checked and the caches pull requests restore stay warm |
 | Release | `release-plz.yml` | On `main`: the release PR (version bump, changelog), checked by CI like any other; once merged, the tag and the GitHub release |
@@ -171,23 +171,26 @@ are in [`AGENTS.md`](AGENTS.md).
 
 - Unit tests sit next to the code (`#[cfg(test)]` at the end of the file).
 - Integration tests are in `tests/`, one file per domain against an in-memory
-  fake daemon on a Unix socket (`tests/support/`), and the decoding of every
-  recorded daemon response (`fixtures.rs`); refresh the fixtures with
-  `just fixtures <version>`. The fake daemon serves canned replies, in turn
-  when a route gets several, and plays slow, truncated or hung-up connections.
+  fake daemon on a Unix socket (`docker-sandbox/tests/support/`), and the
+  decoding of every recorded daemon response (`fixtures.rs`); refresh the
+  fixtures with `just fixtures <version>`. The fake daemon serves canned
+  replies, in turn when a route gets several, and plays slow, truncated or
+  hung-up connections. The tests of `docker-sandbox-kit` include it by path
+  rather than copy it.
 - What a test cannot do in its own process (change the environment, run the
   `sbx` CLI) it does in a helper process: the test binary re-executes itself
-  to run one test, as Go's `os/exec` tests do. `compiler.rs` plays the CLI
-  that way.
-- Live tests (feature `live`, `tests/live.rs`) create and remove their own
-  sandboxes and images; with `kit-forge` too, as `just test-live` runs them,
-  they create sandboxes from packages forged without the CLI.
+  to run one test, as Go's `os/exec` tests do. `compiler.rs`, in
+  `docker-sandbox-kit`, plays the CLI that way.
+- Live tests (feature `live`, `tests/live.rs` of each crate) create and remove
+  their own sandboxes and images; those of `docker-sandbox-kit` create them
+  from packages forged without the CLI. `just test-live` runs both.
 
 ### Coverage
 
-Every line of `docker-sandbox` runs under the tests above, without a daemon:
-`just coverage` fails on the first line none of them runs, and lists it. CI
-runs the same gate when the library or `codecov.yml` changes, and uploads the report to
+Every line of `docker-sandbox` and `docker-sandbox-kit` runs under the tests
+above, without a daemon: `just coverage` fails on the first line none of them
+runs, and lists it. CI runs the same gate when a crate or `codecov.yml` changes,
+and uploads the report to
 [Codecov](https://codecov.io) (`codecov.yml`), which annotates the uncovered
 lines of a pull request. The doctests, the live tests and the examples do not count; the test
 files themselves are not measured.
@@ -252,16 +255,30 @@ the squash commit). Fill in the template; `CI OK` must be green.
 
 [release-plz](https://release-plz.dev) opens a release pull request from the
 Conventional Commits on `main`; merging it publishes `docker-sandbox` to
-crates.io, tags the version (`v<version>`) and creates the GitHub release. The
-other members are never published (`publish = false`). The release workflow
+crates.io, tags the version (`v<version>`) and creates the GitHub release.
+`docker-sandbox-kit` has versions of its own, tagged
+`docker-sandbox-kit-v<version>`. The other members are never published
+(`publish = false`). The release workflow
 also carries the new version into `examples/Cargo.lock`, the lockfile of the
 examples workspace, which release-plz does not know, with a commit of its own
 on the branch of the release pull request.
 
 crates.io trusts the release workflow (trusted publishing: `release-plz.yml`,
 environment `release`), so no crates.io token is stored. A new crate cannot be
-published that way: 0.1.0, tagged before the crate was publishable, is
-published by hand from `main` with `cargo publish --locked -p docker-sandbox`.
+published that way: `docker-sandbox` 0.1.0, tagged before the crate was
+publishable, was published by hand from `main` with
+`cargo publish --locked -p docker-sandbox`. The first version of
+`docker-sandbox-kit` goes the same way, after the `docker-sandbox` it needs
+(`Images::export_stream`, `CreateRequest::for_agent`, the 0.3.0 release):
+
+1. Merge the release pull request of `docker-sandbox`, which publishes it.
+2. From `main`: `cargo publish --locked -p docker-sandbox-kit`, then tag that
+   commit `docker-sandbox-kit-v0.1.0` and create its GitHub release.
+3. On crates.io, add the release workflow as the trusted publisher of
+   `docker-sandbox-kit` (this repository, `release-plz.yml`, environment
+   `release`).
+4. Remove `release = false` from its entry of `release-plz.toml`: release-plz
+   takes it over from the next version.
 
 ## License
 
