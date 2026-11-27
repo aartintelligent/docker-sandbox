@@ -25,7 +25,7 @@ include = ["/src", "/README.md", "/CHANGELOG.md", "/LICENSE-APACHE", "/LICENSE-M
 
 # Every feature but `live`, which only gates the live integration tests.
 [package.metadata.docs.rs]
-features     = ["kit-compiler", "secrecy"]
+features     = ["kit-compiler", "kit-forge", "secrecy"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 # Quality gates are centralized in the workspace root `Cargo.toml`.
@@ -44,6 +44,10 @@ live = []
 # `From<secrecy::SecretString>` for `Secret`: a secret the program holds as a
 # `SecretString` is passed on without being exposed.
 secrecy = ["dep:secrecy"]
+# `KitForge`, `KitDescriptor` and `Mixin`: writes kit packages without the `sbx`
+# CLI, the mixins forged from their descriptor. Needs the SHA-256 digests of
+# the OCI image layouts it writes (`sha2`).
+kit-forge = ["dep:sha2"]
 
 [dependencies]
 bytes            = { workspace = true }
@@ -62,6 +66,7 @@ tokio            = { workspace = true, features = ["fs", "io-util", "macros", "n
 tracing          = { workspace = true }
 zeroize          = { workspace = true }
 secrecy          = { workspace = true, optional = true }
+sha2             = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -43,6 +43,8 @@ pub struct KitPackage {
     template: Value,
     /// `sbx` version the package was compiled with.
     compiled_with: Option<String>,
+    /// API version of the daemon the package was compiled or forged for.
+    compiled_api: Option<String>,
     /// Image archives shipped with the package.
     images: Vec<PackageImage>,
 }
@@ -64,11 +66,15 @@ impl KitPackage {
             path if path.exists() => Some(read_json(&path)?),
             _ => None,
         };
-        let compiled_with = metadata
-            .as_ref()
-            .and_then(|m| m.pointer("/compiled_with/sbx"))
-            .and_then(Value::as_str)
-            .map(str::to_owned);
+        let recorded = |pointer: &str| {
+            metadata
+                .as_ref()
+                .and_then(|m| m.pointer(pointer))
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        };
+        let compiled_with = recorded("/compiled_with/sbx");
+        let compiled_api = recorded("/compiled_with/api_version");
         let images = match metadata
             .as_ref()
             .and_then(|m| m.get("images"))
@@ -81,6 +87,7 @@ impl KitPackage {
             dir,
             template,
             compiled_with,
+            compiled_api,
             images,
         })
     }
@@ -95,6 +102,13 @@ impl KitPackage {
     #[must_use]
     pub fn compiled_with(&self) -> Option<&str> {
         self.compiled_with.as_deref()
+    }
+
+    /// API version of the daemon the package was compiled or forged for, if
+    /// recorded. A forged package records no `sbx` version, only this.
+    #[must_use]
+    pub fn compiled_api(&self) -> Option<&str> {
+        self.compiled_api.as_deref()
     }
 
     /// Kit references of the package, base kit first.
@@ -249,14 +263,19 @@ impl KitPackage {
         sandbox.swap_container(&request).await
     }
 
-    /// Logs a warning when the daemon runs another `sbx` version than the one
-    /// the package was compiled with.
+    /// Logs a warning when the daemon runs another `sbx` version, or speaks
+    /// another API, than the package was compiled or forged for.
     fn warn_on_version_mismatch(&self, client: &Client) {
-        if let Some(compiled) = self.compiled_with.as_deref() {
-            let running = client.health().version.as_str();
-            if compiled != running {
-                tracing::warn!(package = %self.dir.display(), compiled, running, "kit package compiled for another sbx version");
-            }
+        let health = client.health();
+        if let Some(compiled) = self.compiled_with.as_deref()
+            && compiled != health.version
+        {
+            tracing::warn!(package = %self.dir.display(), compiled, running = %health.version, "kit package compiled for another sbx version");
+        }
+        if let Some(compiled) = self.compiled_api.as_deref()
+            && compiled != health.api_version
+        {
+            tracing::warn!(package = %self.dir.display(), compiled, running = %health.api_version, "kit package written for another daemon API");
         }
     }
 }

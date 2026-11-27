@@ -129,8 +129,9 @@ regex = "1"
 # Rotated daemon logs (`daemon-<time>.log.gz`) read back by the audit.
 flate2 = "1"
 
-# SHA-256 digests of the OCI image layouts `audit kit-forge` writes for kit
-# sources without the `sbx` CLI; the default features (`std`) suffice.
+# SHA-256 digests of the OCI image layouts written for kit sources without the
+# `sbx` CLI: by the library (optional, feature `kit-forge`) and by `audit
+# kit-forge`; the default features (`std`) suffice.
 sha2 = "0.11"
 
 # Dev-dependency: temporary directories for the socket and kit tests.

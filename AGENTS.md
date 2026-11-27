@@ -22,13 +22,15 @@ and the examples in a workspace of their own:
     credentials, sessions, files, SSH, kit changes (in place or by container swap);
   - `exec/`: specs, outputs, interactive sessions and the private stdcopy decoder;
   - `policy/`, `image/`, `event/`, `daemon/`, `mcp.rs`, `prompt.rs`;
-  - `kit/`: compiled kit packages, and `compiler/` (feature `kit-compiler`);
+  - `kit/`: kit packages, `compiler/` (feature `kit-compiler`) and `forge/` (feature `kit-forge`:
+    packages written without the CLI, from kit descriptors);
   - `transport/` (private): HTTP/1.1 over the socket, upgrades, NDJSON streams;
   - `error.rs`, `prelude.rs`.
 
   `tests/` has one file per domain against the fake daemon of `tests/support/`, plus `fixtures.rs`
   (daemon responses exported from the audit), `compiler.rs` (the kit compiler, with the test binary
-  re-executed as a fake `sbx`) and `live.rs` (feature `live`), with `tests/live-probe/`, the
+  re-executed as a fake `sbx`), `forge.rs` (kit packages forged without the CLI) and `live.rs`
+  (feature `live`), with `tests/live-probe/`, the
   program the live tests upload and run inside sandboxes (a workspace member, built statically by
   `just test-live`).
 - `audit/`: the `audit` binary, never published. Suites, kits and
