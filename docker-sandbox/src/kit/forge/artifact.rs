@@ -24,6 +24,29 @@ use super::descriptor::{
 };
 use super::to_json;
 
+/// The capability types the CLI resolves, in the order it writes them in
+/// `v3Effective`, whatever their order in the descriptor; capabilities of one
+/// type keep theirs. Measured by the audit on the kits `shell`, `claude`,
+/// `copilot` and `opencode` and on mixins: the daemon withholds the
+/// credentials of a published kit whose effective descriptor comes in another
+/// order.
+pub(super) const RESOLVED: &[&str] = &[
+    "com.docker.sandbox/network-policy@1",
+    "com.docker.sandbox/sbx@1",
+    "com.docker.sandbox/credential@1",
+    "com.docker.sandbox/agent-skills@1",
+    "com.docker.sandbox/acp@1",
+    "com.docker.sandbox/agent-sessions@1",
+    "com.docker.sandbox/agent-interactive-sessions@1",
+    "com.docker.sandbox/lifecycle@1",
+    "com.docker.sandbox/agent-context@1",
+    "com.docker.sandbox/agent-context@2",
+];
+
+/// The capability types the CLI leaves out of a kit as unsupported, when the
+/// kit declares them optional.
+pub(super) const UNSUPPORTED: &[&str] = &["com.docker.sandbox/dockerd@1"];
+
 /// Variables every install command keeps from the environment of the
 /// sandbox, in the order the CLI writes them.
 const INSTALL_ENV: &[&str] = &[
@@ -412,19 +435,20 @@ pub(super) fn is(capability: &Value, kind: &str) -> bool {
     capability.get("type").and_then(Value::as_str) == Some(kind)
 }
 
-/// `descriptor` normalized as the CLI does: lifecycle commands written as
-/// `["sh", "-c", command]`. The descriptor is JSON, so that the capabilities
-/// this crate does not know are kept.
+/// `descriptor` normalized as the CLI does: its capabilities in the order of
+/// [`RESOLVED`], lifecycle commands written as `["sh", "-c", command]`. The
+/// descriptor is JSON, so that the fields this crate does not know are kept.
 pub(super) fn effective(descriptor: &Value) -> Value {
     let mut effective = descriptor.clone();
-    let capabilities = effective
+    let Some(capabilities) = effective
         .get_mut("capabilities")
-        .and_then(Value::as_array_mut);
-    for capability in capabilities
-        .into_iter()
-        .flatten()
-        .filter(|c| is(c, LIFECYCLE))
-    {
+        .and_then(Value::as_array_mut)
+    else {
+        return effective;
+    };
+    // A stable sort: capabilities of one type keep their order.
+    capabilities.sort_by_key(rank);
+    for capability in capabilities.iter_mut().filter(|c| is(c, LIFECYCLE)) {
         for phase in ["install", "startup"] {
             let steps = capability
                 .pointer_mut(&format!("/config/{phase}"))
@@ -437,6 +461,19 @@ pub(super) fn effective(descriptor: &Value) -> Value {
         }
     }
     effective
+}
+
+/// The place of `capability` in [`RESOLVED`]; after them all for a type the
+/// CLI does not resolve.
+fn rank(capability: &Value) -> usize {
+    let kind = capability
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    RESOLVED
+        .iter()
+        .position(|resolved| *resolved == kind)
+        .unwrap_or(RESOLVED.len())
 }
 
 /// The selection of the capabilities `listed` of the kit `kit`: each is
@@ -673,6 +710,132 @@ mod tests {
         assert_eq!(selection["capabilities"][0]["type"], NETWORK);
         assert!(selection["selected"][0].get("name").is_none());
         assert!(selection.get("skipped").is_none());
+    }
+
+    /// The types of the effective capabilities of `descriptor`, given as the
+    /// short types of its capabilities in order.
+    fn effective_order(descriptor: &[&str]) -> Vec<String> {
+        let listed: Vec<Value> = descriptor
+            .iter()
+            .enumerate()
+            .map(|(index, kind)| json!({ "type": format!("com.docker.sandbox/{kind}"), "name": index }))
+            .collect();
+        let effective = effective(&json!({ "capabilities": listed }));
+        capabilities(&effective)
+            .map(|c| {
+                c["type"]
+                    .as_str()
+                    .unwrap()
+                    .trim_start_matches("com.docker.sandbox/")
+                    .to_owned()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn effective_capabilities_take_the_order_of_the_cli() {
+        // The selected capabilities of claude, copilot and opencode, in the
+        // order of their descriptors, then in the order the CLI wrote them.
+        let cases: [(&[&str], &[&str]); 3] = [
+            (
+                &[
+                    "sbx@1",
+                    "network-policy@1",
+                    "credential@1",
+                    "agent-sessions@1",
+                    "agent-interactive-sessions@1",
+                    "lifecycle@1",
+                    "agent-skills@1",
+                    "agent-context@2",
+                ],
+                &[
+                    "network-policy@1",
+                    "sbx@1",
+                    "credential@1",
+                    "agent-skills@1",
+                    "agent-sessions@1",
+                    "agent-interactive-sessions@1",
+                    "lifecycle@1",
+                    "agent-context@2",
+                ],
+            ),
+            (
+                &[
+                    "sbx@1",
+                    "network-policy@1",
+                    "credential@1",
+                    "credential@1",
+                    "lifecycle@1",
+                    "agent-context@2",
+                    "agent-sessions@1",
+                    "agent-interactive-sessions@1",
+                    "acp@1",
+                ],
+                &[
+                    "network-policy@1",
+                    "sbx@1",
+                    "credential@1",
+                    "credential@1",
+                    "acp@1",
+                    "agent-sessions@1",
+                    "agent-interactive-sessions@1",
+                    "lifecycle@1",
+                    "agent-context@2",
+                ],
+            ),
+            (
+                &[
+                    "sbx@1",
+                    "network-policy@1",
+                    "credential@1",
+                    "credential@1",
+                    "credential@1",
+                    "lifecycle@1",
+                    "agent-sessions@1",
+                    "agent-interactive-sessions@1",
+                    "agent-skills@1",
+                    "agent-context@2",
+                    "acp@1",
+                ],
+                &[
+                    "network-policy@1",
+                    "sbx@1",
+                    "credential@1",
+                    "credential@1",
+                    "credential@1",
+                    "agent-skills@1",
+                    "acp@1",
+                    "agent-sessions@1",
+                    "agent-interactive-sessions@1",
+                    "lifecycle@1",
+                    "agent-context@2",
+                ],
+            ),
+        ];
+        for (descriptor, cli) in cases {
+            assert_eq!(effective_order(descriptor), cli, "{descriptor:?}");
+        }
+
+        // Capabilities of one type keep their order; one of a type the CLI
+        // does not resolve goes last.
+        let listed = json!({ "capabilities": [
+            { "type": "com.docker.sandbox/future@1" },
+            { "type": "com.docker.sandbox/credential@1", "name": "b" },
+            { "type": "com.docker.sandbox/sbx@1" },
+            { "type": "com.docker.sandbox/credential@1", "name": "a" }
+        ] });
+        let names: Vec<Value> = capabilities(&effective(&listed))
+            .map(|c| c["name"].clone())
+            .collect();
+        assert_eq!(names, [Value::Null, json!("b"), json!("a"), Value::Null]);
+        assert_eq!(
+            effective(&listed)["capabilities"][3]["type"],
+            "com.docker.sandbox/future@1"
+        );
+        assert_eq!(
+            effective(&json!({ "kind": "mixin" })),
+            json!({ "kind": "mixin" })
+        );
     }
 
     #[test]

@@ -24,9 +24,11 @@
 //! - With the `kit-forge` feature too, the `forged` tests create sandboxes from
 //!   packages forged without the CLI: `shell` and `claude` rebuilt from their
 //!   published image, `claude` with two of its arguments, and a forged mixin.
-//!   They need no package. The agent of `claude` is never started, and the
-//!   sandbox gets no credential of the user: the daemon withholds the one its
-//!   kit declares.
+//!   They need no package. The agent of `claude` is never started: resolved
+//!   as the CLI resolves it, the kit is authorized the credential the daemon
+//!   holds for `anthropic`, which the proxy would write into requests to the
+//!   hosts of Anthropic, and the tests send none. `proxied_keys_*` sends a
+//!   dummy key to the public echo service `postman-echo.com`.
 //!
 //! Every resource created by these tests is removed afterwards, and the image
 //! store is checked to be back to its initial state.
@@ -1484,9 +1486,11 @@ mod forged {
                 .forge(dir.join("claude+forged"))
                 .await?;
             let created = package.create(&client, &name).await?;
-            // Without a bindings file, the daemon withholds the credential
-            // the kit declares: none of the user reaches the sandbox.
-            assert_eq!(created.withheld, ["anthropic"]);
+            // Resolved as the CLI resolves it, the kit is authorized the
+            // credential it declares, without a bindings file: the daemon
+            // withholds nothing. With its effective capabilities in another
+            // order, it would withhold `anthropic`.
+            assert!(created.withheld.is_empty(), "withheld {:?}", created.withheld);
 
             let sandbox = client.sandbox(&name);
             let _session = sandbox.ensure_running().await?;

@@ -2,11 +2,14 @@
 //! sandbox, the key written in its place by the proxy.
 //!
 //! The credential a kit declares for its agent, such as `anthropic` for the
-//! `claude` kit, is withheld by the daemon unless a bindings file authorizes
-//! it, and a value pushed for its service is not injected
-//! ([`CredentialsOutcome::withheld`]). A [`ProxiedKey`] does not depend on
-//! bindings: the sandbox is created with a placeholder in the variable the
-//! agent reads its key from ([`CreateRequest::with_proxied_key`]), and a
+//! `claude` kit, is injected with the value the daemon holds for its service,
+//! a subscription for instance, when the daemon authorizes it
+//! ([`CreateRequest::with_bindings_path`]); when it withholds it, a value
+//! pushed for that service is not injected either
+//! ([`CredentialsOutcome::withheld`]). A [`ProxiedKey`] gives
+//! the agent a key of the program's own instead, without depending on
+//! authorization: the sandbox is created with a placeholder in the variable
+//! the agent reads its key from ([`CreateRequest::with_proxied_key`]), and a
 //! custom secret tells the proxy to write the key in place of the placeholder
 //! in the requests to the hosts of the key ([`Sandbox::push_proxied_keys`]).
 //! The key itself only travels over the socket, to the daemon.
