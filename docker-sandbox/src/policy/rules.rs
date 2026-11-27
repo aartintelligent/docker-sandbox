@@ -3,8 +3,14 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::host::{HostPattern, InvalidHostPattern};
 use crate::Extra;
 use crate::error::{Error, Result};
+
+/// The path pattern of an HTTP rule that matches every path, which the CLI
+/// gives an HTTP rule without `--path`; the daemon refuses an HTTP allow rule
+/// without a path.
+const EVERY_PATH: &str = "/**";
 
 /// Rules in force, from `GET /policy/network/rules?type=all`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -198,16 +204,18 @@ impl RuleChange {
         Self::new(RuleAction::Deny, resources).with_protocols([Protocol::Tcp, Protocol::Udp])
     }
 
-    /// Allows HTTP requests to `resources`, narrowed with
-    /// [`RuleChange::with_methods`] and [`RuleChange::with_path`].
+    /// Allows HTTP requests to `resources`, on every path (`/**`, as the CLI
+    /// defaults it) until [`RuleChange::with_path`] narrows it, and to the
+    /// methods of [`RuleChange::with_methods`].
     pub fn allow_http(resources: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        Self::new(RuleAction::AllowHttp, resources)
+        Self::new(RuleAction::AllowHttp, resources).with_path(EVERY_PATH)
     }
 
-    /// Denies HTTP requests to `resources`, narrowed with
-    /// [`RuleChange::with_methods`] and [`RuleChange::with_path`].
+    /// Denies HTTP requests to `resources`, on every path (`/**`, as the CLI
+    /// defaults it) until [`RuleChange::with_path`] narrows it, and to the
+    /// methods of [`RuleChange::with_methods`].
     pub fn deny_http(resources: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        Self::new(RuleAction::DenyHttp, resources)
+        Self::new(RuleAction::DenyHttp, resources).with_path(EVERY_PATH)
     }
 
     /// Removes the rules added for `resources`. Removing an HTTP rule also
@@ -253,6 +261,22 @@ impl RuleChange {
     pub fn with_path(mut self, path: impl Into<String>) -> Self {
         self.path = Some(path.into());
         self
+    }
+
+    /// Checks the hosts the change adds a rule for, as the CLI checks them. A
+    /// removal names its hosts as they were stored, by the CLI or otherwise,
+    /// and is not checked, so that a rule that never applied can still go.
+    ///
+    /// # Errors
+    ///
+    /// Returns the [`InvalidHostPattern`] of the first host that is not one.
+    pub(super) fn check_hosts(&self) -> Result<(), InvalidHostPattern> {
+        if matches!(self.action, RuleAction::Remove | RuleAction::RemoveRule) {
+            return Ok(());
+        }
+        self.resources
+            .iter()
+            .try_for_each(|host| HostPattern::parse(host.as_str()).map(drop))
     }
 }
 
