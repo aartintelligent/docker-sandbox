@@ -17,20 +17,29 @@
 //! # async fn run() -> docker_sandbox::Result<()> {
 //! let client = Client::connect().await?;
 //!
-//! // Create a sandbox from a kit package compiled once with the CLI.
-//! let package = KitPackage::open("/var/lib/kits/shell")?;
+//! // A sandbox of the claude kit, from a package forged through the socket
+//! // (below) or compiled once with the CLI. The daemon gives the agent the
+//! // credential it holds for the kit, a Claude subscription for instance.
+//! let package = KitPackage::open("/var/lib/kits/claude")?;
 //! let created = package.create(&client, "job-42").await?;
 //!
 //! // Handles own a clone of the client: store them, move them into tasks.
 //! let sandbox = client.sandbox(created.name);
 //! let _running = sandbox.ensure_running().await?;
-//! sandbox.allow_hosts(["api.github.com"]).await?;
 //! sandbox.upload_dir("./repo", "/home/agent").await?;
 //!
+//! // Claude Code, unattended, on a copy of the repository: the sandbox is
+//! // the boundary of what it may do.
 //! let output = sandbox
 //!     .exec(
-//!         &ExecSpec::shell("cd /home/agent/repo && make test")
-//!             .with_timeout(Duration::from_secs(600)),
+//!         &ExecSpec::new([
+//!             "claude",
+//!             "--dangerously-skip-permissions",
+//!             "-p",
+//!             "Run the tests, fix what fails, and summarize the fix.",
+//!         ])
+//!         .with_working_dir("/home/agent/repo")
+//!         .with_timeout(Duration::from_secs(900)),
 //!     )
 //!     .await?
 //!     .check()?;
@@ -41,11 +50,13 @@
 //! # }
 //! ```
 //!
-//! With the `kit-forge` feature, the package needs no CLI at all:
-//! [`KitForge`](kit::KitForge) rebuilds a published kit from its image through
-//! the socket, with its kit arguments and mixins of your own, in the form the
-//! CLI would give it, so that the daemon treats the sandbox as one the CLI
-//! created, the credential of its agent included.
+//! With the `kit-forge` feature, that package needs no CLI at all:
+//! [`KitForge`](kit::KitForge) rebuilds the published kit from its image
+//! through the socket, with its kit arguments and mixins of your own, in the
+//! form the CLI would give it, so that the daemon treats the sandbox as one the
+//! CLI created, the credential of its agent included. To give the agent an API
+//! key of your own instead, use a [`ProxiedKey`](sandbox::ProxiedKey): the
+//! sandbox only holds a placeholder.
 //!
 //! ```no_run
 //! # #[cfg(feature = "kit-forge")]
@@ -59,8 +70,7 @@
 //!     .with_arg("model", "claude-haiku-5-5")
 //!     .forge("/var/lib/kits/claude")
 //!     .await?;
-//! let created = package.create(&client, "job-43").await?;
-//! assert!(created.withheld.is_empty(), "the daemon withholds {:?}", created.withheld);
+//! assert_eq!(package.kit_refs().len(), 1);
 //! # Ok(())
 //! # }
 //! ```
