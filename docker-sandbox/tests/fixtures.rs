@@ -25,8 +25,8 @@ use docker_sandbox::policy::{
     CheckResult, NetworkCheck, NetworkRules, RuleChange, RuleChangeResult,
 };
 use docker_sandbox::sandbox::{
-    CreateEvent, CreateRequest, Created, CredentialsUpdate, PortBinding, SandboxInfo, SavedImage,
-    SwapOutcome, SwapRequest,
+    CreateEvent, CreateRequest, Created, CredentialsOutcome, CredentialsUpdate, PortBinding,
+    SandboxInfo, SavedImage, SwapOutcome, SwapRequest,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -188,6 +188,11 @@ fn sandbox_payloads_decode() {
     request::<SwapRequest>("post_sandbox_name_swap_container_201");
     response::<SwapOutcome>("post_sandbox_name_swap_container_201");
     request::<CredentialsUpdate>("post_sandbox_name_credentials_200");
+    assert!(
+        response::<CredentialsOutcome>("post_sandbox_name_credentials_200")
+            .withheld
+            .is_empty()
+    );
 }
 
 #[test]

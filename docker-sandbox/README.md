@@ -74,6 +74,7 @@ allow-lists are unknown.
 |---|---|
 | `kit-compiler` | `KitCompiler` and `CompileJob`: compiling kit compositions into packages with the `sbx` CLI |
 | `live` | Nothing to the library: runs the integration tests against the real daemon |
+| `secrecy` | `From<secrecy::SecretString>` for `Secret`: a secret held as a `SecretString` is passed on without being exposed |
 
 ## Building a runner on it
 
@@ -113,7 +114,7 @@ changes.
 
 ## Documentation
 
-- The API reference: `cargo doc --features kit-compiler --no-deps --open`.
+- The API reference: `cargo doc --features kit-compiler,secrecy --no-deps --open`.
 - The measured contract of the audited version:
   `audit/snapshots/<version>/api/` (`API.md`, `openapi.json`).
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md): tooling, quality gates, commits.

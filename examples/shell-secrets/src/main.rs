@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
         let value = Secret::new(ECHO_VALUE);
         println!(
             "the value of the echo secret, as a log prints it: {value:?} ({} characters)",
-            value.expose().len()
+            value.expose_secret().len()
         );
         let secrets = CredentialsUpdate::default()
             .with_custom_secret(

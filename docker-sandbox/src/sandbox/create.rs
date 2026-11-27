@@ -79,9 +79,11 @@ pub struct CreateRequest {
     /// MCP gateway configuration, e.g. `{"servers": [], "static": true}`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mcp: Option<Value>,
-    /// Host file recording the credentials the user approved for third-party
-    /// kits (`~/.config/sbx/credentials.yaml` for the CLI). Built-in kits need
-    /// none.
+    /// Host file binding stored secrets to the credentials the kits declare
+    /// (`~/.config/sbx/credentials.yaml` for the CLI, which records there what
+    /// the user approves). The daemon reads it: a declared credential that no
+    /// binding authorizes is withheld ([`Created::withheld`]), the credentials
+    /// of built-in kits included.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bindings_path: Option<String>,
     /// Host SSH agent socket to forward. The daemon checks that it speaks the
@@ -199,8 +201,16 @@ impl CreateRequest {
     }
 
     /// Records the credential bindings file of the host, as the CLI does with
-    /// `~/.config/sbx/credentials.yaml`. Without one, the credentials of
-    /// third-party kits are withheld; built-in kits need none.
+    /// `~/.config/sbx/credentials.yaml`. The daemon reads it to decide which of
+    /// the credentials the kits declare it injects: without one, it withholds
+    /// them all, those of built-in kits too ([`Created::withheld`]), and a
+    /// value pushed later for their service does not lift that.
+    ///
+    /// A program that gives an agent its key without a bindings file sets a
+    /// placeholder in the variable the agent reads it from
+    /// ([`CreateRequest::with_env`]) and pushes a
+    /// [`CustomSecret`](super::CustomSecret) for that placeholder and the hosts
+    /// of the agent: custom secrets do not depend on bindings.
     #[must_use]
     pub fn with_bindings_path(mut self, path: impl Into<String>) -> Self {
         self.bindings_path = Some(path.into());
@@ -377,6 +387,13 @@ pub struct Created {
     /// MCP gateway of the sandbox.
     #[serde(default)]
     pub mcp: Option<McpGateway>,
+    /// Services whose credential, declared by a kit of the sandbox, the
+    /// daemon withholds because no bindings file authorizes it
+    /// ([`CreateRequest::with_bindings_path`]): the proxy injects nothing for
+    /// them. Empty when the kits declare no credential or every one is
+    /// authorized.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub withheld: Vec<String>,
     /// Unknown fields.
     #[serde(flatten)]
     pub extra: Extra,

@@ -135,6 +135,45 @@ async fn create_resolves_the_progress_stream() {
     );
 }
 
+/// A credential a kit declares and no bindings file authorizes stays
+/// withheld: named at creation, and again in the answer to a value pushed for
+/// its service, which the proxy does not inject (`create-wc`,
+/// `push-wc-credential` of the `kits` suite).
+#[tokio::test]
+async fn withheld_credentials_are_reported() {
+    let daemon = FakeDaemon::builder()
+        .route(
+            "POST",
+            "/sandbox",
+            Reply::ndjson(&[
+                json!({ "result": { "id": "abc", "name": "job-42", "agent": "shell", "status": "running", "workspace": "", "withheld": ["example"] } }),
+            ]),
+        )
+        .route(
+            "POST",
+            "/sandbox/job-42/credentials",
+            Reply::json(
+                200,
+                &json!({ "credential_source_updates_applied": true, "message": "Credentials updated", "withheld": ["example"] }),
+            ),
+        )
+        .start();
+    let client = connect(&daemon).await;
+
+    let created = client.sandboxes().create(&request()).await.unwrap();
+    assert_eq!(created.withheld, ["example"]);
+    assert!(created.extra.is_empty(), "withheld is a typed field");
+
+    let outcome = client
+        .sandbox("job-42")
+        .push_service_secret("example", "dummy")
+        .await
+        .unwrap();
+    assert_eq!(outcome.withheld, ["example"]);
+    assert_eq!(outcome.credential_source_updates_applied, Some(true));
+    assert!(outcome.extra.is_empty());
+}
+
 #[tokio::test]
 async fn create_reports_in_band_failures() {
     let daemon = FakeDaemon::builder()
@@ -332,11 +371,13 @@ async fn credentials_are_pushed_in_the_daemon_format() {
     let update = CredentialsUpdate::default().with_custom_secret(
         CustomSecret::new(["api.example.com"], "sbx-cs-1", "dummy").with_env_name("API_KEY"),
     );
-    client
+    let outcome = client
         .sandbox("job-42")
         .push_credentials(&update)
         .await
         .unwrap();
+    assert_eq!(outcome.message.as_deref(), Some("Credentials updated"));
+    assert!(outcome.withheld.is_empty());
     assert_eq!(
         daemon.request("POST", "/sandbox/job-42/credentials").json(),
         json!({ "custom_secrets": [{ "env_name": "API_KEY", "sentinel": "sbx-cs-1", "target": "api.example.com", "targets": ["api.example.com"], "value": "dummy" }] })
@@ -785,15 +826,32 @@ async fn ssh_tunnels_carry_bytes_both_ways() {
     );
 }
 
+/// A `SecretString` the program holds is passed on without the program
+/// exposing it (feature `secrecy`).
+#[cfg(feature = "secrecy")]
+#[test]
+fn secrecy_strings_are_taken_as_secrets() {
+    let secret = Secret::from(secrecy::SecretString::from("dummy-value".to_owned()));
+    assert_eq!(secret.expose_secret(), "dummy-value");
+    assert_eq!(format!("{secret:?}"), "Secret(***)");
+}
+
 #[test]
 fn secrets_never_show_in_debug_output() {
     let secret = Secret::new("dummy-value");
-    assert_eq!(secret.expose(), "dummy-value");
+    assert_eq!(secret.expose_secret(), "dummy-value");
     assert_eq!(format!("{secret:?}"), "Secret(***)");
-    assert_eq!(Secret::from("dummy-value".to_owned()), secret);
+    assert_eq!(
+        Secret::from("dummy-value".to_owned()).expose_secret(),
+        secret.expose_secret()
+    );
+    // The daemon takes the value as a plain JSON string, both ways.
+    assert_eq!(serde_json::to_value(&secret).unwrap(), json!("dummy-value"));
+    let read: Secret = serde_json::from_value(json!("dummy-value")).unwrap();
+    assert_eq!(read.expose_secret(), "dummy-value");
 
     let cleared = ServiceCredential::cleared("github");
-    assert_eq!(cleared.value.expose(), "");
+    assert_eq!(cleared.value.expose_secret(), "");
     assert!(!format!("{:?}", ServiceCredential::new("github", "dummy-value")).contains("dummy"));
 }
 
@@ -1080,7 +1138,11 @@ async fn custom_secrets_are_replaced_whole_or_removed_on_purpose() {
     );
     let decoded: CredentialsUpdate =
         serde_json::from_value(json!({ "custom_secrets": [] })).unwrap();
-    assert_eq!(decoded.custom_secrets, Some(Vec::new()));
+    assert!(
+        decoded
+            .custom_secrets
+            .is_some_and(|secrets| secrets.is_empty())
+    );
     let decoded: CredentialsUpdate = serde_json::from_value(json!({})).unwrap();
-    assert_eq!(decoded.custom_secrets, None);
+    assert!(decoded.custom_secrets.is_none());
 }
