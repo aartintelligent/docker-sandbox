@@ -24,6 +24,7 @@ use serde_json::Value;
 use super::to_json;
 use crate::error::{Error, Result};
 use docker_sandbox::Extra;
+use docker_sandbox::policy::HostPattern;
 
 /// First line of a v3 descriptor: the `BuildKit` frontend that reads it.
 const SYNTAX_LINE: &str = "# syntax=docker/sandbox-kit:3";
@@ -305,7 +306,9 @@ impl KitDescriptor {
         self
     }
 
-    /// Allows `hosts` (`host` or `host:port`) while the sandbox runs.
+    /// Allows `hosts` while the sandbox runs, in the forms of
+    /// [`HostPattern`] (`host`, `*.domain`, `host:port`, a CIDR prefix…),
+    /// checked when the mixin is made.
     #[must_use]
     pub fn with_network_allow(
         mut self,
@@ -316,7 +319,9 @@ impl KitDescriptor {
         self
     }
 
-    /// Denies `hosts` (`host` or `host:port`) while the sandbox runs.
+    /// Denies `hosts` while the sandbox runs, in the forms of
+    /// [`HostPattern`], checked when the mixin is made. A deny wins over any
+    /// allow, of the sandbox or of its kits.
     #[must_use]
     pub fn with_network_deny(mut self, hosts: impl IntoIterator<Item = impl Into<String>>) -> Self {
         let hosts = hosts.into_iter().map(Into::into);
@@ -467,7 +472,9 @@ impl LifecycleConfig {
 
 impl NetworkConfig {
     /// What is wrong with the rules of a mixin, if anything: rules at run
-    /// time, and allowed hosts during installation.
+    /// time, and allowed hosts during installation, each host in a form the
+    /// CLI accepts ([`HostPattern`]): the daemon would store a URL or a path
+    /// as the host of a rule, and never apply it.
     fn check(&self) -> std::result::Result<(), String> {
         unknown(&self.extra, "network phase")?;
         for (phase, rules) in [("runtime", &self.runtime), ("install", &self.install)] {
@@ -479,8 +486,9 @@ impl NetworkConfig {
                 );
             }
             for (decision, hosts) in [("allow", &rules.allow), ("deny", &rules.deny)] {
-                if hosts.iter().any(|host| host.trim().is_empty()) {
-                    return Err(format!("{phase}.{decision} holds an empty host"));
+                for host in hosts {
+                    HostPattern::parse(host.as_str())
+                        .map_err(|error| format!("{phase}.{decision}: {error}"))?;
                 }
             }
         }
@@ -820,7 +828,15 @@ mod tests {
             ),
             (
                 network(json!({ "runtime": { "allow": [""] } })),
-                "runtime.allow holds an empty host",
+                "runtime.allow: invalid host pattern \"\": empty",
+            ),
+            (
+                network(json!({ "runtime": { "deny": ["https://tracker.example.com"] } })),
+                "runtime.deny: invalid host pattern \"https://tracker.example.com\": a host, not a URL",
+            ),
+            (
+                network(json!({ "install": { "allow": ["pypi.org/simple"] } })),
+                "install.allow: invalid host pattern \"pypi.org/simple\": a path",
             ),
         ]);
     }

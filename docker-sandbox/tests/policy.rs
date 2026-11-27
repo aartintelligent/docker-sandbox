@@ -96,6 +96,54 @@ async fn changes_are_applied_in_one_request() {
 }
 
 #[tokio::test]
+async fn hosts_are_checked_as_the_cli_checks_them_before_anything_is_sent() {
+    let daemon = FakeDaemon::builder()
+        .route("POST", "/policy/network/rules", outcome("remove-resource"))
+        .start();
+    let client = connect(&daemon).await;
+
+    // A URL and a path are stored by the daemon and never applied: refused.
+    let error = client
+        .policy()
+        .apply(&[RuleChange::deny(["https://tracker.example.com"]).for_sandbox("job-42")])
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(error, Error::InvalidRequest(ref m) if m.contains("not a URL")),
+        "{error}"
+    );
+    let error = client
+        .sandbox("job-42")
+        .allow_hosts(["api.example.com/v1"])
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("a path"), "{error}");
+    assert!(daemon.requests().is_empty(), "nothing reached the daemon");
+
+    // A removal names a host as it was stored, and is sent as it is.
+    client
+        .policy()
+        .apply(&[RuleChange::remove(["https://tracker.example.com"]).for_sandbox("job-42")])
+        .await
+        .unwrap();
+    let body = daemon.request("POST", "/policy/network/rules").json();
+    assert_eq!(
+        body["actions"][0]["resources"],
+        json!(["https://tracker.example.com"])
+    );
+}
+
+#[tokio::test]
+async fn http_rules_cover_every_path_until_narrowed() {
+    let allow = serde_json::to_value(RuleChange::allow_http(["api.example.com"])).unwrap();
+    assert_eq!(allow["path"], "/**");
+    let deny =
+        serde_json::to_value(RuleChange::deny_http(["api.example.com"]).with_path("/admin/**"))
+            .unwrap();
+    assert_eq!(deny["path"], "/admin/**");
+}
+
+#[tokio::test]
 async fn checks_logs_and_setup_are_read() {
     let daemon = FakeDaemon::builder()
         .route(

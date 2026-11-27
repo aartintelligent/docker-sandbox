@@ -8,12 +8,14 @@
 //! (`POST /policy/network/setup`) is deliberately not exposed.
 
 mod activity;
+mod host;
 mod rules;
 
 use serde::Deserialize;
 use serde_json::Value;
 
 pub use self::activity::{CheckKind, CheckResult, HostActivity, NetworkCheck, NetworkLog};
+pub use self::host::{HostPattern, InvalidHostPattern};
 use self::rules::RuleChangeResponse;
 pub use self::rules::{
     CreatedRule, Decision, HttpTarget, NetworkRule, NetworkRules, Protocol, RuleAction, RuleChange,
@@ -56,15 +58,24 @@ impl Policy {
     /// [`RuleChangeResult::error`]. [`Policy::apply_all`] fails on the first
     /// one instead.
     ///
+    /// The hosts of the rules a change adds are checked first, as the CLI
+    /// checks them ([`HostPattern`]): the daemon would store a host written as
+    /// a URL or with a path, and never apply it.
+    ///
     /// # Errors
     ///
-    /// Fails with an invalid-input [`Error::Api`] for an empty list.
+    /// Returns [`Error::InvalidRequest`], before anything is sent, for a host
+    /// that is not one; fails with an invalid-input [`Error::Api`] for an
+    /// empty list.
     pub async fn apply(&self, changes: &[RuleChange]) -> Result<Vec<RuleChangeResult>> {
         /// Body of the request.
         #[derive(serde::Serialize)]
         struct Body<'a> {
             /// The changes.
             actions: &'a [RuleChange],
+        }
+        for change in changes {
+            change.check_hosts()?;
         }
         let request = Request::post("network rule change", "/policy/network/rules")
             .json(&Body { actions: changes })?;
