@@ -184,20 +184,17 @@ impl TarScan {
             b'0' | 0 if size <= self.limit => Contents::Kept(path),
             _ => Contents::Skipped,
         };
+        if size == 0 {
+            // An empty entry ends with its header.
+            self.end_of_entry(kind);
+            return Ok(State::Header);
+        }
         let padding = (BLOCK as u64 - size % BLOCK as u64) % BLOCK as u64;
-        let state = State::Contents {
+        Ok(State::Contents {
             kind,
             remaining: size,
             padding,
-        };
-        if size == 0 {
-            // An empty entry ends with its header.
-            if let State::Contents { kind, .. } = state {
-                self.end_of_entry(kind);
-            }
-            return Ok(State::Header);
-        }
-        Ok(state)
+        })
     }
 
     /// Files the contents just read, of an entry of `kind`.
@@ -339,6 +336,21 @@ mod tests {
     }
 
     #[test]
+    fn old_headers_name_regular_files_with_a_nul_type() {
+        let mut header = tar::Header::new_old();
+        header.set_size(2);
+        header.set_mode(0o644);
+        header.set_entry_type(tar::EntryType::new(0));
+        header.set_cksum();
+        let mut builder = tar::Builder::new(Vec::new());
+        builder
+            .append_data(&mut header, "index.json", &b"{}"[..])
+            .unwrap();
+        let files = scan(&builder.into_inner().unwrap(), 100, 512).unwrap();
+        assert_eq!(files["index.json"], b"{}");
+    }
+
+    #[test]
     fn gnu_headers_keep_their_dates_out_of_the_path() {
         let mut header = tar::Header::new_gnu();
         header.set_size(2);
@@ -362,13 +374,9 @@ mod tests {
         bad[124..136].copy_from_slice(b"zzzzzzzzzzz\0");
         let error = scan(&bad, 100, 512).unwrap_err();
         assert!(
-            matches!(
-                error,
-                Error::Archive {
-                    operation: OPERATION,
-                    ..
-                }
-            ),
+            error
+                .to_string()
+                .starts_with("image export: invalid size field"),
             "{error}"
         );
     }

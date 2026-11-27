@@ -180,7 +180,8 @@ are in [`AGENTS.md`](AGENTS.md).
   to run one test, as Go's `os/exec` tests do. `compiler.rs` plays the CLI
   that way.
 - Live tests (feature `live`, `tests/live.rs`) create and remove their own
-  sandboxes and images.
+  sandboxes and images; with `kit-forge` too, as `just test-live` runs them,
+  they create sandboxes from packages forged without the CLI.
 
 ### Coverage
 

@@ -30,7 +30,7 @@ and the examples in a workspace of their own:
   `tests/` has one file per domain against the fake daemon of `tests/support/`, plus `fixtures.rs`
   (daemon responses exported from the audit), `compiler.rs` (the kit compiler, with the test binary
   re-executed as a fake `sbx`), `forge.rs` (kit packages forged without the CLI) and `live.rs`
-  (feature `live`), with `tests/live-probe/`, the
+  (feature `live`, its forged packages with `kit-forge` too), with `tests/live-probe/`, the
   program the live tests upload and run inside sandboxes (a workspace member, built statically by
   `just test-live`).
 - `audit/`: the `audit` binary, never published. Suites, kits and

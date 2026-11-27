@@ -22,6 +22,11 @@
 //! `network-policy@1` runtime rules), `--omit` and `--omit-base` drop artifact
 //! fields to find the ones the daemon requires, and `--compare` prints how the
 //! forged artifacts differ from the ones the CLI wrote for the same kits.
+//!
+//! With `--library`, the package is forged by the `KitForge` of the library
+//! instead, and every artifact compared: the scenarios of the `kits` suite
+//! that do so are how an upgrade of `sbx` shows a change of the contract the
+//! library follows.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -29,6 +34,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use docker_sandbox::Client;
+use docker_sandbox::kit::{KitForge, KitPackage, Mixin};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 
@@ -111,6 +117,42 @@ struct SourceImage {
     reference: String,
     /// Digest of its manifest, `sha256:…`.
     manifest_digest: String,
+}
+
+/// Writes the package of the mixin of `opts.kit` on its base kit with the
+/// `KitForge` of the library, through the daemon socket `socket`, then
+/// compares each of its artifacts when asked.
+pub(crate) async fn run_library(opts: &ForgeOpts<'_>, socket: &Path) -> Result<()> {
+    let client = Client::builder()
+        .with_socket(socket)
+        .connect()
+        .await
+        .context("connecting to sandboxd")?;
+    let forge = KitForge::new(client);
+    let forge = match &opts.base {
+        BaseSource::Package(package) => forge.with_base_package(KitPackage::open(package)?),
+        BaseSource::Image {
+            reference, args, ..
+        } => args
+            .iter()
+            .fold(forge.with_base(*reference), |forge, (name, value)| {
+                forge.with_arg(name, value)
+            }),
+    };
+    let package = forge
+        .with_mixin(Mixin::read(opts.kit)?)
+        .forge(opts.out)
+        .await?;
+    println!(
+        "[kit-forge] package forged by the library: {}",
+        package.kit_refs().join(", ")
+    );
+    if let Some(other) = opts.compare {
+        for artifact in package.kit_artifacts() {
+            compare(&artifact, other)?;
+        }
+    }
+    Ok(())
 }
 
 /// Writes the package of the mixin of `opts.kit` on its base kit, then

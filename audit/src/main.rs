@@ -756,6 +756,9 @@ struct KitForgeArgs {
     /// Package compiled by the CLI for the same kits, to compare the artifacts
     #[arg(long)]
     compare: Option<PathBuf>,
+    /// Forge with the `KitForge` of the library instead of this experiment
+    #[arg(long, conflicts_with_all = ["omit", "omit_base"])]
+    library: bool,
 }
 
 impl KitForgeArgs {
@@ -773,15 +776,19 @@ impl KitForgeArgs {
             },
             (None, None) => bail!("--base-package or --base-image is required"),
         };
-        kitforge::run(&kitforge::ForgeOpts {
+        let opts = kitforge::ForgeOpts {
             kit: &self.kit,
             base,
             out: &out,
             omit: &self.omit,
             omit_base: &self.omit_base,
             compare: self.compare.as_deref(),
-        })
-        .await
+        };
+        if self.library {
+            kitforge::run_library(&opts, sock).await
+        } else {
+            kitforge::run(&opts).await
+        }
     }
 }
 

@@ -21,6 +21,12 @@
 //! - `clone_mode` runs `git` on the host to make the repository it clones.
 //! - `secrets_reach_requests_through_the_proxy` calls the public echo service
 //!   `postman-echo.com`: it only ever receives a dummy value.
+//! - With the `kit-forge` feature too, the `forged` tests create sandboxes from
+//!   packages forged without the CLI: `shell` and `claude` rebuilt from their
+//!   published image, `claude` with two of its arguments, and a forged mixin.
+//!   They need no package. The agent of `claude` is never started, and the
+//!   sandbox gets no credential of the user: the daemon withholds the one its
+//!   kit declares.
 //!
 //! Every resource created by these tests is removed afterwards, and the image
 //! store is checked to be back to its initial state.
@@ -1336,4 +1342,171 @@ async fn exercise_secrets(
     assert_eq!(verdict(&sandbox).await?, "placeholder", "after the removal");
     drop(session);
     Ok(())
+}
+
+/// Sandboxes created from packages forged without the CLI (feature
+/// `kit-forge`): the base kit rebuilt from its published image, and a mixin
+/// forged from its descriptor.
+#[cfg(feature = "kit-forge")]
+mod forged {
+    use docker_sandbox::kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
+
+    use super::*;
+
+    /// File the install command of the forged mixin writes.
+    const INSTALLED: &str = "/home/agent/docker-sandbox-forged.txt";
+
+    /// File the startup command of the forged mixin writes.
+    const STARTED: &str = "/tmp/docker-sandbox-forged-startup.txt";
+
+    /// Host the forged mixin allows, which is never called.
+    const ALLOWED: &str = "docker-sandbox-live.example.com:443";
+
+    /// The mixin of the tests: an install command, a startup command run in
+    /// the background, and a network rule.
+    fn mixin() -> Mixin {
+        let descriptor = KitDescriptor::mixin("docker-sandbox live")
+            .with_description("Forged by the live tests of docker-sandbox")
+            .with_network_allow([ALLOWED])
+            .with_install(
+                LifecycleStep::new(format!("echo installed > {INSTALLED}")).as_user("agent"),
+            )
+            .with_startup(LifecycleStep::new(format!("echo started > {STARTED}")).in_background());
+        Mixin::new("/kits/docker-sandbox-live", descriptor).unwrap()
+    }
+
+    /// The standard output of `script`, run with `sh -c` in `sandbox`.
+    async fn shell(sandbox: &Sandbox, script: &str) -> Result<String> {
+        Ok(sandbox
+            .exec(&ExecSpec::new(["sh", "-c", script]))
+            .await?
+            .check()?
+            .stdout)
+    }
+
+    /// Checks that the commands of the forged mixin ran in `sandbox`.
+    async fn assert_mixin_ran(sandbox: &Sandbox) -> Result<()> {
+        assert_eq!(
+            shell(sandbox, &format!("cat {INSTALLED}")).await?,
+            "installed\n"
+        );
+        // The startup command runs in the background: wait for its file.
+        let started = format!(
+            "for i in $(seq 20); do [ -e {STARTED} ] && break; sleep 0.5; done; cat {STARTED}"
+        );
+        assert_eq!(shell(sandbox, &started).await?, "started\n");
+        Ok(())
+    }
+
+    /// Whether the daemon holds the network rule the mixin gave `name`.
+    async fn has_kit_rule(client: &Client, name: &str) -> Result<bool> {
+        let rule = format!("kit:{name}");
+        Ok(client.policy().rules().await?.rules.iter().any(|r| {
+            r.name == rule
+                && r.resources
+                    .iter()
+                    .any(|host| host.contains("docker-sandbox-live"))
+        }))
+    }
+
+    /// Runs `exercise` on the sandbox `test`, in a directory for its package,
+    /// then removes what it created.
+    async fn run<F, Fut>(test: &str, exercise: F) -> Result<()>
+    where
+        F: FnOnce(Client, String, PathBuf) -> Fut,
+        Fut: Future<Output = Result<()>>,
+    {
+        let client = Client::connect().await?;
+        let name = sandbox_name(test);
+        let images_before = image_references(&client).await?;
+        let dir = tempfile::tempdir().unwrap();
+        let outcome = catch_unwind(exercise(
+            client.clone(),
+            name.clone(),
+            dir.path().to_owned(),
+        ))
+        .await;
+        cleanup(&client, &name, &images_before).await?;
+        resumed(outcome)
+    }
+
+    /// The shell kit rebuilt from its image, with a forged mixin.
+    #[tokio::test]
+    async fn forged_package_on_the_published_shell_kit() -> Result<()> {
+        run("forged-shell", |client, name, dir| async move {
+            let package = KitForge::new(client.clone())
+                .with_base("docker.io/sbx/shell:latest")
+                .with_mixin(mixin())
+                .forge(dir.join("shell+forged"))
+                .await?;
+            assert_eq!(package.compiled_with(), None, "no sbx compiled it");
+            assert_eq!(
+                package.compiled_api(),
+                Some(client.health().api_version.as_str())
+            );
+            let created = package.create(&client, &name).await?;
+            assert_eq!(created.name, name);
+            assert!(created.withheld.is_empty(), "{:?}", created.withheld);
+
+            let sandbox = client.sandbox(&name);
+            {
+                let _session = sandbox.ensure_running().await?;
+                assert_mixin_ran(&sandbox).await?;
+                assert!(
+                    has_kit_rule(&client, &name).await?,
+                    "the rule of the mixin is missing"
+                );
+            }
+            sandbox.force_delete().await?;
+            assert!(
+                !has_kit_rule(&client, &name).await?,
+                "the rule outlived its sandbox"
+            );
+            Ok(())
+        })
+        .await
+    }
+
+    /// The claude kit rebuilt from its image with two of its arguments, and
+    /// a forged mixin. The agent is never started.
+    #[tokio::test]
+    async fn claude_rebuilt_with_its_arguments() -> Result<()> {
+        run("forged-claude", |client, name, dir| async move {
+            let package = KitForge::new(client.clone())
+                .with_base("docker.io/sbx/claude:latest")
+                .with_arg("model", "claude-haiku-5-5")
+                .with_arg("reasoningEffort", "low")
+                .with_mixin(mixin())
+                .forge(dir.join("claude+forged"))
+                .await?;
+            let created = package.create(&client, &name).await?;
+            // Without a bindings file, the daemon withholds the credential
+            // the kit declares: none of the user reaches the sandbox.
+            assert_eq!(created.withheld, ["anthropic"]);
+
+            let sandbox = client.sandbox(&name);
+            let _session = sandbox.ensure_running().await?;
+            assert_mixin_ran(&sandbox).await?;
+            let variables = shell(&sandbox, "echo \"$CLAUDE_MODEL $CLAUDE_REASONING_EFFORT\"").await?;
+            assert_eq!(variables, "claude-haiku-5-5 low\n");
+            // Only the two fields the install commands of the kit write from
+            // the arguments are read from the settings.
+            let settings = shell(
+                &sandbox,
+                "python3 -c \"import json; d = json.load(open('/home/agent/.claude/settings.json')); \
+                 print(d.get('model'), d.get('effortLevel'))\"",
+            )
+            .await?;
+            assert_eq!(settings, "claude-haiku-5-5 low\n");
+            assert!(
+                sandbox
+                    .exec(&ExecSpec::new(["test", "-s", "/home/agent/.claude/CLAUDE.md"]))
+                    .await?
+                    .success(),
+                "the agent context of the kit is missing"
+            );
+            Ok(())
+        })
+        .await
+    }
 }
