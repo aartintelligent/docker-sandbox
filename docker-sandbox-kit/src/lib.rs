@@ -55,6 +55,11 @@
 //! the next sandboxes, and [`KitForge::with_base_package`] takes its base kit
 //! for another composition.
 //!
+//! [`Mixin::mcp`] gives the agent of a sandbox its MCP servers ([`McpServer`]),
+//! served by a process of the host or remote, with nothing written on the
+//! host: its install commands register them in the configuration of the agent,
+//! inside the sandbox, and their tokens are given at creation.
+//!
 //! # Errors
 //!
 //! Every operation returns [`Error`]. What goes wrong in the client of
@@ -65,7 +70,7 @@
 //!
 //! | Feature | Adds |
 //! |---|---|
-//! | `forge` (default) | [`KitForge`], [`KitDescriptor`], [`LifecycleStep`] and [`Mixin`]: forging kit packages without the CLI, base kit rebuilt from its image and mixins |
+//! | `forge` (default) | [`KitForge`], [`KitDescriptor`], [`LifecycleStep`], [`Mixin`] and [`McpServer`]: forging kit packages without the CLI, base kit rebuilt from its image, mixins and MCP servers for the agent |
 //! | `compiler` | [`KitCompiler`] and [`CompileJob`]: compiling kit compositions with the `sbx` CLI |
 //! | `live` | Nothing to the library: runs the integration tests against the real daemon |
 //!
@@ -87,7 +92,7 @@ pub use self::compiler::{CompileJob, KitCompiler};
 pub use self::error::{Error, Result};
 #[cfg(feature = "forge")]
 #[cfg_attr(docsrs, doc(cfg(feature = "forge")))]
-pub use self::forge::{KitDescriptor, KitForge, LifecycleStep, Mixin};
+pub use self::forge::{KitDescriptor, KitForge, LifecycleStep, McpServer, Mixin};
 
 /// Compiles the examples of the README as doctests, with the `forge`
 /// feature its example forges the claude kit with.

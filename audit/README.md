@@ -138,8 +138,13 @@ the daemon, which a new `sbx` can change without changing a route. Check, before
    `compiler/mod.rs`). `just test-live` compiles the package of the live tests
    with it, through `audit kit-compile`: a CLI that sends them otherwise fails
    there.
-5. **For real.** `just test-live` forges `shell` and `claude`, with two of its
-   arguments, against the new daemon. The other agent kits are forged by their
+5. **The registration of MCP servers.** `Mixin::mcp` registers a server in
+   Claude Code with the command the claude kit registers its gateway with
+   (`claude mcp add … --transport http --scope user --header …`, in
+   `forge/mcp.rs`). When the install commands of the new kit register it
+   otherwise, follow them.
+6. **For real.** `just test-live` forges `shell` and `claude`, with two of its
+   arguments and an MCP server, against the new daemon. The other agent kits are forged by their
    examples (`agent-<agent>`), which start their agent: run them only when the
    maintainer asks.
 

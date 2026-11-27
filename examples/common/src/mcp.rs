@@ -129,6 +129,8 @@ pub async fn serve_if_requested() -> Result<bool> {
 pub struct HttpServer {
     /// URL of the MCP endpoint.
     url: String,
+    /// Loopback port it listens on.
+    port: u16,
     /// The `Authorization` header requests must carry.
     expected: Arc<RwLock<String>>,
     /// Requests that carried the token.
@@ -149,7 +151,8 @@ impl HttpServer {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
             .await
             .context("binding the MCP server")?;
-        let url = format!("http://{}/mcp", listener.local_addr()?);
+        let address = listener.local_addr()?;
+        let url = format!("http://{address}/mcp");
         let service = Arc::new(StreamableHttpService::new(
             || Ok(ExampleTools),
             LocalSessionManager::default().into(),
@@ -193,6 +196,7 @@ impl HttpServer {
         });
         Ok(Self {
             url,
+            port: address.port(),
             expected,
             authorized,
             refused,
@@ -204,6 +208,13 @@ impl HttpServer {
     #[must_use]
     pub fn url(&self) -> &str {
         &self.url
+    }
+
+    /// Loopback port the server listens on, which a sandbox reaches through
+    /// `host.docker.internal`.
+    #[must_use]
+    pub fn port(&self) -> u16 {
+        self.port
     }
 
     /// Replaces the token: requests carrying the previous one are refused

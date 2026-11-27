@@ -622,7 +622,7 @@ fn unknown(extra: &Extra, what: &str) -> std::result::Result<(), String> {
 }
 
 /// Whether `name` is the name of an environment variable.
-fn is_variable_name(name: &str) -> bool {
+pub(super) fn is_variable_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars
         .next()
