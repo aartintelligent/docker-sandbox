@@ -9,11 +9,8 @@
 
 use std::collections::BTreeMap;
 
-use http_body_util::BodyExt;
-
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::transport::{Request, TAR};
 
 /// Largest file kept from an export: the index, manifests and configuration
 /// are a few kilobytes, layers are skipped.
@@ -23,7 +20,7 @@ pub(super) const SMALL_FILE: u64 = 1 << 20;
 /// larger ones are skipped, so that a name is never held beyond this.
 const NAME_LIMIT: u64 = 64 << 10;
 
-/// Operation named by the requests and errors of this module.
+/// Operation named by the errors of this module, as by those of the export.
 const OPERATION: &str = "image export";
 
 /// Size of a tar block: headers and the padding of file contents.
@@ -40,17 +37,10 @@ pub(super) async fn small_files(
     client: &Client,
     reference: &str,
 ) -> Result<BTreeMap<String, Vec<u8>>> {
-    let request = Request::get(OPERATION, "/docker/images/export")
-        .query("name", reference)
-        .accept(TAR)
-        .long_running();
-    let mut body = client.transport().stream(request).await?;
+    let mut archive = client.images().export_stream(reference).await?;
     let mut scan = TarScan::new(SMALL_FILE);
-    let operation = OPERATION;
-    while let Some(frame) = body.frame().await {
-        let frame = frame.map_err(|source| Error::Http { operation, source })?;
-        // A trailers frame holds no data.
-        scan.feed(&frame.into_data().unwrap_or_default())?;
+    while let Some(chunk) = archive.next().await {
+        scan.feed(&chunk?)?;
     }
     scan.finish()
 }

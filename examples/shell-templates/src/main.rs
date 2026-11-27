@@ -6,8 +6,9 @@
 //! second starts from the saved image (`CreateRequest::with_template`, with
 //! `PullPolicy::Never`: the image is on this host only), its request stored as
 //! JSON and replayed (`CreateRequest::from_template`), and finds the file.
-//! The image is then exported to `examples/target/templates/`, removed, and
-//! loaded back from the file (`Images::load_file`), the way a template moves
+//! The image is then exported to `examples/target/templates/`, written as the
+//! daemon streams it (`Images::export_stream`), removed, and loaded back from
+//! the file (`Images::load_file`), the way a template moves
 //! to another host. The image and the file are removed at the end, also on
 //! an error.
 //!
@@ -23,6 +24,7 @@ use docker_sandbox::exec::ExecSpec;
 use docker_sandbox::kit::KitPackage;
 use docker_sandbox::sandbox::{CreateRequest, PullPolicy};
 use example_common::{connect, kit, sandbox};
+use tokio::io::AsyncWriteExt;
 
 /// Directory of the exported images.
 const EXPORTS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/templates");
@@ -92,12 +94,25 @@ async fn run(client: &Client, package: &KitPackage, tag: &str, archive: &Path) -
     })
     .await?;
 
-    // The way a template moves to another host: a file, loaded there.
+    // The way a template moves to another host: a file, loaded there. The
+    // archive is written as the daemon sends it, never held whole in memory.
     let images = client.images();
-    let bytes = images.export(tag).await?;
     std::fs::create_dir_all(EXPORTS)?;
-    std::fs::write(archive, &bytes).with_context(|| format!("writing {}", archive.display()))?;
-    println!("exported to a file of {} MiB", bytes.len() / (1 << 20));
+    let mut file = tokio::fs::File::create(archive)
+        .await
+        .with_context(|| format!("creating {}", archive.display()))?;
+    let mut export = images.export_stream(tag).await?;
+    let mut size = 0;
+    while let Some(chunk) = export.next().await {
+        let chunk = chunk?;
+        size += chunk.len();
+        file.write_all(&chunk).await?;
+    }
+    file.flush().await?;
+    println!(
+        "exported to a file of {} MiB, chunk by chunk",
+        size / (1 << 20)
+    );
     images.remove(tag).await?;
     ensure!(!images.exists(tag).await?, "the image is still there");
     println!("image removed from the daemon");
