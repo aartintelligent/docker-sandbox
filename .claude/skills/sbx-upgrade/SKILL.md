@@ -20,7 +20,12 @@ Versions, previous then new: $ARGUMENTS
    the upgrade again.
 4. Read `target/audit/compare-<previous>-<new>.md`: every line is something the
    library may have to handle. Summarize it for the maintainer, and propose any
-   public API change before making it.
+   public API change before making it. Then read what the `kit-forge-library`
+   and `kit-forge-library-shell` scenarios printed
+   (`audit/snapshots/<new>/results/kits.json`): every field of the artifacts
+   the library forges is `same` as the CLI's but the `template` and
+   `v3Digest` of the mixin; any other `differs`, `sbx only` or `forged only` is
+   a change `docker-sandbox/src/kit/forge/` has to follow.
 5. Adapt `docker-sandbox` until `just ci` passes; widen `SUPPORTED_API` only
    now that the new version is audited. The changelog is not written by hand:
    release-plz derives it from the Conventional Commits (`CONTRIBUTING.md`).

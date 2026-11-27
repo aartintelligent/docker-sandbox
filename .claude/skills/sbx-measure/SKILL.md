@@ -26,6 +26,9 @@ $ARGUMENTS
 6. Propose the library change to the maintainer before coding it when it adds
    public API (`AGENTS.md`, "Working mode"). Then code it with a test asserting
    the measured body against the fake daemon, and keep `just coverage` green.
+   When the feature lies in a kit artifact, check that the library forges it
+   as the CLI compiles it:
+   `audit kit-forge <mixin> --base-image <kit> --library --compare <package>`.
    The changelog is not written by hand: the `feat(sandbox): …` commit makes
    the entry release-plz writes.
 7. Add or extend a live test in `docker-sandbox/tests/live.rs` and run
