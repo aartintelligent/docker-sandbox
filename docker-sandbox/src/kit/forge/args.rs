@@ -139,14 +139,14 @@ pub(super) fn resolve(
         }
         // The artifact declares the argument as the kit does, but for the
         // variable it sets, given apart.
-        let mut kept = declaration.clone();
-        if let Some(fields) = kept.as_object_mut() {
-            fields.remove("env");
-        }
+        let mut kept = declaration.as_object().cloned().unwrap_or_default();
+        kept.remove("env");
         if let Some(variable) = read.env {
             resolved.environment.insert(variable, value.clone());
         }
-        resolved.declared.insert(name.to_owned(), kept);
+        resolved
+            .declared
+            .insert(name.to_owned(), Value::Object(kept));
         resolved.values.insert(name.to_owned(), value);
     }
     Ok(resolved)
@@ -226,9 +226,11 @@ mod tests {
 
     /// The message of the refusal of `provided`.
     fn refusal(descriptor: &Value, provided: &[(&str, &str)]) -> String {
-        let error = resolve("kit", descriptor, &given(provided)).unwrap_err();
-        assert!(matches!(error, Error::InvalidKit { .. }), "{error}");
-        error.to_string()
+        let message = resolve("kit", descriptor, &given(provided))
+            .unwrap_err()
+            .to_string();
+        assert!(message.starts_with("invalid kit kit: "), "{message}");
+        message
     }
 
     #[test]

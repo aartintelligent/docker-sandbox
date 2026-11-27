@@ -633,10 +633,8 @@ mod tests {
             "docker.io/sbx/shell latest",
             "docker.io/sbx/shell@md5:00",
         ] {
-            assert!(
-                matches!(Reference::parse(bad), Err(Error::InvalidKit { .. })),
-                "{bad:?}"
-            );
+            let error = Reference::parse(bad).unwrap_err().to_string();
+            assert!(error.starts_with("invalid kit "), "{bad:?}: {error}");
         }
     }
 
@@ -724,7 +722,12 @@ mod tests {
             &agent(),
             &given(&[("model", "it's")]),
         );
-        assert!(matches!(refused, Err(Error::InvalidKit { .. })));
+        assert!(
+            refused
+                .unwrap_err()
+                .to_string()
+                .starts_with("invalid kit docker.io/sbx/agent: ")
+        );
         let mut undeclared = agent();
         undeclared.descriptor["displayName"] = json!("${{ kit.args.version }}");
         assert!(
@@ -801,10 +804,24 @@ mod tests {
         let refusal = |capability: Value| {
             let mut facts = shell();
             facts.descriptor["capabilities"] = json!([capability]);
-            let error = base_kit(&reference("sbx/shell"), &facts, &BTreeMap::new()).unwrap_err();
-            assert!(matches!(error, Error::InvalidKit { .. }), "{error}");
-            error.to_string()
+            let error = base_kit(&reference("sbx/shell"), &facts, &BTreeMap::new())
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.starts_with("invalid kit docker.io/sbx/shell: "),
+                "{error}"
+            );
+            error
         };
+        for kind in [CONTEXT_V2, LIFECYCLE, NETWORK, SKILLS] {
+            let unread = refusal(
+                json!({ "type": kind, "config": { "content": 1, "install": 1, "runtime": 1, "path": 1 } }),
+            );
+            assert!(
+                unread.contains(&format!("the configuration of {kind} is not one")),
+                "{unread}"
+            );
+        }
         assert!(refusal(json!("sbx")).contains("a capability is not one this crate reads"));
         let credential = json!({ "type": CREDENTIAL, "config": { "service": 3 } });
         assert!(
@@ -879,5 +896,13 @@ mod tests {
         files.insert("index.json".to_owned(), b"[".to_vec());
         assert!(refusal(&files).contains("index.json of the image is not one this crate reads"));
         assert!(refusal(&BTreeMap::new()).contains("holds no index.json"));
+        for missing in ["blobs/sha256/aa", "manifest.json", "blobs/sha256/cc"] {
+            let mut files = export(&annotations, &config);
+            files.remove(missing);
+            assert!(
+                refusal(&files).contains(&format!("holds no {missing}")),
+                "{missing}"
+            );
+        }
     }
 }

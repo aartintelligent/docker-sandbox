@@ -638,3 +638,81 @@ async fn images_that_are_not_the_kit_asked_for_are_refused() {
     assert!(matches!(error, Error::InvalidKit { .. }), "{error}");
     assert!(!output.exists());
 }
+
+#[tokio::test]
+async fn failures_of_the_daemon_and_of_the_disk_are_reported() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("refused");
+
+    // The image cannot be pulled, or its export breaks off or is malformed.
+    let daemon = permissive()
+        .route(
+            "POST",
+            "/docker/images/create",
+            Reply::json(500, &json!({ "message": "registry unreachable" })),
+        )
+        .start();
+    let error = refused(&daemon, "docker.io/sbx/shell", &output).await;
+    assert!(
+        error.to_string().contains("registry unreachable"),
+        "{error}"
+    );
+    let truncated = permissive()
+        .route("POST", "/docker/images/create", Reply::ndjson(&[]))
+        .route(
+            "GET",
+            "/docker/images/export",
+            Reply::raw(200, "application/x-tar", shell_export()).truncated(),
+        )
+        .start();
+    let error = refused(&truncated, "docker.io/sbx/shell", &output).await;
+    assert!(matches!(error, Error::Http { .. }), "{error}");
+    let mut malformed = shell_export();
+    malformed[124..136].copy_from_slice(b"zzzzzzzzzzz\0");
+    let daemon = serving(permissive(), malformed).start();
+    let error = refused(&daemon, "docker.io/sbx/shell", &output).await;
+    assert!(error.to_string().contains("invalid size field"), "{error}");
+
+    // A setting the daemon cannot read is not taken for its default.
+    for key in ["kit.requireSignature", "kit.allowedSources"] {
+        let daemon = serving(
+            permissive().route(
+                "GET",
+                &format!("/daemon/settings/{key}"),
+                Reply::json(500, &json!({ "message": "settings unavailable" })),
+            ),
+            shell_export(),
+        )
+        .start();
+        let error = refused(&daemon, "docker.io/sbx/shell", &output).await;
+        assert!(error.is_transient(), "{key}: {error}");
+    }
+
+    // The package cannot be written over a file.
+    let file = dir.path().join("file");
+    std::fs::write(&file, "x").unwrap();
+    let daemon = serving(permissive(), shell_export()).start();
+    let error = refused(&daemon, "docker.io/sbx/shell", &file).await;
+    assert!(matches!(error, Error::Package { .. }), "{error}");
+    assert!(!output.exists());
+}
+
+#[tokio::test]
+async fn compiled_packages_without_a_creation_template_are_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let package = dir.path().join("broken");
+    std::fs::create_dir_all(&package).unwrap();
+    std::fs::write(
+        package.join("create-body.json"),
+        json!({ "name": "{{name}}", "kits": ["docker.io/sbx/shell@sha256:f3"] }).to_string(),
+    )
+    .unwrap();
+    let daemon = permissive().start();
+    let error = KitForge::new(connect(&daemon).await)
+        .with_base_package(KitPackage::open(&package).unwrap())
+        .with_mixin(tools())
+        .forge(dir.path().join("refused"))
+        .await
+        .unwrap_err();
+    assert!(matches!(error, Error::InvalidRequest(_)), "{error}");
+}

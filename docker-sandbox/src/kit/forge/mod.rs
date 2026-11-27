@@ -163,20 +163,30 @@ impl Mixin {
     /// # Errors
     ///
     /// Returns [`Error::File`] when the directory or its `spec.yaml` cannot be
-    /// read, and [`Error::InvalidKit`] when the descriptor cannot be forged.
+    /// read, and [`Error::InvalidKit`] when the directory is the root, which
+    /// names no mixin, or the descriptor cannot be forged.
     pub fn read(dir: impl AsRef<Path>) -> Result<Self> {
-        let dir = dir.as_ref();
+        Self::read_dir(dir.as_ref())
+    }
+
+    /// [`Mixin::read`], compiled once whatever the type of path.
+    fn read_dir(dir: &Path) -> Result<Self> {
         let file_error = |path: &Path| {
             let path = path.to_owned();
             move |source| Error::File { path, source }
         };
         let canonical = dir.canonicalize().map_err(file_error(dir))?;
+        let reference = canonical.display().to_string();
+        let name = mixin_name(&reference)?;
         let spec_path = canonical.join("spec.yaml");
         let spec = std::fs::read_to_string(&spec_path).map_err(file_error(&spec_path))?;
         let descriptor = KitDescriptor::parse(&spec).map_err(|error| renamed(error, dir))?;
-        let mut mixin = Self::new(canonical.display().to_string(), descriptor)?;
-        mixin.spec = spec;
-        Ok(mixin)
+        Ok(Self {
+            reference,
+            name,
+            descriptor,
+            spec,
+        })
     }
 
     /// The mixin `descriptor`, listed under `reference`: a path, as the CLI
@@ -189,18 +199,7 @@ impl Mixin {
     /// descriptor cannot be forged.
     pub fn new(reference: impl Into<String>, descriptor: KitDescriptor) -> Result<Self> {
         let reference = reference.into();
-        let name = reference
-            .trim_end_matches('/')
-            .rsplit('/')
-            .next()
-            .unwrap_or_default()
-            .to_owned();
-        if name.is_empty() {
-            return Err(Error::InvalidKit {
-                kit: reference,
-                message: "the reference of a mixin is a path that names it".to_owned(),
-            });
-        }
+        let name = mixin_name(&reference)?;
         descriptor
             .validate()
             .map_err(|error| renamed(error, Path::new(&name)))?;
@@ -351,7 +350,11 @@ impl KitForge {
     /// pull and export requests; [`Error::Archive`] and [`Error::Package`]
     /// when the export cannot be read or the package cannot be written.
     pub async fn forge(&self, output: impl Into<PathBuf>) -> Result<KitPackage> {
-        let output = output.into();
+        self.forge_to(output.into()).await
+    }
+
+    /// [`KitForge::forge`], compiled once whatever the type of path.
+    async fn forge_to(&self, output: PathBuf) -> Result<KitPackage> {
         let base = self.resolve_base().await?;
         let base_name = base
             .artifact
@@ -372,7 +375,7 @@ impl KitForge {
         let mut artifacts = vec![base.artifact];
         let mut images = Vec::new();
         for mixin in &self.mixins {
-            let image = oci::source_image(&mixin.spec, &mixin.descriptor)?;
+            let image = oci::source_image(&mixin.spec, &mixin.descriptor);
             let artifact = artifact::mixin(&MixinParts {
                 name: &mixin.name,
                 reference: &mixin.reference,
@@ -523,6 +526,26 @@ fn image_file(index: usize) -> String {
     format!("images/{index:02}.oci.tar")
 }
 
+/// The name of the mixin listed under `reference`: its last part.
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidKit`] when the reference names nothing, as `/`.
+fn mixin_name(reference: &str) -> Result<String> {
+    let name = reference
+        .trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .unwrap_or_default();
+    if name.is_empty() {
+        return Err(Error::InvalidKit {
+            kit: reference.to_owned(),
+            message: "the reference of a mixin is a path that names it".to_owned(),
+        });
+    }
+    Ok(name.to_owned())
+}
+
 /// Writes a package into `output` through a staging directory renamed into
 /// place at the end, as the compiler does.
 fn write_package(
@@ -532,22 +555,28 @@ fn write_package(
     archives: &[&[u8]],
 ) -> Result<()> {
     let staging = output.with_extension("staging");
+    let failed = |error: std::io::Error| package_error(&staging, &error);
     let _ = std::fs::remove_dir_all(&staging);
-    std::fs::create_dir_all(staging.join("images")).map_err(|e| package_error(&staging, e))?;
-    for (index, archive) in archives.iter().enumerate() {
-        std::fs::write(staging.join(image_file(index)), archive)
-            .map_err(|e| package_error(&staging, e))?;
-    }
-    for (file, value) in [("create-body.json", template), ("kit.json", metadata)] {
-        let bytes = serde_json::to_vec_pretty(value).map_err(|e| package_error(&staging, e))?;
-        std::fs::write(staging.join(file), bytes).map_err(|e| package_error(&staging, e))?;
+    std::fs::create_dir_all(staging.join("images")).map_err(failed)?;
+    // Serializing a `Value` cannot fail: its map keys are strings.
+    let pretty = |value: &Value| serde_json::to_vec_pretty(value).unwrap_or_default();
+    let files = archives
+        .iter()
+        .enumerate()
+        .map(|(index, archive)| (image_file(index), archive.to_vec()))
+        .chain([
+            ("create-body.json".to_owned(), pretty(template)),
+            ("kit.json".to_owned(), pretty(metadata)),
+        ]);
+    for (file, bytes) in files {
+        std::fs::write(staging.join(file), bytes).map_err(failed)?;
     }
     let _ = std::fs::remove_dir_all(output);
-    std::fs::rename(&staging, output).map_err(|e| package_error(output, e))
+    std::fs::rename(&staging, output).map_err(|error| package_error(output, &error))
 }
 
 /// An [`Error::Package`] about `path`.
-fn package_error(path: &Path, error: impl std::fmt::Display) -> Error {
+fn package_error(path: &Path, error: &std::io::Error) -> Error {
     Error::Package {
         path: path.to_owned(),
         message: error.to_string(),
@@ -567,6 +596,8 @@ fn renamed(error: Error, kit: &Path) -> Error {
 
 #[cfg(test)]
 mod tests {
+    use std::os::unix::fs::PermissionsExt;
+
     use super::*;
 
     #[test]
@@ -576,26 +607,33 @@ mod tests {
         assert_eq!(mixin.name(), "acme-tools");
         assert_eq!(mixin.reference(), "/kits/acme-tools/");
         assert_eq!(mixin.descriptor(), &descriptor);
-        assert!(matches!(
-            Mixin::new("/", descriptor),
-            Err(Error::InvalidKit { .. })
-        ));
+        let error = Mixin::new("/", descriptor).unwrap_err().to_string();
+        assert_eq!(
+            error,
+            "invalid kit /: the reference of a mixin is a path that names it"
+        );
+        let empty_step = KitDescriptor::mixin("Acme").with_install(LifecycleStep::new(" "));
+        let error = Mixin::new("/kits/acme-tools", empty_step)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.starts_with("invalid kit acme-tools: capabilities[0]: install[0]: no command"),
+            "{error}"
+        );
     }
 
     #[test]
     fn invalid_descriptors_are_named_after_their_mixin() {
-        let error = renamed(
-            Error::InvalidKit {
-                kit: "descriptor".to_owned(),
-                message: "m".to_owned(),
-            },
-            Path::new("acme"),
+        let invalid = Error::InvalidKit {
+            kit: "descriptor".to_owned(),
+            message: "m".to_owned(),
+        };
+        assert_eq!(
+            renamed(invalid, Path::new("acme")).to_string(),
+            "invalid kit acme: m"
         );
-        assert!(matches!(error, Error::InvalidKit { ref kit, .. } if kit == "acme"));
-        assert!(matches!(
-            renamed(Error::Forge("f".to_owned()), Path::new("acme")),
-            Error::Forge(_)
-        ));
+        let refused = renamed(Error::Forge("f".to_owned()), Path::new("acme"));
+        assert_eq!(refused.to_string(), "kit forging refused: f");
     }
 
     #[test]
@@ -614,16 +652,23 @@ mod tests {
         );
 
         std::fs::write(kit.join("spec.yaml"), "{\"schemaVersion\": \"2\"}").unwrap();
-        assert!(matches!(
-            Mixin::read(&kit),
-            Err(Error::InvalidKit { ref kit, .. }) if kit.ends_with("acme-tools")
-        ));
+        let error = Mixin::read(&kit).unwrap_err().to_string();
+        assert!(
+            error.starts_with(&format!("invalid kit {}:", kit.display())),
+            "{error}"
+        );
         std::fs::remove_file(kit.join("spec.yaml")).unwrap();
-        assert!(matches!(Mixin::read(&kit), Err(Error::File { .. })));
-        assert!(matches!(
-            Mixin::read(dir.path().join("none")),
-            Err(Error::File { .. })
-        ));
+        let error = Mixin::read(&kit).unwrap_err().to_string();
+        assert!(error.starts_with("cannot access "), "{error}");
+        let error = Mixin::read(dir.path().join("none"))
+            .unwrap_err()
+            .to_string();
+        assert!(error.starts_with("cannot access "), "{error}");
+        let error = Mixin::read("/").unwrap_err().to_string();
+        assert!(
+            error.ends_with("the reference of a mixin is a path that names it"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -632,18 +677,49 @@ mod tests {
         let output = dir.path().join("pkg");
         std::fs::create_dir_all(output.join("old")).unwrap();
         write_package(&output, &json!({ "name": "{{name}}" }), &json!({}), &[b"a"]).unwrap();
-        assert!(output.join("images/00.oci.tar").is_file());
+        assert_eq!(
+            std::fs::read(output.join("images/00.oci.tar")).unwrap(),
+            b"a"
+        );
+        assert!(output.join("create-body.json").is_file() && output.join("kit.json").is_file());
         assert!(
             !output.join("old").exists(),
             "the previous package is replaced"
         );
         assert!(!output.with_extension("staging").exists());
+    }
 
-        let blocked = dir.path().join("file");
-        std::fs::write(&blocked, "x").unwrap();
-        assert!(matches!(
-            write_package(&blocked.join("pkg"), &json!({}), &json!({}), &[]),
-            Err(Error::Package { .. })
-        ));
+    #[test]
+    fn packages_that_cannot_be_written_are_package_errors() {
+        let dir = tempfile::tempdir().unwrap();
+        let refusal = |output: &Path| {
+            let error = write_package(output, &json!({}), &json!({}), &[]).unwrap_err();
+            error.to_string()
+        };
+
+        // The staging directory cannot be made under a file.
+        let file = dir.path().join("file");
+        std::fs::write(&file, "x").unwrap();
+        assert!(refusal(&file.join("pkg")).starts_with("invalid kit package at "));
+
+        // The package cannot replace a file.
+        let error = refusal(&file);
+        assert!(
+            error.starts_with(&format!("invalid kit package at {}:", file.display())),
+            "{error}"
+        );
+
+        // A staging directory left read-only by another user cannot be
+        // emptied nor written to; the tests do not run as root.
+        let output = dir.path().join("locked");
+        let staging = output.with_extension("staging");
+        std::fs::create_dir_all(staging.join("images")).unwrap();
+        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o555)).unwrap();
+        let error = refusal(&output);
+        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(
+            error.starts_with(&format!("invalid kit package at {}:", staging.display())),
+            "{error}"
+        );
     }
 }

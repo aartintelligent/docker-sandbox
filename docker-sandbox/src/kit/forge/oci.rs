@@ -7,6 +7,9 @@
 //! `sbx-kit-src:spec-<hash>`, every entry owned by root and dated 1970, so
 //! that the same descriptor always gives the same archive. The daemon checks
 //! neither the hash of the name nor the form of `kit.yaml`.
+//!
+//! The archive is written in memory, entry by entry, with the headers of the
+//! `tar` crate: its paths are fixed and short, so that writing it cannot fail.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -16,7 +19,6 @@ use sha2::{Digest, Sha256};
 
 use super::descriptor::{Capability, KitDescriptor};
 use super::{Producer, to_json};
-use crate::error::{Error, Result};
 
 /// Directory of the descriptor inside the layer.
 const KIT_DIR: &str = "usr/share/sandbox/kit/spec";
@@ -42,8 +44,8 @@ const LAYER_TYPE: &str = "application/vnd.oci.image.layer.v1.tar";
 /// Annotation of the image holding its kit descriptor, as JSON.
 pub(super) const DESCRIPTOR_ANNOTATION: &str = "vnd.docker.sandbox.kit.descriptor";
 
-/// Operation named by the errors of this module.
-const OPERATION: &str = "kit source image";
+/// Size of a tar block: headers, and the padding of contents.
+const BLOCK: usize = 512;
 
 /// A source image, as an OCI image layout archive.
 pub(super) struct SourceImage {
@@ -150,12 +152,8 @@ struct RootFs {
 }
 
 /// The source image of the mixin `descriptor`, whose `kit.yaml` holds `spec`.
-///
-/// # Errors
-///
-/// Returns [`Error::Archive`] if the archive cannot be written.
-pub(super) fn source_image(spec: &str, descriptor: &KitDescriptor) -> Result<SourceImage> {
-    let layer = layer(spec)?;
+pub(super) fn source_image(spec: &str, descriptor: &KitDescriptor) -> SourceImage {
+    let layer = layer(spec);
     let layer_digest = digest(&layer);
     let config = json_bytes(&ImageConfig {
         architecture: architecture(std::env::consts::ARCH).to_owned(),
@@ -207,18 +205,19 @@ pub(super) fn source_image(spec: &str, descriptor: &KitDescriptor) -> Result<Sou
         (manifest_digest.clone(), manifest),
     ];
     blobs.sort_by(|a, b| a.0.cmp(&b.0));
-    let mut archive = tar::Builder::new(Vec::new());
+    let mut archive = Vec::new();
     for (blob_digest, bytes) in &blobs {
         let path = format!("blobs/sha256/{}", blob_digest.trim_start_matches("sha256:"));
-        file(&mut archive, &path, bytes)?;
+        file(&mut archive, &path, bytes);
     }
-    file(&mut archive, "index.json", &index)?;
-    file(&mut archive, "oci-layout", LAYOUT_MARKER)?;
-    Ok(SourceImage {
-        archive: archive.into_inner().map_err(archive_error)?,
+    file(&mut archive, "index.json", &index);
+    file(&mut archive, "oci-layout", LAYOUT_MARKER);
+    end(&mut archive);
+    SourceImage {
+        archive,
         reference,
         manifest_digest,
-    })
+    }
 }
 
 /// The reference to the blob `bytes` of `media_type` and digest `digest`.
@@ -238,18 +237,19 @@ fn json_bytes(value: &impl Serialize) -> Vec<u8> {
 
 /// The layer of a source image: the directories of [`KIT_DIR`], then
 /// `kit.yaml` holding `spec`.
-fn layer(spec: &str) -> Result<Vec<u8>> {
-    let mut layer = tar::Builder::new(Vec::new());
+fn layer(spec: &str) -> Vec<u8> {
+    let mut layer = Vec::new();
     let mut dir = String::new();
     for part in KIT_DIR.split('/') {
         if !dir.is_empty() {
             dir.push('/');
         }
         dir.push_str(part);
-        append(&mut layer, &dir, tar::EntryType::Directory, 0o755, &[])?;
+        append(&mut layer, &dir, tar::EntryType::Directory, 0o755, &[]);
     }
-    file(&mut layer, &format!("{dir}/kit.yaml"), spec.as_bytes())?;
-    layer.into_inner().map_err(archive_error)
+    file(&mut layer, &format!("{dir}/kit.yaml"), spec.as_bytes());
+    end(&mut layer);
+    layer
 }
 
 /// The annotations of the manifest: the OCI title, description and version
@@ -281,29 +281,35 @@ fn annotations(descriptor: &KitDescriptor, encoded: &str) -> BTreeMap<String, St
         .collect()
 }
 
-/// Appends a regular file owned by root and dated 1970 to `builder`.
-fn file(builder: &mut tar::Builder<Vec<u8>>, path: &str, data: &[u8]) -> Result<()> {
-    append(builder, path, tar::EntryType::Regular, 0o644, data)
+/// Appends a regular file owned by root and dated 1970 to `archive`.
+fn file(archive: &mut Vec<u8>, path: &str, data: &[u8]) {
+    append(archive, path, tar::EntryType::Regular, 0o644, data);
 }
 
-/// Appends one entry owned by root and dated 1970 to `builder`.
-fn append(
-    builder: &mut tar::Builder<Vec<u8>>,
-    path: &str,
-    kind: tar::EntryType,
-    mode: u32,
-    data: &[u8],
-) -> Result<()> {
+/// Appends to `archive` one entry owned by root and dated 1970, then its
+/// content padded to a whole block, as `tar::Builder` writes them.
+fn append(archive: &mut Vec<u8>, path: &str, kind: tar::EntryType, mode: u32, data: &[u8]) {
     let mut header = tar::Header::new_ustar();
+    // The paths of a source image are fixed and shorter than the name field:
+    // they are written as they are, with nothing to check.
+    for (slot, byte) in header.as_old_mut().name.iter_mut().zip(path.bytes()) {
+        *slot = byte;
+    }
     header.set_entry_type(kind);
     header.set_mode(mode);
     header.set_size(data.len() as u64);
     header.set_mtime(0);
     header.set_uid(0);
     header.set_gid(0);
-    builder
-        .append_data(&mut header, path, data)
-        .map_err(archive_error)
+    header.set_cksum();
+    archive.extend_from_slice(header.as_bytes());
+    archive.extend_from_slice(data);
+    archive.resize(archive.len().next_multiple_of(BLOCK), 0);
+}
+
+/// Ends `archive` with the two empty blocks of the tar format.
+fn end(archive: &mut Vec<u8>) {
+    archive.resize(archive.len() + 2 * BLOCK, 0);
 }
 
 /// The OCI name of the architecture `arch` (`std::env::consts::ARCH`).
@@ -322,14 +328,6 @@ pub(super) fn digest(bytes: &[u8]) -> String {
         let _ = write!(hex, "{byte:02x}");
     }
     hex
-}
-
-/// An [`Error::Archive`] of this module.
-fn archive_error(error: impl std::fmt::Display) -> Error {
-    Error::Archive {
-        operation: OPERATION,
-        message: error.to_string(),
-    }
 }
 
 #[cfg(test)]
@@ -366,7 +364,7 @@ mod tests {
     #[test]
     fn the_image_is_a_consistent_oci_layout_holding_the_spec() {
         let descriptor = KitDescriptor::mixin("Test").with_install(LifecycleStep::new("true"));
-        let image = source_image("# syntax\n{}\n", &descriptor).unwrap();
+        let image = source_image("# syntax\n{}\n", &descriptor);
         let files = files(&image.archive);
         let index: Value = serde_json::from_slice(&files["index.json"]).unwrap();
         assert_eq!(index["manifests"][0]["digest"], image.manifest_digest);
@@ -432,7 +430,7 @@ mod tests {
         )];
         assert_eq!(files_of_layer(layer), "# syntax\n{}\n");
         assert_eq!(
-            source_image("# syntax\n{}\n", &descriptor).unwrap().archive,
+            source_image("# syntax\n{}\n", &descriptor).archive,
             image.archive,
             "the same descriptor gives the same archive"
         );
@@ -451,10 +449,32 @@ mod tests {
     }
 
     #[test]
-    fn archive_errors_name_the_operation() {
-        let error = archive_error("disk full");
-        assert!(
-            matches!(error, Error::Archive { operation: OPERATION, ref message } if message == "disk full")
-        );
+    fn archives_are_written_as_the_tar_crate_writes_them() {
+        let mut builder = tar::Builder::new(Vec::new());
+        for (path, kind, mode, data) in [
+            ("usr", tar::EntryType::Directory, 0o755, &b""[..]),
+            ("usr/kit.yaml", tar::EntryType::Regular, 0o644, &b"{}"[..]),
+            (
+                "blobs/sha256/00",
+                tar::EntryType::Regular,
+                0o644,
+                &[7_u8; 1024][..],
+            ),
+        ] {
+            let mut header = tar::Header::new_ustar();
+            header.set_entry_type(kind);
+            header.set_mode(mode);
+            header.set_size(data.len() as u64);
+            header.set_mtime(0);
+            header.set_uid(0);
+            header.set_gid(0);
+            builder.append_data(&mut header, path, data).unwrap();
+        }
+        let mut written = Vec::new();
+        append(&mut written, "usr", tar::EntryType::Directory, 0o755, b"");
+        file(&mut written, "usr/kit.yaml", b"{}");
+        file(&mut written, "blobs/sha256/00", &[7; 1024]);
+        end(&mut written);
+        assert_eq!(written, builder.into_inner().unwrap());
     }
 }

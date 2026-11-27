@@ -264,7 +264,11 @@ impl KitDescriptor {
     /// Returns [`Error::File`] when the file cannot be read, and
     /// [`Error::InvalidKit`] as [`KitDescriptor::parse`] does.
     pub fn read(path: impl AsRef<Path>) -> Result<Self> {
-        let path = path.as_ref();
+        Self::read_file(path.as_ref())
+    }
+
+    /// [`KitDescriptor::read`], compiled once whatever the type of path.
+    fn read_file(path: &Path) -> Result<Self> {
         let text = std::fs::read_to_string(path).map_err(|source| Error::File {
             path: path.to_owned(),
             source,
@@ -615,9 +619,9 @@ mod tests {
 
     /// The message of the `InvalidKit` error `value` gives.
     fn refusal(value: Value) -> String {
-        let error = KitDescriptor::from_json(value).unwrap_err();
-        assert!(matches!(error, Error::InvalidKit { .. }), "{error}");
-        error.to_string()
+        let message = KitDescriptor::from_json(value).unwrap_err().to_string();
+        assert!(message.starts_with("invalid kit "), "{message}");
+        message
     }
 
     /// A mixin whose only capability is `capability`.
@@ -877,10 +881,13 @@ mod tests {
 
     #[test]
     fn unreadable_files_are_file_errors() {
-        assert!(matches!(
-            KitDescriptor::read("/zz-docker-sandbox-none/spec.yaml"),
-            Err(Error::File { .. })
-        ));
+        let error = KitDescriptor::read("/zz-docker-sandbox-none/spec.yaml").unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .starts_with("cannot access /zz-docker-sandbox-none/spec.yaml"),
+            "{error}"
+        );
     }
 
     #[test]
