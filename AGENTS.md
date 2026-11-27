@@ -33,8 +33,8 @@ and the examples in a workspace of their own:
   (daemon responses exported from the audit) and `live.rs` (feature `live`), with
   `tests/live-probe/`, the program the live tests upload and run inside sandboxes (a workspace
   member, built statically by `just test-live`).
-- `docker-sandbox-kit/` (its own version, which follows the kit compiler of the CLI rather than the
-  daemon API; `README.md`, `CHANGELOG.md`):
+- `docker-sandbox-kit/` (the version of `docker-sandbox`, which release-plz gives both crates;
+  `README.md`, `CHANGELOG.md`):
   - `forge/` (feature `forge`, default): `KitForge`, packages written without the CLI, the base
     kit rebuilt from its published image and mixins from kit descriptors (`KitDescriptor`,
     `LifecycleStep`, `Mixin`);

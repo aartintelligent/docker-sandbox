@@ -256,7 +256,9 @@ the squash commit). Fill in the template; `CI OK` must be green.
 [release-plz](https://release-plz.dev) opens a release pull request from the
 Conventional Commits on `main`; merging it publishes `docker-sandbox` to
 crates.io, tags the version (`v<version>`) and creates the GitHub release.
-`docker-sandbox-kit` has versions of its own, tagged
+`docker-sandbox-kit` shares that version: both crates inherit the version of
+the workspace, and release-plz gives them one (`version_group`), so that a
+release of either is a release of both, the kit crate tagged
 `docker-sandbox-kit-v<version>`. The other members are never published
 (`publish = false`). The release workflow
 also carries the new version into `examples/Cargo.lock`, the lockfile of the
@@ -268,12 +270,14 @@ environment `release`), so no crates.io token is stored. A new crate cannot be
 published that way: `docker-sandbox` 0.1.0, tagged before the crate was
 publishable, was published by hand from `main` with
 `cargo publish --locked -p docker-sandbox`. The first version of
-`docker-sandbox-kit` goes the same way, after the `docker-sandbox` it needs
-(`Images::export_stream`, `CreateRequest::for_agent`, the 0.3.0 release):
+`docker-sandbox-kit`, 0.3.0, goes the same way, after the `docker-sandbox`
+0.3.0 it needs (`Images::export_stream`, `CreateRequest::for_agent`):
 
-1. Merge the release pull request of `docker-sandbox`, which publishes it.
+1. Merge the release pull request of `docker-sandbox` 0.3.0, which publishes
+   it; the manifest of the kit crate, which inherits the version, says 0.3.0
+   too.
 2. From `main`: `cargo publish --locked -p docker-sandbox-kit`, then tag that
-   commit `docker-sandbox-kit-v0.1.0` and create its GitHub release.
+   commit `docker-sandbox-kit-v0.3.0` and create its GitHub release.
 3. On crates.io, add the release workflow as the trusted publisher of
    `docker-sandbox-kit` (this repository, `release-plz.yml`, environment
    `release`).
