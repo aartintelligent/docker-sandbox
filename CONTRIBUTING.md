@@ -269,20 +269,20 @@ crates.io trusts the release workflow (trusted publishing: `release-plz.yml`,
 environment `release`), so no crates.io token is stored. A new crate cannot be
 published that way: `docker-sandbox` 0.1.0, tagged before the crate was
 publishable, was published by hand from `main` with
-`cargo publish --locked -p docker-sandbox`. The first version of
-`docker-sandbox-kit`, 0.3.0, goes the same way, after the `docker-sandbox`
-0.3.0 it needs (`Images::export_stream`, `CreateRequest::for_agent`):
+`cargo publish --locked -p docker-sandbox`, and `docker-sandbox-kit` 0.3.0
+went the same way. A new published crate follows these steps:
 
-1. Merge the release pull request of `docker-sandbox` 0.3.0, which publishes
-   it; the manifest of the kit crate, which inherits the version, says 0.3.0
-   too.
-2. From `main`: `cargo publish --locked -p docker-sandbox-kit`, then tag that
-   commit `docker-sandbox-kit-v0.3.0` and create its GitHub release.
-3. On crates.io, add the release workflow as the trusted publisher of
-   `docker-sandbox-kit` (this repository, `release-plz.yml`, environment
-   `release`).
-4. Remove `release = false` from its entry of `release-plz.toml`: release-plz
-   takes it over from the next version.
+1. Give it an entry in `release-plz.toml` with `release = false`, so that
+   release-plz leaves it alone, and merge the release pull request of the
+   version it is to share.
+2. From `main`: `cargo publish --locked -p <crate>`, with a crates.io token
+   limited to `publish-new` and that crate; then tag that commit as its entry
+   says and create its GitHub release.
+3. On crates.io, add the release workflow as the trusted publisher of the
+   crate (this repository, `release-plz.yml`, environment `release`), and
+   revoke the token.
+4. Remove `release = false` from its entry: release-plz takes it over from
+   the next version.
 
 ## License
 
