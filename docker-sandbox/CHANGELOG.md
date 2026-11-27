@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0](https://github.com/aartintelligent/docker-sandbox/compare/v0.2.0...v0.3.0) - 2026-11-27
+
+### Added
+
+- *(sandbox)* [**breaking**] hold kit packages in memory and save them when they are to be kept ([#38](https://github.com/aartintelligent/docker-sandbox/pull/38))
+- *(sandbox)* name agents and find the hosts of their keys in their kits ([#37](https://github.com/aartintelligent/docker-sandbox/pull/37))
+- *(sandbox)* [**breaking**] check the hosts of network rules as the cli checks them ([#35](https://github.com/aartintelligent/docker-sandbox/pull/35))
+- *(audit)* measure how the proxy applies the network rules of a sandbox ([#34](https://github.com/aartintelligent/docker-sandbox/pull/34))
+- *(sandbox)* stream image exports and build agent creation requests ([#29](https://github.com/aartintelligent/docker-sandbox/pull/29))
+
+### Changed
+
+- *(sandbox)* [**breaking**] move kit forging and compiling into the docker-sandbox-kit crate ([#30](https://github.com/aartintelligent/docker-sandbox/pull/30))
+
 ## [0.2.0](https://github.com/aartintelligent/docker-sandbox/compare/v0.1.1...v0.2.0) - 2026-11-27
 
 ### Added
