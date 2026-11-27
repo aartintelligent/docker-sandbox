@@ -22,4 +22,4 @@ mod agent;
 mod package;
 
 pub use self::agent::KitAgent;
-pub use self::package::{KitPackage, PackageImage};
+pub use self::package::{ImageArchive, KitPackage, PackageImage};

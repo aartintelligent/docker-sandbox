@@ -43,7 +43,7 @@ use bytes::Bytes;
 use docker_sandbox::event::EventKind;
 use docker_sandbox::exec::{AgentSessionSpec, AttachSpec, ExecSpec, TerminalSize};
 use docker_sandbox::image::ImageSummary;
-use docker_sandbox::kit::KitPackage;
+use docker_sandbox::kit::{ImageArchive, KitPackage};
 use docker_sandbox::mcp::McpServerCheck;
 use docker_sandbox::policy::{Decision, NetworkCheck, RuleChange};
 use docker_sandbox::sandbox::{
@@ -350,9 +350,12 @@ async fn sandbox_lifecycle_from_a_kit_package() -> Result<()> {
 async fn exercise_lifecycle(client: &Client, package: &KitPackage, name: &str) -> Result<()> {
     // Load the kit sources through the raw image API rather than KitPackage.
     for image in package.images() {
+        let ImageArchive::File(path) = &image.archive else {
+            panic!("the images of a package read from a directory are files");
+        };
         client
             .images()
-            .load(Bytes::from(std::fs::read(&image.path).unwrap()))
+            .load(Bytes::from(std::fs::read(path).unwrap()))
             .await?;
     }
     client.images().pull("docker.io/sbx/shell:latest").await?;

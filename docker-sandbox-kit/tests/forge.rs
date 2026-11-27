@@ -269,6 +269,42 @@ async fn forged_packages_create_sandboxes_through_the_socket() {
 }
 
 #[tokio::test]
+async fn packages_are_built_in_memory_and_create_sandboxes_from_there() {
+    let dir = tempfile::tempdir().unwrap();
+    let base = base_package(&dir.path().join("shell"));
+    let daemon = permissive().start();
+    let client = connect(&daemon).await;
+
+    let package = KitForge::new(client.clone())
+        .with_base_package(base)
+        .with_mixin(tools())
+        .build()
+        .await
+        .unwrap();
+    assert_eq!(package.dir(), None, "nothing was written");
+    assert_eq!(package.images().len(), 1);
+
+    package.create(&client, "job-42").await.unwrap();
+    assert_eq!(
+        daemon.request("POST", "/sandbox").json()["kits"][1],
+        "/kits/acme-tools"
+    );
+
+    // Saved afterwards, it is the package forge writes, and the archive the
+    // daemon received from memory is the one written.
+    let saved = package.save(dir.path().join("saved")).unwrap();
+    let output = saved.dir().unwrap();
+    assert_eq!(
+        read(output, "kit.json")["forged_by"]["name"],
+        "docker-sandbox-kit"
+    );
+    assert_eq!(
+        daemon.request("POST", "/docker/images/load").body,
+        std::fs::read(output.join("images/00.oci.tar")).unwrap()
+    );
+}
+
+#[tokio::test]
 async fn mixins_read_from_a_directory_are_forged_with_their_spec() {
     let dir = tempfile::tempdir().unwrap();
     let base = base_package(&dir.path().join("shell"));

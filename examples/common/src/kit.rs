@@ -23,11 +23,9 @@ use docker_sandbox_kit::{Agent, CompileJob, KitCompiler, KitForge};
 /// Directory of the cached packages, in the target directory of the examples.
 const CACHE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/kits");
 
-/// Directory of the forged packages, in the target directory of the examples.
-const FORGED: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/forged");
-
-/// The package of the published kit `kit` (`claude`, `codex`, …), forged
-/// without the `sbx` CLI from `docker.io/sbx/<kit>:latest`. The daemon
+/// The package of the published kit `kit` (`claude`, `codex`, …), forged in
+/// memory without the `sbx` CLI from `docker.io/sbx/<kit>:latest`: nothing is
+/// written. The daemon
 /// authorizes the credential the kit declares as for a sandbox the CLI
 /// creates: the package holds the kit as the CLI resolves it.
 ///
@@ -42,7 +40,7 @@ pub async fn forged(client: &Client, kit: &str) -> Result<KitPackage> {
         agent.reference()
     );
     KitForge::agent(client.clone(), agent)
-        .forge(PathBuf::from(FORGED).join(kit))
+        .build()
         .await
         .with_context(|| format!("forging the {kit} kit"))
 }

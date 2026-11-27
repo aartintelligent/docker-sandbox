@@ -10,7 +10,7 @@ mod support;
 
 use std::path::Path;
 
-use docker_sandbox::kit::KitPackage;
+use docker_sandbox::kit::{KitPackage, PackageImage};
 use docker_sandbox::sandbox::SwapRequest;
 use serde_json::{Value, json};
 use support::{FakeDaemon, Reply, connect};
@@ -69,6 +69,28 @@ async fn packages_load_missing_images_and_swap_containers() {
         ["docker.io/sbx/shell@sha256:f3", "/kits/mixin"]
     );
     assert_eq!(swap.kit_artifacts, [json!({ "k": 0 }), json!({ "k": 1 })]);
+}
+
+#[tokio::test]
+async fn packages_in_memory_load_their_archives_from_memory() {
+    let daemon = FakeDaemon::builder()
+        .route("GET", "/docker/images", Reply::json(200, &json!([])))
+        .route(
+            "POST",
+            "/docker/images/load",
+            Reply::json(200, &json!({ "message": "image loaded" })),
+        )
+        .start();
+    let client = connect(&daemon).await;
+    let template = json!({ "name": "{{name}}", "agent": "shell", "kits": ["/kits/mixin"], "kit_artifacts": [{ "k": 0 }] });
+    let image = PackageImage::in_memory("sbx-kit-src:spec-abc", b"archive in memory".to_vec());
+    let package = KitPackage::in_memory(template, Value::Null, [image]).unwrap();
+
+    assert_eq!(package.load_images(&client).await.unwrap(), 1);
+    assert_eq!(
+        daemon.request("POST", "/docker/images/load").body,
+        b"archive in memory"
+    );
 }
 
 #[tokio::test]
