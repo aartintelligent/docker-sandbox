@@ -27,6 +27,11 @@ skill is its checklist. Run: $ARGUMENTS
   output in a file: a foreground command killed at its time limit leaves
   sandboxes, MCP registrations and secrets behind. To stop a run, send it
   SIGINT (`timeout -s INT`), never SIGKILL: it cleans up on SIGINT.
+- Start no coding agent in a sandbox unless the user asks: a sandbox of an
+  agent kit created through the socket, from a compiled or a forged package,
+  gets the credential the daemon holds for the user. Never run `sbx exec`,
+  `run`, `cp`, `kit add` or `port publish` on it: they push the stored
+  credentials of the user.
 
 ## After
 
@@ -40,4 +45,8 @@ skill is its checklist. Run: $ARGUMENTS
   and custom secrets set by the CLI for a removed sandbox
   (`sbx secret rm --placeholder <placeholder> --sandbox <name> -f`).
   Remove them, then run `just state-check` again until it passes.
+- The examples keep the kit images they pull and load as a cache: remove those
+  `state-check` names, derived tags first, with
+  `cargo run -p audit -- raw DELETE "/docker/images/remove?name=<reference>"`
+  (the reference URL-encoded).
 - Report to the user what the run left and what was cleaned, faithfully.

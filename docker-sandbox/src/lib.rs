@@ -3,33 +3,51 @@
 //!
 //! `sandboxd` serves a private HTTP/1.1 API on a per-user Unix socket. The
 //! `sbx` CLI is one client of that API; this crate is another, usable from any
-//! tokio application without the CLI: create sandboxes from compiled kits,
-//! keep them running, run commands and agent sessions, move files in and out,
-//! publish ports, push credentials and scope network access.
+//! tokio application without the CLI: create sandboxes from kits forged
+//! through the socket alone or compiled once with the CLI, keep them running,
+//! run commands and agent sessions, move files in and out, publish ports, give
+//! agents their credentials and scope network access.
 //!
 //! # Example
 //!
 //! ```no_run
+//! # #[cfg(feature = "kit-forge")]
+//! # async fn run() -> docker_sandbox::Result<()> {
 //! use std::time::Duration;
+//!
+//! use docker_sandbox::kit::KitForge;
 //! use docker_sandbox::prelude::*;
 //!
-//! # async fn run() -> docker_sandbox::Result<()> {
 //! let client = Client::connect().await?;
 //!
-//! // Create a sandbox from a kit package compiled once with the CLI.
-//! let package = KitPackage::open("/var/lib/kits/shell")?;
+//! // The claude kit, rebuilt from its published image through the socket
+//! // (feature `kit-forge`): no `sbx` CLI, not even once. The daemon treats
+//! // the sandbox as one the CLI created, and gives the agent the credential
+//! // it holds for the kit, a Claude subscription for instance.
+//! let package = KitForge::new(client.clone())
+//!     .with_base("docker.io/sbx/claude:latest")
+//!     .with_arg("model", "claude-haiku-5-5")
+//!     .forge("/var/lib/kits/claude")
+//!     .await?;
 //! let created = package.create(&client, "job-42").await?;
 //!
 //! // Handles own a clone of the client: store them, move them into tasks.
 //! let sandbox = client.sandbox(created.name);
 //! let _running = sandbox.ensure_running().await?;
-//! sandbox.allow_hosts(["api.github.com"]).await?;
 //! sandbox.upload_dir("./repo", "/home/agent").await?;
 //!
+//! // Claude Code, unattended, on a copy of the repository: the sandbox is
+//! // the boundary of what it may do.
 //! let output = sandbox
 //!     .exec(
-//!         &ExecSpec::shell("cd /home/agent/repo && make test")
-//!             .with_timeout(Duration::from_secs(600)),
+//!         &ExecSpec::new([
+//!             "claude",
+//!             "--dangerously-skip-permissions",
+//!             "-p",
+//!             "Run the tests, fix what fails, and summarize the fix.",
+//!         ])
+//!         .with_working_dir("/home/agent/repo")
+//!         .with_timeout(Duration::from_secs(900)),
 //!     )
 //!     .await?
 //!     .check()?;
@@ -40,6 +58,13 @@
 //! # }
 //! ```
 //!
+//! The package stays on disk: [`KitPackage::open`](kit::KitPackage::open)
+//! takes it again for the next sandboxes, and `KitCompiler` (feature
+//! `kit-compiler`) compiles one with the CLI instead. To give the agent an API
+//! key of your own, use a [`ProxiedKey`](sandbox::ProxiedKey): the sandbox only
+//! holds a placeholder, and the proxy writes the key into the requests to the
+//! hosts of the key.
+//!
 //! # Modules
 //!
 //! | Module | Entry point | Covers |
@@ -47,7 +72,7 @@
 //! | [`sandbox`] | [`Client::sandbox`], [`Client::sandboxes`] | Listing, creation, life cycle, sessions, ports, files, credentials, API keys through the proxy, SSH |
 //! | [`exec`] | [`Sandbox::exec`](sandbox::Sandbox::exec), [`Sandbox::attach`](sandbox::Sandbox::attach) | Commands, interactive executions, agent sessions |
 //! | [`policy`] | [`Client::policy`], [`Sandbox::allow_hosts`](sandbox::Sandbox::allow_hosts) | Network rules, checks, activity log |
-//! | [`kit`] | [`KitPackage`](kit::KitPackage) | Kit packages: creation, kits added in place or by recreation, compilation (feature `kit-compiler`), forging without the CLI (feature `kit-forge`) |
+//! | [`kit`] | [`KitPackage`](kit::KitPackage) | Kit packages: forged without the CLI (feature `kit-forge`) or compiled with it (feature `kit-compiler`), creation, kits added in place or by recreation |
 //! | [`image`] | [`Client::images`] | Images: list, pull, load, export, remove |
 //! | [`event`] | [`Client::events`] | The daemon event stream |
 //! | [`mcp`] | [`Client::mcp`], [`Sandbox::load_mcp_server`](sandbox::Sandbox::load_mcp_server) | MCP gateway, servers, policy checks |
@@ -133,7 +158,8 @@ pub use transport::NdjsonStream;
 /// daemon does not break decoding.
 pub type Extra = serde_json::Map<String, serde_json::Value>;
 
-/// Compiles the examples of the README as doctests.
-#[cfg(doctest)]
+/// Compiles the examples of the README as doctests, with the `kit-forge`
+/// feature its first example forges the claude kit with.
+#[cfg(all(doctest, feature = "kit-forge"))]
 #[doc = include_str!("../README.md")]
 struct ReadmeDoctests;

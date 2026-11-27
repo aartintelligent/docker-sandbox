@@ -53,6 +53,23 @@ after the last sandbox goes away: `state-check` names the runs of that
 collector it finds in the daemon log, so that a reference it took is not
 blamed on the run.
 
+A sandbox of an agent kit (`claude`, `codex`, …) created through the socket
+from a package the CLI compiled or the library forged gets the credential the
+daemon holds for the kit, a subscription of the user for instance: start no
+agent in it unless the user asks, since the agent would use their account.
+The CLI also pushes the stored credentials of the user into a sandbox before
+`exec`, `run`, `cp`, `kit add` and `port publish`: never run those on the
+sandbox of an agent kit.
+
+The examples keep the kit images they pull and load as a cache
+(`docker.io/sbx/<kit>:latest`, `sbx-kit-src:…`, `sandbox-kit-assembled:…`). To
+bring the daemon back to its recorded state after them, remove the images
+`state-check` names, derived tags first:
+
+```sh
+cargo run -p audit -- raw DELETE "/docker/images/remove?name=<reference, URL-encoded>"
+```
+
 ## When `sbx` changes
 
 ```sh
