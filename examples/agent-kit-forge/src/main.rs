@@ -20,7 +20,9 @@
 //! different at every run, is given at creation in the variable the server
 //! names. The example then sends, from inside the sandbox, the `initialize`
 //! request Claude Code sends, to the URL and with the header it registered,
-//! and checks that the server received the token.
+//! and checks that the server received the token. The mixin also registers a
+//! remote server, whose bearer is read from a variable of the sandbox: the
+//! example only reads its registration, and never calls it.
 //!
 //! The kit is resolved as the CLI resolves it, the order of its effective
 //! capabilities included: the daemon authorizes the credential it declares,
@@ -55,6 +57,23 @@ const EFFORT: &str = "low";
 /// The name Claude Code knows the MCP server of the examples under.
 const SERVER: &str = "example-tools";
 
+/// The remote MCP server registered beside it, in a reserved domain: never
+/// called.
+const REMOTE: &str = "https://mcp.example.com/mcp";
+
+/// The variable of the sandbox holding the bearer of the remote server.
+const REMOTE_TOKEN: &str = "EXAMPLE_DOCS_TOKEN";
+
+/// Prints the type and URL Claude Code registered for the server named in
+/// its first argument, and whether its bearer is the content of the variable
+/// named in the second.
+const REGISTERED: &str = r#"
+import json, os, sys
+server = json.load(open("/home/agent/.claude.json"))["mcpServers"][sys.argv[1]]
+bearer = server.get("headers", {}).get("Authorization") == "Bearer " + os.environ[sys.argv[2]]
+print(server["type"], server["url"], bearer)
+"#;
+
 /// Sends, from inside the sandbox, the `initialize` request of an MCP client
 /// to the URL and with the headers Claude Code registered for the server
 /// named in its argument, and prints the status of the answer.
@@ -73,15 +92,22 @@ print(server["type"], server["url"], urllib.request.urlopen(request, timeout=30)
 #[tokio::main]
 async fn main() -> Result<()> {
     let client = connect().await?;
+    let known: Vec<&str> = Agent::ALL.iter().map(|agent| agent.name()).collect();
+    println!("the agents sbx knows: {}", known.join(", "));
     let token = dummy_token();
     let http = HttpServer::start(&token).await?;
     // The server the sandbox reaches on the loopback of the host.
     let tools = McpServer::host(SERVER, http.port());
     println!(
-        "MCP server listening on {}, given to Claude Code as {}",
+        "MCP server listening on {}, given to Claude Code as {} at {}",
         http.url(),
+        tools.name(),
         tools.url()
     );
+    // A remote server, called by the agent itself. A dummy bearer here; for a
+    // real key, the placeholder of a `ProxiedKey` for its host, so that the
+    // sandbox never holds the key.
+    let docs = McpServer::remote("example-docs", REMOTE).with_bearer_env(REMOTE_TOKEN);
     // The published kit of the claude agent, rebuilt from its image.
     let agent = Agent::Claude;
     eprintln!(
@@ -91,7 +117,7 @@ async fn main() -> Result<()> {
     let package = KitForge::agent(client.clone(), agent)
         .with_arg("model", MODEL)
         .with_arg("reasoningEffort", EFFORT)
-        .with_mixin(Mixin::mcp(agent, [tools.clone()])?)
+        .with_mixin(Mixin::mcp(agent, [tools.clone(), docs.clone()])?)
         .forge(OUTPUT)
         .await?;
     let artifact = package
@@ -109,7 +135,10 @@ async fn main() -> Result<()> {
     let token_env = tools
         .token_env()
         .context("a server of the host takes a token")?;
-    let request = package.request(&name)?.with_env(token_env, &token);
+    let request = package
+        .request(&name)?
+        .with_env(token_env, &token)
+        .with_env(REMOTE_TOKEN, dummy_token());
     sandbox::with_sandbox_from(&client, &package, &request, |sandbox| async move {
         let _running = sandbox.ensure_running().await?;
         let env = sandbox
@@ -140,7 +169,29 @@ async fn main() -> Result<()> {
             settings["effortLevel"]
         );
         println!("~/.claude/settings.json: model {MODEL}, effortLevel {EFFORT}");
-        check_server(&sandbox, &http).await
+        check_server(&sandbox, &http).await?;
+        let registered = sandbox
+            .exec(&ExecSpec::new([
+                "python3",
+                "-c",
+                REGISTERED,
+                docs.name(),
+                REMOTE_TOKEN,
+            ]))
+            .await?
+            .check()?
+            .stdout;
+        ensure!(
+            registered.trim() == format!("http {REMOTE} True"),
+            "unexpected registration of {}: {}",
+            docs.name(),
+            registered.trim()
+        );
+        println!(
+            "~/.claude.json registers {} at {REMOTE}, its bearer read from {REMOTE_TOKEN}",
+            docs.name()
+        );
+        Ok(())
     })
     .await
 }
