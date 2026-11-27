@@ -2,9 +2,9 @@
 //! that does not trust the agent.
 //!
 //! [`run`] is the whole flow of the `agent-*-automation` examples, the flow of
-//! a runner: compile the kit once, create a sandbox, give it the credential
-//! found in the environment (else the secret stored with `sbx secret set`
-//! applies), mount the task written on the host as its workspace, run the
+//! a runner: compile the kit once, create a sandbox with the placeholder of
+//! the key found in the environment and give the key to its proxy, mount the
+//! task written on the host as its workspace, run the
 //! agent in its non-interactive mode with a deadline, then check the result
 //! with the project's own tests, and show what changed and which hosts the
 //! agent reached. The agent works on the files of the host, as with `sbx run`:
@@ -20,7 +20,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use docker_sandbox::exec::{AttachSpec, ExecOutput, ExecSpec, OutputStream};
 use docker_sandbox::kit::KitAgent;
-use docker_sandbox::sandbox::{Sandbox, Workspace};
+use docker_sandbox::sandbox::{CreateRequest, Sandbox, Workspace};
 use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
@@ -92,11 +92,9 @@ pub async fn run(agent: &Agent, headless: Headless) -> Result<()> {
     let prompt = prompt_from_args();
     let forwarded = agent.forwarded_values();
     if credentials::find_in_env(agent.credentials).is_empty() && forwarded.is_empty() {
-        // A secret stored with `sbx secret set` applies to every sandbox, and
-        // the socket does not tell whether there is one.
         eprintln!(
-            "no credential in the environment ({}): the agent relies on the secrets stored \
-             with `sbx secret set`, since nobody can log in",
+            "no key in the environment ({}): unattended, the agent cannot log in and will \
+             fail",
             env_names(agent)
         );
     }
@@ -116,17 +114,24 @@ pub async fn run(agent: &Agent, headless: Headless) -> Result<()> {
     write_task(&project)?;
     write_task(&original)?;
     let (project, original) = (canonical(&project)?, canonical(&original)?);
-    let request = package
-        .request(&name)?
-        .with_workspace(&project)
-        .with_additional_workspace(Workspace::new(&original).read_only());
+    let keys = credentials::proxied_keys(&package, agent.credentials)?;
+    let request = keys.iter().fold(
+        package
+            .request(&name)?
+            .with_workspace(&project)
+            .with_additional_workspace(Workspace::new(&original).read_only()),
+        CreateRequest::with_proxied_key,
+    );
     eprintln!("task written to {project}, mounted as the workspace");
 
     sandbox::with_sandbox_from(&client, &package, &request, |sandbox| async move {
         let _running = sandbox.ensure_running().await?;
-        let pushed = credentials::push_from_env(&sandbox, agent.credentials).await?;
-        if !pushed.is_empty() {
-            eprintln!("credentials given to the sandbox: {}", pushed.join(", "));
+        if !keys.is_empty() {
+            sandbox.push_proxied_keys(&keys).await?;
+            eprintln!(
+                "keys given to the proxy of the sandbox: {}",
+                credentials::describe(&keys)
+            );
         }
 
         let before = tests(&sandbox, &project).await?;

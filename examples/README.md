@@ -135,15 +135,18 @@ Provider keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (or
 `NEBIUS_API_KEY`, `XAI_API_KEY`.
 
 A key found in the environment is given to the sandbox of the example only,
-as a sandbox-scoped service secret: the proxy of the sandbox injects it on
-outgoing requests, the agent never sees it, and it goes away with the sandbox.
-The secrets stored with `sbx secret set <service>` are global: the proxy
-injects them into every sandbox, those of the examples included, and a key
-from the environment takes precedence for one sandbox. The examples never read
-them, and cannot tell whether there is one. Without any credential, the agent
+through its proxy (`ProxiedKey`, see
+[`common/src/credentials.rs`](common/src/credentials.rs)): the sandbox is
+created with a placeholder in the variable the agent reads, and the proxy
+writes the key in its place in the requests to the hosts the kit declares for
+its service, `api.anthropic.com` and `mcp-proxy.anthropic.com` for Claude
+Code. The agent never sees the key, and it goes away with the sandbox. Created
+through the socket without a bindings file, the sandbox has the credential its
+kit declares withheld, which the creation prints: a value pushed for that
+service would not be injected, and the examples do not rely on the secrets
+stored with `sbx secret set <service>` either. Without any key, the agent
 offers its own login inside the session: `/login` for Claude Code, the device
-flow for Kiro; Codex can also sign in on the host beforehand with
-`sbx secret set openai --oauth`.
+flow for Kiro.
 
 The agent session opens as `sbx run` opens it
 ([`common/src/host.rs`](common/src/host.rs)): with the terminal type
@@ -208,9 +211,9 @@ just example agent-codex-automation "Add a div operation to calc.sh, with its te
 
 The program and its run options come from the kit itself
 (`KitPackage::agent`); the non-interactive flags come from the documentation
-of each agent, linked from each example. A credential is required, since
-nobody can log in: the keys of the table above, or the secrets stored with
-`sbx secret set`; without any, the example warns and the agent fails. Kiro
+of each agent, linked from each example. A key is required, since nobody can
+log in: the keys of the table above, given through the proxy as for the
+interactive examples; without any, the example warns and the agent fails. Kiro
 has no service secret in `sbx`, so `KIRO_API_KEY` is passed to the agent
 process as is and is visible inside the sandbox.
 

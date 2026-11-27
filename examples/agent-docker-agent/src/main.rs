@@ -5,7 +5,7 @@
 //! that sandbox only, and the terminal is plugged into the agent session. The
 //! sandbox is removed when the session ends.
 //!
-//! Credentials: the key of any model provider, as for OpenCode. A secret stored with `sbx secret set` serves as well; without any, log in inside the session.
+//! Credentials: the key of any model provider, as for OpenCode. It reaches the agent as a placeholder the proxy replaces; without any, log in inside the session.
 //!
 //! ```sh
 //! just example agent-docker-agent
