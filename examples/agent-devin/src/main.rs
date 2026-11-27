@@ -5,7 +5,7 @@
 //! that sandbox only, and the terminal is plugged into the agent session. The
 //! sandbox is removed when the session ends.
 //!
-//! Credentials: a Devin key in `DEVIN_API_KEY`. A secret stored with `sbx secret set` serves as well; without any, log in inside the session.
+//! Credentials: a Devin key in `DEVIN_API_KEY`. It reaches the agent as a placeholder the proxy replaces; without any, log in inside the session.
 //!
 //! ```sh
 //! just example agent-devin

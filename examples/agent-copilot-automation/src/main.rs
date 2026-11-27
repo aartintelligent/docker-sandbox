@@ -14,7 +14,8 @@
 //!
 //! Credentials, required since nobody can log in: `COPILOT_GITHUB_TOKEN`,
 //! `GH_TOKEN` or `GITHUB_TOKEN`.
-//! A secret stored with `sbx secret set` serves as well.
+//! The key reaches the agent through the proxy of the sandbox alone, as a
+//! placeholder ([`credentials`](../../common/src/credentials.rs)).
 //!
 //! ```sh
 //! just example agent-copilot-automation

@@ -55,7 +55,7 @@ async fn main() -> docker_sandbox::Result<()> {
 
 | Module | Covers |
 |---|---|
-| `sandbox` | Listing, creation with its progress stream, start, stop, deletion, saving as a template, sessions that keep a sandbox running, ports, host paths, credentials, files and directories, SSH tunnels |
+| `sandbox` | Listing, creation with its progress stream, start, stop, deletion, saving as a template, sessions that keep a sandbox running, ports, host paths, credentials and API keys given through the proxy alone (`ProxiedKey`), files and directories, SSH tunnels |
 | `exec` | Commands run to completion, interactive executions and agent sessions over upgraded connections, terminal resizing |
 | `policy` | Network rules (global or per sandbox), checks of a target, the activity log of the proxy |
 | `kit` | Kit packages compiled once with the CLI then replayed through the socket alone: creation, kits added to a running sandbox in place or by recreating its container, their compilation (feature `kit-compiler`), and packages forged without the CLI, base kit and mixins (feature `kit-forge`) |

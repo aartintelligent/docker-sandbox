@@ -1350,6 +1350,7 @@ async fn exercise_secrets(
 #[cfg(feature = "kit-forge")]
 mod forged {
     use docker_sandbox::kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
+    use docker_sandbox::sandbox::ProxiedKey;
 
     use super::*;
 
@@ -1361,6 +1362,9 @@ mod forged {
 
     /// Host the forged mixin allows, which is never called.
     const ALLOWED: &str = "docker-sandbox-live.example.com:443";
+
+    /// Dummy value of the proxied key, sent to the public echo service.
+    const DUMMY_KEY: &str = "docker-sandbox-live-dummy-key";
 
     /// The mixin of the tests: an install command, a startup command run in
     /// the background, and a network rule.
@@ -1505,6 +1509,42 @@ mod forged {
                     .success(),
                 "the agent context of the kit is missing"
             );
+            Ok(())
+        })
+        .await
+    }
+
+    /// A key given through the proxy alone: the sandbox holds its
+    /// placeholder, and the proxy writes the key in its place in a request to
+    /// its host, the public echo service, which answers with the headers it
+    /// received. The value is a dummy.
+    #[tokio::test]
+    async fn proxied_keys_reach_their_host_through_the_proxy() -> Result<()> {
+        run("proxied-key", |client, name, dir| async move {
+            let package = KitForge::new(client.clone())
+                .with_base("docker.io/sbx/shell:latest")
+                .forge(dir.join("shell"))
+                .await?;
+            let key = ProxiedKey::new("DOCKER_SANDBOX_LIVE_KEY", ["postman-echo.com"], DUMMY_KEY)?;
+            let request = package.request(&name)?.with_proxied_key(&key);
+            package.create_with(&client, &request).await?;
+
+            let sandbox = client.sandbox(&name);
+            let _session = sandbox.ensure_running().await?;
+            let outcome = sandbox.push_proxied_keys(std::slice::from_ref(&key)).await?;
+            assert!(outcome.withheld.is_empty(), "{:?}", outcome.withheld);
+            assert_eq!(
+                shell(&sandbox, "printf %s \"$DOCKER_SANDBOX_LIVE_KEY\"").await?,
+                key.placeholder(),
+                "the sandbox holds the placeholder"
+            );
+            let echoed = shell(
+                &sandbox,
+                "curl -s -H \"x-api-key: $DOCKER_SANDBOX_LIVE_KEY\" http://postman-echo.com/headers",
+            )
+            .await?;
+            assert!(echoed.contains(DUMMY_KEY), "the key did not reach its host: {echoed}");
+            assert!(!echoed.contains(key.placeholder()), "{echoed}");
             Ok(())
         })
         .await

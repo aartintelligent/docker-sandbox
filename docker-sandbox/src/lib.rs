@@ -44,7 +44,7 @@
 //!
 //! | Module | Entry point | Covers |
 //! |---|---|---|
-//! | [`sandbox`] | [`Client::sandbox`], [`Client::sandboxes`] | Listing, creation, life cycle, sessions, ports, files, credentials, SSH |
+//! | [`sandbox`] | [`Client::sandbox`], [`Client::sandboxes`] | Listing, creation, life cycle, sessions, ports, files, credentials, API keys through the proxy, SSH |
 //! | [`exec`] | [`Sandbox::exec`](sandbox::Sandbox::exec), [`Sandbox::attach`](sandbox::Sandbox::attach) | Commands, interactive executions, agent sessions |
 //! | [`policy`] | [`Client::policy`], [`Sandbox::allow_hosts`](sandbox::Sandbox::allow_hosts) | Network rules, checks, activity log |
 //! | [`kit`] | [`KitPackage`](kit::KitPackage) | Kit packages: creation, kits added in place or by recreation, compilation (feature `kit-compiler`), forging without the CLI (feature `kit-forge`) |

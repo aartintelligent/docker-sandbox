@@ -13,7 +13,8 @@
 //! program and its run options come from the kit itself.
 //!
 //! Credentials, required since nobody can log in: `FACTORY_API_KEY`.
-//! A secret stored with `sbx secret set` serves as well.
+//! The key reaches the agent through the proxy of the sandbox alone, as a
+//! placeholder ([`credentials`](../../common/src/credentials.rs)).
 //!
 //! ```sh
 //! just example agent-droid-automation

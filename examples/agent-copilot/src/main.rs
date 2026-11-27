@@ -5,7 +5,7 @@
 //! that sandbox only, and the terminal is plugged into the agent session. The
 //! sandbox is removed when the session ends.
 //!
-//! Credentials: a GitHub token in `COPILOT_GITHUB_TOKEN`, `GH_TOKEN` or `GITHUB_TOKEN`. A secret stored with `sbx secret set` serves as well; without any, log in inside the session.
+//! Credentials: a GitHub token in `COPILOT_GITHUB_TOKEN`, `GH_TOKEN` or `GITHUB_TOKEN`. It reaches the agent as a placeholder the proxy replaces; without any, log in inside the session.
 //!
 //! ```sh
 //! just example agent-copilot

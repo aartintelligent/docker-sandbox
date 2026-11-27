@@ -13,7 +13,8 @@ use std::time::Duration;
 use docker_sandbox::Error;
 use docker_sandbox::sandbox::{
     CreateEvent, CreateRequest, CredentialsUpdate, CustomSecret, DeleteOptions, PortBinding,
-    PullPolicy, SandboxState, Secret, ServiceCredential, SkillsMode, StartOptions, Workspace,
+    ProxiedKey, PullPolicy, SandboxState, Secret, ServiceCredential, SkillsMode, StartOptions,
+    Workspace,
 };
 use serde_json::json;
 use support::{FakeDaemon, Reply, connect, sandbox_json, tar_entries, tar_with_file};
@@ -381,6 +382,64 @@ async fn credentials_are_pushed_in_the_daemon_format() {
     assert_eq!(
         daemon.request("POST", "/sandbox/job-42/credentials").json(),
         json!({ "custom_secrets": [{ "env_name": "API_KEY", "sentinel": "sbx-cs-1", "target": "api.example.com", "targets": ["api.example.com"], "value": "dummy" }] })
+    );
+}
+
+#[tokio::test]
+async fn proxied_keys_leave_a_placeholder_in_the_sandbox_and_the_key_to_the_proxy() {
+    let daemon = FakeDaemon::builder()
+        .route(
+            "POST",
+            "/sandbox",
+            Reply::ndjson(&[json!({ "result": { "id": "1", "name": "job-42", "agent": "claude", "status": "running" } })]),
+        )
+        .route(
+            "POST",
+            "/sandbox/job-42/credentials",
+            Reply::json(200, &json!({ "message": "Credentials updated", "withheld": ["anthropic"] })),
+        )
+        .start();
+    let client = connect(&daemon).await;
+    let anthropic = ProxiedKey::new(
+        "ANTHROPIC_API_KEY",
+        ["api.anthropic.com", "mcp-proxy.anthropic.com"],
+        "dummy-anthropic",
+    )
+    .unwrap();
+    let openai = ProxiedKey::new("OPENAI_API_KEY", ["api.openai.com"], "dummy-openai").unwrap();
+
+    let request =
+        CreateRequest::from_template(json!({ "name": "{{name}}", "agent": "claude" }), "job-42")
+            .unwrap()
+            .with_proxied_key(&anthropic)
+            .with_proxied_key(&openai);
+    client.sandboxes().create(&request).await.unwrap();
+    let created = daemon.request("POST", "/sandbox").json();
+    assert_eq!(
+        created["environment"],
+        json!({ "ANTHROPIC_API_KEY": anthropic.placeholder(), "OPENAI_API_KEY": openai.placeholder() })
+    );
+    assert!(
+        !created.to_string().contains("dummy"),
+        "a key went into the creation"
+    );
+
+    // One update carries every key: custom secrets replace those of the
+    // sandbox as a whole.
+    let outcome = client
+        .sandbox("job-42")
+        .push_proxied_keys(&[anthropic.clone(), openai.clone()])
+        .await
+        .unwrap();
+    assert_eq!(outcome.withheld, ["anthropic"]);
+    assert_eq!(
+        daemon.request("POST", "/sandbox/job-42/credentials").json(),
+        json!({ "custom_secrets": [
+            { "env_name": "ANTHROPIC_API_KEY", "sentinel": anthropic.placeholder(), "target": "api.anthropic.com",
+              "targets": ["api.anthropic.com", "mcp-proxy.anthropic.com"], "value": "dummy-anthropic" },
+            { "env_name": "OPENAI_API_KEY", "sentinel": openai.placeholder(), "target": "api.openai.com",
+              "targets": ["api.openai.com"], "value": "dummy-openai" }
+        ] })
     );
 }
 

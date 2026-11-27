@@ -12,7 +12,7 @@ pub use crate::kit::KitPackage;
 pub use crate::kit::{CompileJob, KitCompiler};
 pub use crate::policy::{NetworkCheck, RuleChange};
 pub use crate::sandbox::{
-    CreateRequest, CredentialsUpdate, CustomSecret, PortBinding, Sandbox, SandboxInfo,
+    CreateRequest, CredentialsUpdate, CustomSecret, PortBinding, ProxiedKey, Sandbox, SandboxInfo,
     SandboxState, Secret, SessionGuard,
 };
 pub use crate::{Client, Error, Result};

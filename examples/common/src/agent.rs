@@ -2,12 +2,12 @@
 //! server.
 //!
 //! [`run`] is the whole flow of the `agent-*` examples: compile the kit of the
-//! agent once, create a sandbox from it, give it the credentials found in the
-//! environment, load the MCP server of the `-mcp` variant and check it from
-//! inside the sandbox, and plug the terminal into the agent session, opened
-//! with what `sbx run` passes from the host ([`host`]). The secrets stored with
-//! `sbx secret set` apply to the sandbox as to any other; without a credential
-//! at all, the agent offers its own login inside the session.
+//! agent once, create a sandbox from it with the placeholders of the keys
+//! found in the environment, give the keys to its proxy ([`credentials`]),
+//! load the MCP server of the `-mcp` variant and check it from inside the
+//! sandbox, and plug the terminal into the agent session, opened with what
+//! `sbx run` passes from the host ([`host`]). Without a key, the agent offers
+//! its own login inside the session, when it has one.
 
 use anyhow::{Context, Result, bail};
 
@@ -19,8 +19,8 @@ use crate::{connect, host, kit, mcp, sandbox, terminal};
 pub struct Agent {
     /// Kit of the agent, as accepted by `sbx create`.
     pub kit: &'static str,
-    /// Credentials the agent can use, read from the environment and injected
-    /// by the proxy of the sandbox.
+    /// Credentials the agent can use, read from the environment and written
+    /// by the proxy of the sandbox in place of their placeholders.
     pub credentials: &'static [Credential],
     /// Environment variables passed as they are to the agent process when set,
     /// for an agent `sbx` knows no service secret for. Their values are
@@ -191,7 +191,11 @@ pub async fn run(agent: &Agent, with_mcp: bool) -> Result<()> {
     let server = registration.as_ref().map(|r| r.name().to_owned());
     // What `sbx run` adds from the host: the SSH agent of the sandbox, and
     // the terminal, time zone and desktop session of the agent session.
+    let keys = credentials::proxied_keys(&package, agent.credentials)?;
     let mut request = package.request(&name)?;
+    for key in &keys {
+        request = request.with_proxied_key(key);
+    }
     if let Some(socket) = host::ssh_agent_socket(&client).await {
         request = request.with_ssh_agent_socket(socket);
     }
@@ -206,14 +210,14 @@ pub async fn run(agent: &Agent, with_mcp: bool) -> Result<()> {
 
     let outcome = sandbox::with_sandbox_from(&client, &package, &request, |sandbox| async move {
         let _running = sandbox.ensure_running().await?;
-        let pushed = credentials::push_from_env(&sandbox, agent.credentials).await?;
-        if pushed.is_empty() {
-            eprintln!(
-                "no credential in the environment: the agent uses the secrets stored with \
-                 `sbx secret set`, or offers its own login"
-            );
+        if keys.is_empty() {
+            eprintln!("no key in the environment: the agent offers its own login, if it has one");
         } else {
-            eprintln!("credentials given to the sandbox: {}", pushed.join(", "));
+            sandbox.push_proxied_keys(&keys).await?;
+            eprintln!(
+                "keys given to the proxy of the sandbox, which holds their placeholders: {}",
+                credentials::describe(&keys)
+            );
         }
         if let Some(server) = &server {
             sandbox.load_mcp_server(server).await?;

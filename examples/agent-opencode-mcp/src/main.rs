@@ -6,7 +6,7 @@
 //! registration are removed when the session ends. When `sbx` starts this
 //! binary as the MCP server, it serves MCP instead of running the example.
 //!
-//! Credentials: the key of any model provider: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `NEBIUS_API_KEY` or `XAI_API_KEY`. A secret stored with `sbx secret set` serves as well; without any, log in inside the session.
+//! Credentials: the key of any model provider: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `NEBIUS_API_KEY` or `XAI_API_KEY`. It reaches the agent as a placeholder the proxy replaces; without any, log in inside the session.
 //!
 //! ```sh
 //! just example agent-opencode-mcp

@@ -6,7 +6,7 @@
 //! registration are removed when the session ends. When `sbx` starts this
 //! binary as the MCP server, it serves MCP instead of running the example.
 //!
-//! Credentials: an OpenAI key in `OPENAI_API_KEY`. A secret stored with `sbx secret set` serves as well; without any, log in inside the session.
+//! Credentials: an OpenAI key in `OPENAI_API_KEY`. It reaches the agent as a placeholder the proxy replaces; without any, log in inside the session.
 //!
 //! ```sh
 //! just example agent-codex-mcp

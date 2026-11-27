@@ -1,13 +1,20 @@
-//! Agent credentials read from the environment and given to one sandbox.
+//! Agent keys read from the environment and given to one sandbox through its
+//! proxy.
 //!
 //! The socket never reads the secrets stored with `sbx secret`: a program
-//! pushes the credentials of a sandbox itself. The examples read them from
-//! environment variables and push them as sandbox-scoped service secrets,
-//! which the proxy of the sandbox injects on outgoing requests. Nothing is
-//! stored, and the secret goes away with the sandbox.
+//! gives a sandbox the keys it needs itself. The credential a kit declares
+//! for its agent (`anthropic` for `claude`, …) is withheld by the daemon
+//! without a bindings file, and a value pushed for its service is not
+//! injected. So the examples give each key as a `ProxiedKey`: the sandbox is
+//! created with a placeholder in the variable the agent reads, and the proxy
+//! of the sandbox writes the key in its place in the requests to the hosts
+//! the kit declares for the service of the key. Nothing is stored, the key
+//! never enters the sandbox, and it goes away with the sandbox.
 
 use anyhow::Result;
-use docker_sandbox::sandbox::Sandbox;
+use docker_sandbox::kit::KitPackage;
+use docker_sandbox::sandbox::ProxiedKey;
+use serde_json::Value;
 
 /// A credential an agent can use: an `sbx` service and the environment
 /// variables it is read from, first match wins.
@@ -15,40 +22,90 @@ use docker_sandbox::sandbox::Sandbox;
 pub struct Credential {
     /// Service known to `sbx`, as listed by `sbx secret set --help`.
     pub service: &'static str,
-    /// Environment variables holding the value, in order of preference.
+    /// Environment variables holding the value, in order of preference. The
+    /// one found keeps its name inside the sandbox.
     pub env: &'static [&'static str],
 }
 
-/// The credentials of `credentials` found in the environment, as
-/// `(service, value)` pairs.
+/// A key found in the environment.
+#[derive(Debug)]
+pub struct Found {
+    /// Service of the key.
+    pub service: &'static str,
+    /// Variable it was read from.
+    pub env: &'static str,
+    /// The key.
+    value: String,
+}
+
+/// The credentials of `credentials` found in the environment.
 #[must_use]
-pub fn find_in_env(credentials: &[Credential]) -> Vec<(&'static str, String)> {
+pub fn find_in_env(credentials: &[Credential]) -> Vec<Found> {
     credentials
         .iter()
         .filter_map(|credential| {
-            credential
-                .env
-                .iter()
-                .find_map(|name| std::env::var(name).ok().filter(|v| !v.is_empty()))
-                .map(|value| (credential.service, value))
+            credential.env.iter().find_map(|&env| {
+                std::env::var(env)
+                    .ok()
+                    .filter(|value| !value.is_empty())
+                    .map(|value| Found {
+                        service: credential.service,
+                        env,
+                        value,
+                    })
+            })
         })
         .collect()
 }
 
-/// Pushes to `sandbox` every credential of `credentials` found in the
-/// environment, and returns the services pushed.
+/// The keys of `credentials` found in the environment, each for the hosts the
+/// kits of `package` inject the key of its service into. A key whose service
+/// no kit declares is left out, with a warning: it would have nowhere to go.
 ///
 /// # Errors
 ///
-/// Fails when the daemon refuses an update.
-pub async fn push_from_env(
-    sandbox: &Sandbox,
-    credentials: &[Credential],
-) -> Result<Vec<&'static str>> {
-    let mut pushed = Vec::new();
-    for (service, value) in find_in_env(credentials) {
-        sandbox.push_service_secret(service, value).await?;
-        pushed.push(service);
+/// Fails when a key cannot be made, for a variable that is not a valid name.
+pub fn proxied_keys(package: &KitPackage, credentials: &[Credential]) -> Result<Vec<ProxiedKey>> {
+    let mut keys = Vec::new();
+    for found in find_in_env(credentials) {
+        let hosts = declared_hosts(package, found.service);
+        if hosts.is_empty() {
+            eprintln!(
+                "{} is left out: no kit of the sandbox declares where the {} key goes",
+                found.env, found.service
+            );
+            continue;
+        }
+        keys.push(ProxiedKey::new(found.env, hosts, found.value)?);
     }
-    Ok(pushed)
+    Ok(keys)
+}
+
+/// A line naming `keys` and their hosts, for the terminal.
+#[must_use]
+pub fn describe(keys: &[ProxiedKey]) -> String {
+    keys.iter()
+        .map(|key| format!("{} for {}", key.env(), key.hosts().join(", ")))
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+/// The hosts the kits of `package` inject the API key of `service` into, as
+/// their credentials declare them (`apiKey.inject[].domain`).
+fn declared_hosts(package: &KitPackage, service: &str) -> Vec<String> {
+    let mut hosts: Vec<String> = package
+        .kit_artifacts()
+        .iter()
+        .flat_map(|artifact| list(&artifact["credentials"]))
+        .filter(|credential| credential["service"] == service)
+        .flat_map(|credential| list(&credential["apiKey"]["inject"]))
+        .filter_map(|inject| inject["domain"].as_str().map(str::to_owned))
+        .collect();
+    hosts.dedup();
+    hosts
+}
+
+/// The items of `value`, a JSON array, or none.
+fn list(value: &Value) -> Vec<Value> {
+    value.as_array().cloned().unwrap_or_default()
 }

@@ -15,6 +15,7 @@ mod files;
 mod info;
 mod kits;
 mod ports;
+mod proxied_key;
 mod session;
 mod ssh;
 
@@ -33,6 +34,7 @@ pub use self::info::{
 };
 pub use self::kits::{SwapOutcome, SwapRequest};
 pub use self::ports::PortBinding;
+pub use self::proxied_key::ProxiedKey;
 pub use self::session::SessionGuard;
 pub use self::ssh::SshTunnel;
 use crate::client::Client;
