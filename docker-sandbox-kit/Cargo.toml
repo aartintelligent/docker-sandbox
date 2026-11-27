@@ -3,9 +3,9 @@
 # `sandboxd` socket alone or compiled once with the `sbx` CLI.
 #
 # What the CLI does on the client side for `sandboxd`, which cannot resolve
-# kits by itself. Its version follows the kit compiler of the CLI, not the
-# API of the daemon: it has its own, apart from the workspace. Shared metadata
-# and lints come from the workspace root `Cargo.toml`.
+# kits by itself. It shares the version of `docker-sandbox`, so that the two
+# crates of a version go together; versions, shared metadata and lints come
+# from the workspace root `Cargo.toml`.
 # ------------------------------------------------------------------------------
 
 [package]
@@ -20,7 +20,7 @@ license.workspace      = true
 readme                 = "README.md"
 repository.workspace   = true
 rust-version.workspace = true
-version                = "0.1.0"
+version.workspace      = true
 # The published package is the library alone: its tests stay out of it.
 include = ["/src", "/README.md", "/CHANGELOG.md", "/LICENSE-APACHE", "/LICENSE-MIT"]
 

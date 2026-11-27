@@ -48,9 +48,9 @@ version      = "0.2.0"
 docker-sandbox = { version = "0.2.0", path = "docker-sandbox" }
 
 # The kit packages of the library, forged or compiled, used by `audit` through
-# its path. It has its own version: release-plz raises it with each release of
-# the crate, once its first version is published.
-docker-sandbox-kit = { version = "0.1.0", path = "docker-sandbox-kit" }
+# its path. It shares the version of the library, which release-plz raises
+# with each release of the two crates.
+docker-sandbox-kit = { version = "0.2.0", path = "docker-sandbox-kit" }
 
 # Serialization of the daemon payloads in the library, and of the captures and
 # snapshots of the audit.

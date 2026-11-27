@@ -77,9 +77,8 @@ sandboxes, without forging it again.
 | `Error` | What a kit gets wrong, and the errors of the client of `docker-sandbox`, kept as they are |
 
 A forged package is tied to the API of the daemon it was forged for, a
-compiled one to the `sbx` version that compiled it. The version of this crate
-follows the kit compiler of the CLI, whose output it writes, rather than the
-API of the daemon, which `docker-sandbox` follows.
+compiled one to the `sbx` version that compiled it. This crate shares the
+version of `docker-sandbox`: use the two at the same version.
 
 | Feature | Adds |
 |---|---|

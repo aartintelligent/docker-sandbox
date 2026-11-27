@@ -15,8 +15,8 @@
 //! - [`KitCompiler`] (feature `compiler`) compiles it once with the CLI,
 //!   behind a proxy that captures what the CLI sends.
 //!
-//! Its version follows the kit compiler of the CLI, whose output the crate
-//! writes, rather than the API of the daemon, which `docker-sandbox` follows.
+//! It shares the version of `docker-sandbox`: use the two crates at the same
+//! version.
 //!
 //! # Example
 //!
