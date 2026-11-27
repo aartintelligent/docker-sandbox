@@ -11,13 +11,15 @@
 //! replaces the whole list of the sandbox, a push without them leaves it.
 //!
 //! A credential that a kit of the sandbox declares is injected only when the
-//! bindings file the sandbox was created with authorizes it
+//! daemon authorizes it: when the bindings file the sandbox was created with
+//! lists it, or, without one, for a published kit whose artifact is the one
+//! the CLI resolves
 //! ([`CreateRequest::with_bindings_path`](super::CreateRequest::with_bindings_path)).
 //! Otherwise the daemon withholds it, accepts a value pushed for its service
 //! all the same, and names the service in [`CredentialsOutcome::withheld`]:
 //! the value is not injected. Custom secrets, which target hosts rather than
 //! declared services, do not depend on bindings: a [`ProxiedKey`](super::ProxiedKey)
-//! gives an agent its key that way.
+//! gives an agent a key of its own that way.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -366,8 +368,8 @@ pub struct CredentialsOutcome {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     /// Services whose credential, declared by a kit of the sandbox, the
-    /// daemon withholds because no bindings file authorizes it: the proxy
-    /// injects nothing for them, a value just pushed included.
+    /// daemon does not authorize ([`Created::withheld`](super::Created::withheld)):
+    /// the proxy injects nothing for them, a value just pushed included.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub withheld: Vec<String>,
     /// Whether the credential sources of the update were applied; absent
@@ -402,9 +404,9 @@ impl Sandbox {
     /// The proxy of the sandbox injects it on outgoing requests; the value is
     /// never stored by the daemon nor readable back.
     ///
-    /// When a kit of the sandbox declares a credential for `service` and no
-    /// bindings file authorizes it, the daemon keeps it withheld and the
-    /// outcome names the service: the value is not injected.
+    /// When a kit of the sandbox declares a credential for `service` that the
+    /// daemon does not authorize, it keeps it withheld and the outcome names
+    /// the service: the value is not injected.
     ///
     /// # Errors
     ///

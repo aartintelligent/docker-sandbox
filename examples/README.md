@@ -22,9 +22,11 @@ that occasion stay on the daemon, as the cache of the next sandboxes.
 their packages through the socket alone (`KitForge`, feature `kit-forge`),
 under `examples/target/forged/`.
 
-When a kit declares a credential that no bindings file authorizes, the
-creation of a sandbox reports it as withheld, and the examples print it: the
-daemon gives the sandbox none of its values.
+When a kit declares a credential the daemon does not authorize, the creation
+of a sandbox reports it as withheld, and the examples print it: the daemon
+gives the sandbox none of its values. The credential of a published kit is
+authorized when its artifact is the one the CLI resolves, as with the packages
+compiled by the CLI and those `KitForge` forges.
 
 ## The basics
 
@@ -140,13 +142,13 @@ through its proxy (`ProxiedKey`, see
 created with a placeholder in the variable the agent reads, and the proxy
 writes the key in its place in the requests to the hosts the kit declares for
 its service, `api.anthropic.com` and `mcp-proxy.anthropic.com` for Claude
-Code. The agent never sees the key, and it goes away with the sandbox. Created
-through the socket without a bindings file, the sandbox has the credential its
-kit declares withheld, which the creation prints: a value pushed for that
-service would not be injected, and the examples do not rely on the secrets
-stored with `sbx secret set <service>` either. Without any key, the agent
-offers its own login inside the session: `/login` for Claude Code, the device
-flow for Kiro.
+Code. The agent never sees the key, and it goes away with the sandbox.
+Without any key, the agent uses the credential the daemon holds for its kit, a
+Claude subscription or a secret stored with `sbx secret set <service>` for
+instance, which the proxy writes into its requests; the examples never read
+it. A credential the daemon withholds instead is printed at creation. Without
+either, the agent offers its own login inside the session: `/login` for Claude
+Code, the device flow for Kiro.
 
 The agent session opens as `sbx run` opens it
 ([`common/src/host.rs`](common/src/host.rs)): with the terminal type
@@ -165,8 +167,8 @@ sandbox gets them as `CLAUDE_MODEL` and `CLAUDE_REASONING_EFFORT`, and in
 [`agent-kit-forge`](agent-kit-forge/src/main.rs) makes the same sandbox
 without the `sbx` CLI: `KitForge` rebuilds the `claude` kit from its image and
 checks the values against what the kit declares (`KitForge::with_arg`). The
-creation reports the credential of the kit, `anthropic`, as withheld: no
-bindings file authorizes it. It starts no agent either.
+daemon authorizes the credential of the kit as for a sandbox the CLI creates.
+It starts no agent either.
 
 ### The MCP variants
 
@@ -211,9 +213,10 @@ just example agent-codex-automation "Add a div operation to calc.sh, with its te
 
 The program and its run options come from the kit itself
 (`KitPackage::agent`); the non-interactive flags come from the documentation
-of each agent, linked from each example. A key is required, since nobody can
-log in: the keys of the table above, given through the proxy as for the
-interactive examples; without any, the example warns and the agent fails. Kiro
+of each agent, linked from each example. A credential is required, since
+nobody can log in: a key of the table above, given through the proxy as for
+the interactive examples, or the credential the daemon holds for the kit, a
+Claude subscription for instance; without either, the agent fails. Kiro
 has no service secret in `sbx`, so `KIRO_API_KEY` is passed to the agent
 process as is and is visible inside the sandbox.
 

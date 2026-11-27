@@ -85,7 +85,8 @@ pub enum Output {
 /// # Errors
 ///
 /// Fails when the task cannot be written or the sandbox prepared, the agent
-/// exceeds its deadline (an agent without a credential cannot log in), or the
+/// exceeds its deadline (an agent the daemon gives no credential cannot log
+/// in), or the
 /// tests of the task still fail afterwards. The sandbox is removed in every
 /// case; the task stays on the host.
 pub async fn run(agent: &Agent, headless: Headless) -> Result<()> {
@@ -93,8 +94,8 @@ pub async fn run(agent: &Agent, headless: Headless) -> Result<()> {
     let forwarded = agent.forwarded_values();
     if credentials::find_in_env(agent.credentials).is_empty() && forwarded.is_empty() {
         eprintln!(
-            "no key in the environment ({}): unattended, the agent cannot log in and will \
-             fail",
+            "no key in the environment ({}): the agent relies on the credential the daemon \
+             holds for its kit, a subscription for instance; unattended, it cannot log in",
             env_names(agent)
         );
     }

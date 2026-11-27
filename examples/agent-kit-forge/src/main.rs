@@ -12,10 +12,11 @@
 //! `CLAUDE_REASONING_EFFORT`, and the install command of the kit writes them
 //! into `~/.claude/settings.json`.
 //!
-//! The creation reports the credential the kit declares, `anthropic`, as
-//! withheld: no bindings file authorizes it, so the daemon gives the sandbox
-//! none of its values. The example never starts Claude, and uses no
-//! credential.
+//! The kit is resolved as the CLI resolves it, the order of its effective
+//! capabilities included: the daemon authorizes the credential it declares,
+//! `anthropic`, as for a sandbox the CLI creates, and the proxy would write
+//! the credential stored for it into the requests of the agent. The example
+//! never starts Claude, so that none is sent.
 //!
 //! ```sh
 //! just example agent-kit-forge

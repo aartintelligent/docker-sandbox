@@ -5,7 +5,7 @@
 //! that sandbox only, and the terminal is plugged into the agent session. The
 //! sandbox is removed when the session ends.
 //!
-//! Credentials: an OpenAI key in `OPENAI_API_KEY`. It reaches the agent as a placeholder the proxy replaces; without any, log in inside the session.
+//! Credentials: an OpenAI key in `OPENAI_API_KEY`. It reaches the agent as a placeholder the proxy replaces; without any, the credential the daemon holds for the kit serves, or log in inside the session.
 //!
 //! ```sh
 //! just example agent-codex

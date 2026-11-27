@@ -13,9 +13,13 @@
 //!
 //! The descriptor of a published kit is forwarded as it is, with capabilities
 //! this crate does not know; the artifact is derived from typed views of the
-//! parts it needs. The selection knows one rule: `agent-context@1` is left out
-//! when the kit also declares `agent-context@2`, the only conflict published
-//! kits hold.
+//! parts it needs. The selection follows the two rules of the CLI the audit
+//! measured: `agent-context@1` is left out when the kit also declares
+//! `agent-context@2`, and an optional capability of a type the CLI does not
+//! support (`dockerd@1`) is left out. A capability of a type this crate does
+//! not know the CLI to resolve is refused: its place in the effective
+//! descriptor, which the daemon checks before it authorizes the credentials
+//! of the kit, would be a guess.
 
 use std::collections::BTreeMap;
 
@@ -25,7 +29,8 @@ use serde_json::{Value, json};
 
 use super::artifact::{
     BaseManifest, Credential, Environment, HubPublication, KitArtifact, KitUsage, Manifest,
-    ManifestKind, SkillsRequest, capabilities, caps, commands, effective, is, selection,
+    ManifestKind, RESOLVED, SkillsRequest, UNSUPPORTED, capabilities, caps, commands, effective,
+    selection,
 };
 use super::descriptor::{LIFECYCLE, LifecycleConfig, NETWORK, NetworkConfig, SchemaVersion};
 use super::oci::{DESCRIPTOR_ANNOTATION, ImageConfig, ImageIndex};
@@ -365,11 +370,34 @@ fn base_kit(
         .iter()
         .map(|capability| read(kit, "a capability", capability))
         .collect::<Result<_>>()?;
+    for view in &views {
+        let resolved = RESOLVED.contains(&view.kind.as_str());
+        let skipped = view.optional && UNSUPPORTED.contains(&view.kind.as_str());
+        if !resolved && !skipped {
+            return Err(invalid(
+                kit,
+                format!(
+                    "the capability {} is not one this crate knows the CLI to resolve",
+                    view.kind
+                ),
+            ));
+        }
+    }
     let has_v2 = views.iter().any(|view| view.kind == CONTEXT_V2);
     let rejection = |capability: &Value| {
-        (has_v2 && is(capability, CONTEXT_V1)).then(|| {
-            format!("{CONTEXT_V1} is not selected: this kit set uses {CONTEXT_V2}, and the two cannot compose")
-        })
+        let kind = capability
+            .get("type")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if has_v2 && kind == CONTEXT_V1 {
+            Some(format!(
+                "{CONTEXT_V1} is not selected: this kit set uses {CONTEXT_V2}, and the two cannot compose"
+            ))
+        } else if UNSUPPORTED.contains(&kind) {
+            Some(format!("unsupported capability type {kind}"))
+        } else {
+            None
+        }
     };
     let kept: Vec<(&Value, &CapabilityView)> = listed
         .iter()
@@ -783,6 +811,45 @@ mod tests {
         facts.descriptor["schemaVersion"] = json!("2");
         let error = base_kit(&reference("sbx/shell"), &facts, &BTreeMap::new()).unwrap_err();
         assert!(error.to_string().contains("only v3 kits"), "{error}");
+    }
+
+    #[test]
+    fn unsupported_capabilities_are_left_out_and_unknown_ones_refused() {
+        let dockerd = "com.docker.sandbox/dockerd@1";
+        let with = |capability: Value| {
+            let mut facts = shell();
+            facts.descriptor["capabilities"]
+                .as_array_mut()
+                .unwrap()
+                .push(capability);
+            base_kit(&reference("sbx/shell"), &facts, &BTreeMap::new())
+        };
+        let artifact = with(json!({ "type": dockerd, "optional": true }))
+            .unwrap()
+            .artifact
+            .into_json();
+        let skipped = &artifact["v3Selection"]["skipped"][1];
+        assert_eq!(skipped["path"], "capabilities[3]");
+        assert_eq!(
+            skipped["decisions"][0]["message"],
+            "unsupported capability type com.docker.sandbox/dockerd@1"
+        );
+        let effective = artifact["v3Effective"]["capabilities"].as_array().unwrap();
+        assert!(
+            effective.iter().all(|c| c["type"] != dockerd),
+            "{effective:?}"
+        );
+
+        for refused in [
+            json!({ "type": dockerd }),
+            json!({ "type": "com.docker.sandbox/future@1", "optional": true }),
+        ] {
+            let error = with(refused).unwrap_err().to_string();
+            assert!(
+                error.contains("is not one this crate knows the CLI to resolve"),
+                "{error}"
+            );
+        }
     }
 
     #[test]

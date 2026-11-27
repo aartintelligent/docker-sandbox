@@ -1,15 +1,16 @@
 //! Agent keys read from the environment and given to one sandbox through its
 //! proxy.
 //!
-//! The socket never reads the secrets stored with `sbx secret`: a program
-//! gives a sandbox the keys it needs itself. The credential a kit declares
-//! for its agent (`anthropic` for `claude`, …) is withheld by the daemon
-//! without a bindings file, and a value pushed for its service is not
-//! injected. So the examples give each key as a `ProxiedKey`: the sandbox is
-//! created with a placeholder in the variable the agent reads, and the proxy
-//! of the sandbox writes the key in its place in the requests to the hosts
-//! the kit declares for the service of the key. Nothing is stored, the key
-//! never enters the sandbox, and it goes away with the sandbox.
+//! The socket never reads the secrets stored with `sbx secret`: the daemon
+//! applies them itself. The credential a kit declares for its agent
+//! (`anthropic` for `claude`, …) gets the value the daemon holds for its
+//! service, a subscription for instance, when the daemon authorizes it; the
+//! creation of the sandbox prints those it withholds. A key found in the
+//! environment goes as a `ProxiedKey` instead: the sandbox is created with a
+//! placeholder in the variable the agent reads, and the proxy of the sandbox
+//! writes the key in its place in the requests to the hosts the kit declares
+//! for the service of the key. Nothing is stored, the key never enters the
+//! sandbox, and it goes away with the sandbox.
 
 use anyhow::Result;
 use docker_sandbox::kit::KitPackage;

@@ -170,16 +170,35 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   and substituted for `${{ kit.args.<name> }}` everywhere but in `v3`.
   Compared with the packages the CLI compiled for the same image digests,
   with and without arguments, every field is equal but the order of the
-  capabilities in `v3Effective`, which the CLI sorts (network policy first,
-  agent context last); the daemon accepts ours. A sandbox created from it
-  gets `CLAUDE_MODEL` and `CLAUDE_REASONING_EFFORT`, the `model` and
-  `effortLevel` its install commands write to `~/.claude/settings.json`, its
-  agent context in `/home/agent/.claude/CLAUDE.md`, and the network rule of
-  the mixin. The creation answers `"withheld": ["anthropic"]`: created
-  through the socket without a bindings file, even a built-in kit gets no
-  credential of its own declaration. The suite never runs the CLI on the
+  capabilities in `v3Effective`, which the CLI sorts (see below); the daemon
+  accepts ours. A sandbox created from it gets `CLAUDE_MODEL` and
+  `CLAUDE_REASONING_EFFORT`, the `model` and `effortLevel` its install
+  commands write to `~/.claude/settings.json`, its agent context in
+  `/home/agent/.claude/CLAUDE.md`, and the network rule of the mixin. The
+  creation answers `"withheld": ["anthropic"]`, because of that order only
+  (next item). The suite never runs the CLI on the
   claude kit: `exec`, `run`, `cp`, `kit add` and `port publish` push the
   stored credentials of the user before acting (`policy ls` and `rm` do not).
+- **The order of `v3Effective` decides the credential of a published kit**
+  (measured on 2026-11-27 through the socket, with sandboxes of the claude kit
+  the library forged and the agent never started): the claude kit the CLI
+  compiled, created without a bindings file, answers `"withheld": []`, and an
+  agent run in it uses the credential stored for `anthropic` (a Claude
+  subscription, its OAuth tokens kept by the proxy, refreshed at
+  `platform.claude.com`). The same kit forged for the same image digest,
+  with or without kit arguments, answers `"withheld": ["anthropic"]`. The only
+  difference is the order of the capabilities of `v3Effective`, and it is the
+  cause: the forged package in the order of the CLI answers `[]`, the
+  compiled one in the order of the descriptor `["anthropic"]`. The CLI sorts
+  them by type, stable for one type (the seven credentials of opencode keep
+  their order): `network-policy@1`, `sbx@1`, `credential@1`,
+  `agent-skills@1`, `acp@1`, `agent-sessions@1`,
+  `agent-interactive-sessions@1`, `lifecycle@1`, `agent-context` (packages of
+  shell, claude, copilot, opencode and mixins); `v3Selection` keeps the order
+  of the descriptor. It also leaves out an optional capability of a type it
+  does not support, with the message "unsupported capability type
+  com.docker.sandbox/dockerd@1" (`dockerd@1` of opencode), as it leaves out
+  `agent-context@1`. The `KitForge` of the library writes that order.
 - **A withheld credential stays withheld** (`assets/kits/audit-mixin-cred-echo`,
   a credential of a service no secret can be named after, injected into a
   header of the public echo service; `create-wc` … `probe-wc-after`): a
@@ -190,13 +209,14 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   (`"credential_source_updates_applied": true`), shows in the
   `credential_sources` of the sandbox, but the answer lists the service as
   withheld again and the echo service receives no such header. A credential a
-  kit declares is injected only when the bindings file the daemon reads
-  (`bindings_path`) authorizes it; pushing a value is not enough. Custom
+  mixin declares for its own service is injected only when the bindings file
+  the daemon reads (`bindings_path`) authorizes it; pushing a value is not
+  enough. Custom
   secrets, which target hosts rather than declared services, do not depend on
   it (see "Secrets").
 - **The credential of an agent through the socket alone** (`create-ag` …
   `probe-ag-removed`, the claude kit rebuilt without the CLI, its own
-  credential withheld): the variable the agent reads its key from
+  credential withheld by the order above): the variable the agent reads its key from
   (`ANTHROPIC_API_KEY`) is set to a placeholder at creation (`environment`),
   and a dummy custom secret for that placeholder is pushed for a host (the
   echo service, standing for the API). A request carrying the placeholder in

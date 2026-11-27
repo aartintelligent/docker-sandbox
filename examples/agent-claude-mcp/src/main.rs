@@ -6,7 +6,7 @@
 //! registration are removed when the session ends. When `sbx` starts this
 //! binary as the MCP server, it serves MCP instead of running the example.
 //!
-//! Credentials: an Anthropic key in `ANTHROPIC_API_KEY`. It reaches the agent as a placeholder the proxy replaces; without any, log in inside the session.
+//! Credentials: an Anthropic key in `ANTHROPIC_API_KEY`. It reaches the agent as a placeholder the proxy replaces; without any, the credential the daemon holds for the kit serves, or log in inside the session.
 //!
 //! ```sh
 //! just example agent-claude-mcp
