@@ -1,0 +1,26 @@
+# ------------------------------------------------------------------------------
+# example-shell-forge — a shell sandbox from a kit package forged through the
+# socket alone: the shell kit rebuilt from its image, a mixin built in Rust and
+# one read from its directory, without the `sbx` CLI.
+#
+# Run it with `just example shell-forge`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "example-shell-forge"
+edition.workspace      = true
+license.workspace      = true
+publish.workspace      = true
+rust-version.workspace = true
+version.workspace      = true
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+anyhow         = { workspace = true }
+docker-sandbox = { workspace = true }
+example-common = { workspace = true }
+serde_json     = { workspace = true }
+tokio          = { workspace = true }

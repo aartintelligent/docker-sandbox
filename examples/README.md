@@ -17,6 +17,14 @@ the user owning the daemon, with the `sbx` CLI installed: the first run of a
 kit compiles it once with the CLI (see [`common/src/kit.rs`](common/src/kit.rs))
 and caches the package under `examples/target/kits/`. The kit images pulled on
 that occasion stay on the daemon, as the cache of the next sandboxes.
+[`shell-forge`](shell-forge/src/main.rs) and
+[`agent-kit-forge`](agent-kit-forge/src/main.rs) need no CLI at all: they forge
+their packages through the socket alone (`KitForge`, feature `kit-forge`),
+under `examples/target/forged/`.
+
+When a kit declares a credential that no bindings file authorizes, the
+creation of a sandbox reports it as withheld, and the examples print it: the
+daemon gives the sandbox none of its values.
 
 ## The basics
 
@@ -36,11 +44,12 @@ that occasion stay on the daemon, as the cache of the next sandboxes.
 | [`shell-network`](shell-network/src/main.rs) | Network policy of one sandbox: denied hosts and the proxy answer, HTTP rules, checks, activity log |
 | [`shell-policy`](shell-policy/src/main.rs) | The policy beyond one sandbox: a global rule added, checked and removed by identifier, failures inside a success, sandbox host and HTTP rules removed through the sandbox, the reload of the policy, host path permissions, approval prompts. The global policy ends as it began |
 | [`shell-ports`](shell-ports/src/main.rs) | A web server in the sandbox (`serve` of [`sandbox-tools`](sandbox-tools/src/main.rs)), published on a port of the host and reached from it |
-| [`shell-secrets`](shell-secrets/src/main.rs) | Secrets pushed through the socket alone, with dummy values. Custom secrets: the proxy writes the value of a secret into a request to its host and leaves the placeholder of another, the sandbox holds no value, the secrets survive a restart and go with an empty list (checked from inside with `get` of `sandbox-tools` and the public echo service `postman-echo.com`). Service credentials: recorded by the daemon, never in the sandbox |
+| [`shell-secrets`](shell-secrets/src/main.rs) | Secrets pushed through the socket alone, with dummy values. Custom secrets: the proxy writes the value of a secret into a request to its host and leaves the placeholder of another, the sandbox holds no value, the secrets survive a restart and go with an empty list (checked from inside with `get` of `sandbox-tools` and the public echo service `postman-echo.com`); one is handed over as a `secrecy::SecretString`. Service credentials: recorded by the daemon, never in the sandbox. The answer of the daemon to each update, and the credentials it withholds |
 | [`shell-ssh`](shell-ssh/src/main.rs) | SSH through the socket: the tunnel of the library relayed to the SSH client of the system as its `ProxyCommand`, with no key and nothing written to `~/.ssh`. The server accepts any user, `root` included: the socket is the boundary |
 | [`shell-clone`](shell-clone/src/main.rs) | Clone mode: the sandbox works on a private clone of a repository, the source read-only; the agent commits there, and the host fetches the commits with `git fetch` through a relay of `git upload-pack` in the sandbox |
 | [`shell-templates`](shell-templates/src/main.rs) | A sandbox saved as an image, a new sandbox started from it with its changes (`CreateRequest::with_template`, from a stored request), the image exported to a file, removed and loaded back |
 | [`shell-kits`](shell-kits/src/main.rs) | A mixin kit of the examples ([`example-mixin`](shell-kits/example-mixin/spec.yaml)) added to running sandboxes: in place (the kit list stays as it was), by a swap of the container (work in progress kept, kit list updated), then both by hand from the parts of the package |
+| [`shell-forge`](shell-forge/src/main.rs) | A kit package forged through the socket alone, without the `sbx` CLI: the shell kit rebuilt from its published image, a mixin built in Rust (an install command given a variable of the sandbox, a startup command, a host allowed and one denied) and one read from its directory ([`json-mixin`](shell-forge/json-mixin/spec.yaml), JSON). What a forged mixin may not declare, refused with its reason; then both mixins run in the sandbox, the network rules of the first are applied by the daemon and removed with the sandbox, and the base kit of the package is composed again without pulling its image |
 | [`shell-interactive`](shell-interactive/src/main.rs) | An interactive shell relayed to the local terminal, window resizing included |
 | [`shell-events`](shell-events/src/main.rs) | The daemon event stream: the replay of recent state up to its sync marker, then live events while a sandbox is created, used and deleted |
 
@@ -150,6 +159,12 @@ compiled (`CompileJob::with_arg`, as `sbx create --kit-arg model=…`): the
 sandbox gets them as `CLAUDE_MODEL` and `CLAUDE_REASONING_EFFORT`, and in
 `~/.claude/settings.json`. It starts no agent and uses no credential.
 
+[`agent-kit-forge`](agent-kit-forge/src/main.rs) makes the same sandbox
+without the `sbx` CLI: `KitForge` rebuilds the `claude` kit from its image and
+checks the values against what the kit declares (`KitForge::with_arg`). The
+creation reports the credential of the kit, `anthropic`, as withheld: no
+bindings file authorizes it. It starts no agent either.
+
 ### The MCP variants
 
 The `-mcp` examples check the server against the MCP policy of the daemon,
@@ -209,7 +224,7 @@ agent reached, from the activity log of the proxy.
 [`common`](common/src/lib.rs) holds what several examples share, so that each
 example stays about the library: the connection, the kit cache (a kit alone,
 composed with a mixin of the examples, or with kit arguments), throw-away
-sandboxes, the programs built for a sandbox and copied into it, the terminal
+sandboxes (their creation reports the credentials the daemon withholds), the programs built for a sandbox and copied into it, the terminal
 relay and what `sbx run` passes from the host, agent credentials, the MCP
 servers (on standard input and output, or over streamable HTTP) and the client
 run in the sandbox, the flow of the agent examples and that of the unattended

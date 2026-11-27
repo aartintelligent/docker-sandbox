@@ -21,5 +21,6 @@ workspace = true
 anyhow         = { workspace = true }
 docker-sandbox = { workspace = true }
 example-common = { workspace = true }
+secrecy        = { workspace = true }
 serde_json     = { workspace = true }
 tokio          = { workspace = true }

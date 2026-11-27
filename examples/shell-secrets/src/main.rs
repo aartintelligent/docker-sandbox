@@ -16,6 +16,12 @@
 //! daemon records where each comes from, and the sandbox keeps the fixed
 //! placeholders it was created with (`GH_TOKEN` for GitHub), never a value.
 //!
+//! Each update gets the answer of the daemon (`CredentialsOutcome`), which
+//! names the credentials it withholds: those a kit declares and no bindings
+//! file authorizes; the shell kit declares none. A program that holds its
+//! secrets as `secrecy::SecretString` hands them to the library as they are,
+//! the second secret shows it.
+//!
 //! Everything goes through the socket: no `sbx secret` command, nothing
 //! stored by the CLI, the secrets go with the sandbox. Only the dummy values
 //! leave the machine, to `postman-echo.com` over plain HTTP. The requests are
@@ -35,6 +41,7 @@ use docker_sandbox::sandbox::{
     CredentialSource, CredentialsUpdate, CustomSecret, Sandbox, Secret, ServiceCredential,
 };
 use example_common::{connect, kit, program, sandbox};
+use secrecy::SecretString;
 
 /// Public service answering with the headers it received.
 const ECHO_HOST: &str = "postman-echo.com";
@@ -100,13 +107,25 @@ async fn main() -> Result<()> {
             "the value of the echo secret, as a log prints it: {value:?} ({} characters)",
             value.expose_secret().len()
         );
+        // A secret the program holds as a `SecretString` is handed over as
+        // it is: nothing exposes its value on the way.
+        let held = SecretString::from(OTHER_VALUE);
         let secrets = CredentialsUpdate::default()
             .with_custom_secret(
                 CustomSecret::new([ECHO_HOST], &echo, value.clone()).with_env_name(ECHO_ENV),
             )
-            .with_custom_secret(CustomSecret::new([OTHER_HOST], &other, OTHER_VALUE));
-        sandbox.push_credentials(&secrets).await?;
+            .with_custom_secret(CustomSecret::new([OTHER_HOST], &other, held));
+        let outcome = sandbox.push_credentials(&secrets).await?;
         println!("pushed two custom secrets with dummy values, for {ECHO_HOST} and {OTHER_HOST}");
+        ensure!(
+            outcome.withheld.is_empty(),
+            "the daemon withholds {:?}",
+            outcome.withheld
+        );
+        println!(
+            "the daemon answers {:?} and withholds nothing: the shell kit declares no credential",
+            outcome.message.as_deref().unwrap_or("nothing")
+        );
 
         expect(&sandbox, &echo, Received::EchoValue).await?;
         println!("{ECHO_HOST} received the value of its secret in place of the placeholder");
@@ -203,7 +222,13 @@ async fn services(sandbox: &Sandbox) -> Result<()> {
     // `push_service_secret` is the shortcut of `sbx secret set github
     // --sandbox`: a value, and a source the CLI names after the sandbox
     // (`CredentialsUpdate::with_sandbox_secret`).
-    sandbox.push_service_secret("github", GITHUB_VALUE).await?;
+    let outcome = sandbox.push_service_secret("github", GITHUB_VALUE).await?;
+    println!(
+        "the daemon answers {:?} to the github credential, sources updated: {:?}, withholding {:?}",
+        outcome.message.as_deref().unwrap_or("nothing"),
+        outcome.credential_source_updates_applied,
+        outcome.withheld
+    );
     let explicit = CredentialsUpdate::default()
         .with_service_credential("openai", OPENAI_VALUE)
         .with_credential_source("openai", CredentialSource::env(OPENAI_SOURCE));
