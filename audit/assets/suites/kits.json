@@ -634,6 +634,23 @@
       "note": "the package of audit-mixin-json written without the CLI, every field the CLI writes"
     },
     {
+      "name": "kit-forge-library",
+      "category": "kit-forge",
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json",
+        "--base-package",
+        "{work}/kit-package-json",
+        "--library",
+        "--out",
+        "{work}/kit-library-json",
+        "--compare",
+        "{work}/kit-package-json"
+      ],
+      "note": "the same package forged by the KitForge of the library, compared field by field with the one the CLI compiled: at each sbx version, a change of the contract shows here"
+    },
+    {
       "name": "kit-forge-json-b",
       "category": "kit-forge",
       "program": "{audit}",
@@ -1126,6 +1143,24 @@
         "{work}/kit-package-json"
       ],
       "note": "a package written without the CLI at all: the base kit rebuilt from docker.io/sbx/shell:latest pulled and exported through the socket (every field the CLI writes), and audit-mixin-json-g"
+    },
+    {
+      "name": "kit-forge-library-shell",
+      "category": "kit-forge-base",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json",
+        "--base-image",
+        "docker.io/sbx/shell:latest",
+        "--library",
+        "--out",
+        "{work}/kit-library-shell",
+        "--compare",
+        "{work}/kit-package-json"
+      ],
+      "note": "a package forged by the KitForge of the library with nothing from the CLI, the shell kit rebuilt from its image, compared field by field with the one the CLI compiled for the same kits"
     },
     {
       "name": "load-forged-base",

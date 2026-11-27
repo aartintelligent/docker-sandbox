@@ -37,7 +37,7 @@ hyper          = { workspace = true, features = ["client", "http1"] }
 hyper-util     = { workspace = true }
 portable-pty   = { workspace = true }
 regex          = { workspace = true }
-docker-sandbox = { workspace = true, features = ["kit-compiler"] }
+docker-sandbox = { workspace = true, features = ["kit-compiler", "kit-forge"] }
 serde          = { workspace = true }
 serde_json     = { workspace = true }
 sha2           = { workspace = true }
