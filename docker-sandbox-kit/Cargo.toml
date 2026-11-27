@@ -1,0 +1,87 @@
+# ------------------------------------------------------------------------------
+# docker-sandbox-kit — the kit packages of Docker Sandboxes, forged through the
+# `sandboxd` socket alone or compiled once with the `sbx` CLI.
+#
+# What the CLI does on the client side for `sandboxd`, which cannot resolve
+# kits by itself. Its version follows the kit compiler of the CLI, not the
+# API of the daemon: it has its own, apart from the workspace. Shared metadata
+# and lints come from the workspace root `Cargo.toml`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "docker-sandbox-kit"
+description            = "Kit packages of Docker Sandboxes (sbx), forged through the sandboxd socket alone or compiled once with the sbx CLI"
+documentation          = "https://docs.rs/docker-sandbox-kit"
+authors.workspace      = true
+categories.workspace   = true
+edition.workspace      = true
+keywords.workspace     = true
+license.workspace      = true
+readme                 = "README.md"
+repository.workspace   = true
+rust-version.workspace = true
+version                = "0.1.0"
+# The published package is the library alone: its tests stay out of it.
+include = ["/src", "/README.md", "/CHANGELOG.md", "/LICENSE-APACHE", "/LICENSE-MIT"]
+
+# Every feature but `live`, which only gates the live integration tests.
+[package.metadata.docs.rs]
+features     = ["compiler", "forge"]
+rustdoc-args = ["--cfg", "docsrs"]
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[features]
+default = ["forge"]
+# `KitCompiler`: runs `sbx create` once behind a capturing proxy to produce a
+# kit package. Needs the `sbx` CLI at run time, a child process (`tokio/process`),
+# an HTTP server for the proxy (`hyper`, `hyper-util`, `http-body-util`,
+# `bytes`), the channel that stops it (`tokio/sync`), and logs (`tracing`).
+compiler = [
+    "dep:bytes",
+    "dep:http-body-util",
+    "dep:hyper",
+    "dep:hyper-util",
+    "dep:tokio",
+    "dep:tracing",
+    "tokio/io-util",
+    "tokio/macros",
+    "tokio/net",
+    "tokio/process",
+    "tokio/rt",
+    "tokio/sync",
+    "tokio/time",
+]
+# `KitForge`, `KitDescriptor` and `Mixin`: writes kit packages without the `sbx`
+# CLI, the mixins forged from their descriptor and the base kit rebuilt from its
+# published image. Needs the SHA-256 digests of the OCI image layouts it writes
+# (`sha2`), and the patterns kit arguments declare for their values (`regex`).
+forge = ["dep:regex", "dep:sha2"]
+# Runs the integration tests against the real daemon of the current user
+# (`tests/live.rs`); it adds no code to the library.
+live = []
+
+[dependencies]
+docker-sandbox = { workspace = true }
+serde          = { workspace = true }
+serde_json     = { workspace = true }
+tar            = { workspace = true }
+thiserror      = { workspace = true }
+bytes          = { workspace = true, optional = true }
+http-body-util = { workspace = true, optional = true }
+hyper          = { workspace = true, optional = true, features = ["http1", "server"] }
+hyper-util     = { workspace = true, optional = true }
+regex          = { workspace = true, optional = true }
+sha2           = { workspace = true, optional = true }
+tokio          = { workspace = true, optional = true }
+tracing        = { workspace = true, optional = true }
+
+[dev-dependencies]
+# The query strings the fake daemon of the tests decodes.
+percent-encoding = { workspace = true }
+tempfile         = { workspace = true }
+# `#[tokio::test]` on a multi-threaded runtime, the in-memory fake daemon, and
+# the `#[tokio::main]` of the README example.
+tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread", "sync"] }

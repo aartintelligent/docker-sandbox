@@ -22,8 +22,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::to_json;
-use crate::Extra;
 use crate::error::{Error, Result};
+use docker_sandbox::Extra;
 
 /// First line of a v3 descriptor: the `BuildKit` frontend that reads it.
 const SYNTAX_LINE: &str = "# syntax=docker/sandbox-kit:3";
@@ -36,10 +36,10 @@ pub(super) const LIFECYCLE: &str = "com.docker.sandbox/lifecycle@1";
 /// [`Capability::NetworkPolicy`].
 pub(super) const NETWORK: &str = "com.docker.sandbox/network-policy@1";
 
-/// A v3 kit descriptor (feature `kit-forge`), read from JSON or built in Rust.
+/// A v3 kit descriptor (feature `forge`), read from JSON or built in Rust.
 ///
 /// ```
-/// use docker_sandbox::kit::{KitDescriptor, LifecycleStep};
+/// use docker_sandbox_kit::{KitDescriptor, LifecycleStep};
 ///
 /// let descriptor = KitDescriptor::mixin("Acme tools")
 ///     .with_description("Tools for the Acme API")
@@ -48,7 +48,7 @@ pub(super) const NETWORK: &str = "com.docker.sandbox/network-policy@1";
 /// let spec = descriptor.to_spec();
 /// assert!(spec.starts_with("# syntax=docker/sandbox-kit:3\n"));
 /// assert_eq!(KitDescriptor::parse(&spec)?, descriptor);
-/// # Ok::<(), docker_sandbox::Error>(())
+/// # Ok::<(), docker_sandbox_kit::Error>(())
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct KitDescriptor {
@@ -261,7 +261,7 @@ impl KitDescriptor {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::File`] when the file cannot be read, and
+    /// Returns [`Error::Client`] ([`docker_sandbox::Error::File`]) when the file cannot be read, and
     /// [`Error::InvalidKit`] as [`KitDescriptor::parse`] does.
     pub fn read(path: impl AsRef<Path>) -> Result<Self> {
         Self::read_file(path.as_ref())
@@ -269,7 +269,7 @@ impl KitDescriptor {
 
     /// [`KitDescriptor::read`], compiled once whatever the type of path.
     fn read_file(path: &Path) -> Result<Self> {
-        let text = std::fs::read_to_string(path).map_err(|source| Error::File {
+        let text = std::fs::read_to_string(path).map_err(|source| docker_sandbox::Error::File {
             path: path.to_owned(),
             source,
         })?;
@@ -499,7 +499,7 @@ impl NetworkRules {
 /// its starts (startup).
 ///
 /// ```
-/// use docker_sandbox::kit::LifecycleStep;
+/// use docker_sandbox_kit::LifecycleStep;
 ///
 /// let step = LifecycleStep::new("echo ready > /tmp/ready")
 ///     .as_user("agent")

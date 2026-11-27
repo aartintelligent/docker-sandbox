@@ -4,15 +4,16 @@
 # every member inherits, and the release build profile.
 #
 # `docker-sandbox` is the typed client of the `sandboxd` socket of Docker
-# Sandboxes. `audit` is the tool that maps the daemon API and produces the
-# library's test fixtures, a member that is never published, as is
-# `docker-sandbox/tests/live-probe`, the program the live tests of the library
-# run inside sandboxes. `examples/` is a workspace of its own, one crate per
-# example, as in axum.
+# Sandboxes, and `docker-sandbox-kit` writes the kit packages it replays, what
+# the `sbx` CLI does on the client side. `audit` is the tool that maps the
+# daemon API and produces the library's test fixtures, a member that is never
+# published, as is `docker-sandbox/tests/live-probe`, the program the live tests
+# of the library run inside sandboxes. `examples/` is a workspace of its own,
+# one crate per example, as in axum.
 # ------------------------------------------------------------------------------
 
 [workspace]
-members = ["audit", "docker-sandbox", "docker-sandbox/tests/live-probe"]
+members = ["audit", "docker-sandbox", "docker-sandbox-kit", "docker-sandbox/tests/live-probe"]
 # The examples form their own workspace, with their own lockfile.
 exclude = ["examples"]
 # Pinned explicitly so that the resolver does not change with the edition of a
@@ -42,9 +43,14 @@ version      = "0.2.0"
 # ------------------------------------------------------------------------------
 
 [workspace.dependencies]
-# The library, used by `audit` through its path; release-plz raises the
-# `version` with each release of the crate.
+# The library, used by `docker-sandbox-kit` and `audit` through its path;
+# release-plz raises the `version` with each release of the crate.
 docker-sandbox = { version = "0.2.0", path = "docker-sandbox" }
+
+# The kit packages of the library, forged or compiled, used by `audit` through
+# its path. It has its own version: release-plz raises it with each release of
+# the crate, once its first version is published.
+docker-sandbox-kit = { version = "0.1.0", path = "docker-sandbox-kit" }
 
 # Serialization of the daemon payloads in the library, and of the captures and
 # snapshots of the audit.
@@ -56,13 +62,14 @@ serde_json = "1"
 
 # Async runtime. Default features are off: each member enables only what it
 # uses (`net` and `io-util` for the socket client, `fs` for kit images,
-# `process` and `sync` for the kit compiler, `full` for the audit tool, `rt`
-# and `net` for live-probe); the test suites add `rt-multi-thread` and `sync`.
+# `process` and `sync` for the kit compiler of `docker-sandbox-kit`, `full` for
+# the audit tool, `rt` and `net` for live-probe); the test suites add
+# `rt-multi-thread` and `sync`.
 tokio = { version = "1", default-features = false }
 
 # HTTP/1.1 over the `sandboxd` Unix socket in the library, the capture proxy of
-# its kit compiler and the spy of the audit, and the HTTP client live-probe runs
-# inside sandboxes. Connection upgrades carry the
+# the kit compiler of `docker-sandbox-kit` and the spy of the audit, and the
+# HTTP client live-probe runs inside sandboxes. Connection upgrades carry the
 # exec, attach and SSH streams.
 hyper = "1"
 
@@ -99,14 +106,15 @@ futures-core = "0.3"
 # Query string encoding of the daemon routes in the library.
 percent-encoding = "2"
 
-# Error enum of the library.
+# Error enums of the library and of `docker-sandbox-kit`.
 thiserror = "2"
 
-# Request and kit compilation logging in the library.
+# Request logging in the library, and kit compilation logging in
+# `docker-sandbox-kit`.
 tracing = "0.1"
 
-# Tar archives of the file transfers (`Sandbox::write_file`, `upload_dir`, …)
-# and the OCI image layouts read by the kit compiler.
+# Tar archives of the file transfers (`Sandbox::write_file`, `upload_dir`, …),
+# and the OCI image layouts `docker-sandbox-kit` reads and writes.
 tar = "0.4"
 
 # Command line of the audit; `env` lets options fall back to environment
@@ -123,9 +131,9 @@ httparse = "1"
 portable-pty = "0.9"
 
 # Pattern matching. In the audit: route templating, scrubbing, the router
-# inventory scan of the `sbx` binary. In the library, under its `kit-forge`
+# inventory scan of the `sbx` binary. In `docker-sandbox-kit`, under its `forge`
 # feature: the patterns kit arguments declare for their values, Go-like (RE2)
-# regular expressions that the `sbx` CLI checks and the library now does, and
+# regular expressions that the `sbx` CLI checks and the crate now does, and
 # their `${{ kit.args.<name> }}` placeholders. Default features: the patterns of
 # published kits may use Unicode classes.
 regex = "1"
@@ -134,7 +142,7 @@ regex = "1"
 flate2 = "1"
 
 # SHA-256 digests of the OCI image layouts written for kit sources without the
-# `sbx` CLI: by the library (optional, feature `kit-forge`) and by `audit
+# `sbx` CLI: by `docker-sandbox-kit` (optional, feature `forge`) and by `audit
 # kit-forge`; the default features (`std`) suffice.
 sha2 = "0.11"
 

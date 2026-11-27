@@ -1,4 +1,4 @@
-//! Compiling kit compositions into kit packages (feature `kit-compiler`).
+//! Compiling kit compositions into kit packages (feature `compiler`).
 //!
 //! `sandboxd` cannot resolve kits: the `sbx` CLI assembles the `kit_artifacts`
 //! of a creation request and loads local kit sources as images. Compiling a
@@ -28,9 +28,9 @@ use serde_json::{Value, json};
 use tokio::process::Command;
 
 use self::proxy::{CaptureProxy, CaptureRules, CapturedRequest};
-use super::KitPackage;
-use crate::client::{Client, SOCKET_ENV};
 use crate::error::{Error, Result};
+use docker_sandbox::kit::KitPackage;
+use docker_sandbox::{Client, SOCKET_ENV};
 
 /// Requests of the CLI kept in the package: the creation request and the kit
 /// source images it loads.
@@ -60,7 +60,7 @@ impl CompileJob {
     /// Compiles `base` alone into `output`.
     ///
     /// ```
-    /// use docker_sandbox::kit::CompileJob;
+    /// use docker_sandbox_kit::CompileJob;
     ///
     /// let job = CompileJob::new("shell", "/var/lib/kits/shell-session")
     ///     .with_mixin("docker.io/sbx/session:latest")
@@ -95,9 +95,9 @@ impl CompileJob {
 ///
 /// ```no_run
 /// use docker_sandbox::Client;
-/// use docker_sandbox::kit::{CompileJob, KitCompiler};
+/// use docker_sandbox_kit::{CompileJob, KitCompiler};
 ///
-/// # async fn run() -> docker_sandbox::Result<()> {
+/// # async fn run() -> docker_sandbox_kit::Result<()> {
 /// let client = Client::connect().await?;
 /// let compiler = KitCompiler::new("sbx", client.clone(), "/tmp/kc");
 /// let package = compiler
@@ -151,8 +151,8 @@ impl KitCompiler {
     /// # Errors
     ///
     /// Returns [`Error::Compile`] when the CLI cannot run, rejects the
-    /// composition or sends no creation request, [`Error::Timeout`] when it
-    /// exceeds the timeout, and [`Error::Package`] when the package cannot be
+    /// composition or sends no creation request, [`Error::Client`] ([`docker_sandbox::Error::Timeout`]) when it
+    /// exceeds the timeout, and [`Error::Client`] ([`docker_sandbox::Error::Package`]) when the package cannot be
     /// written.
     pub async fn compile(&self, job: &CompileJob) -> Result<KitPackage> {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -184,7 +184,7 @@ impl KitCompiler {
             &captured,
             &json!({ "sbx": health.version, "api_version": health.api_version }),
         )?;
-        KitPackage::open(&job.output)
+        KitPackage::open(&job.output).map_err(Error::from)
     }
 
     /// Runs `sbx create` for `job` on the throw-away `sandbox`, pointed at the
@@ -208,7 +208,7 @@ impl KitCompiler {
 
         let output = tokio::time::timeout(self.timeout, command.output())
             .await
-            .map_err(|_| Error::Timeout {
+            .map_err(|_| docker_sandbox::Error::Timeout {
                 operation: "kit compilation",
                 after: self.timeout,
             })?
@@ -302,12 +302,12 @@ fn oci_reference(archive: &[u8]) -> Option<(String, String)> {
     ))
 }
 
-/// An [`Error::Package`] about `path`.
+/// A [`docker_sandbox::Error::Package`] about `path`, as an [`Error::Client`].
 fn package_error(path: &Path, error: impl std::fmt::Display) -> Error {
-    Error::Package {
+    Error::Client(docker_sandbox::Error::Package {
         path: path.to_owned(),
         message: error.to_string(),
-    }
+    })
 }
 
 #[cfg(test)]

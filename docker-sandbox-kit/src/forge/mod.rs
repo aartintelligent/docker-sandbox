@@ -1,9 +1,9 @@
-//! Forging kit packages without the `sbx` CLI (feature `kit-forge`).
+//! Forging kit packages without the `sbx` CLI (feature `forge`).
 //!
 //! A [`KitPackage`] holds what the daemon needs to create a sandbox from a
 //! kit composition: a creation template whose `kit_artifacts` describe each
 //! kit, and the source images of the local mixins. `KitCompiler` (feature
-//! `kit-compiler`) captures them from the CLI; [`KitForge`] writes them
+//! `compiler`) captures them from the CLI; [`KitForge`] writes them
 //! itself, through the socket alone: the base kit rebuilt from its published
 //! image, or taken from a package compiled before, and mixins described by a
 //! [`KitDescriptor`]:
@@ -46,10 +46,10 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use self::artifact::MixinParts;
-use super::KitPackage;
-use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::sandbox::CreateRequest;
+use docker_sandbox::Client;
+use docker_sandbox::kit::KitPackage;
+use docker_sandbox::sandbox::CreateRequest;
 
 /// Setting of the daemon that allows kits from local directories.
 const ALLOW_LOCAL_KITS: &str = "kit.allowLocalKits";
@@ -136,13 +136,13 @@ fn to_json(value: &impl Serialize) -> Value {
 /// sandbox shows it under.
 ///
 /// ```
-/// use docker_sandbox::kit::{KitDescriptor, LifecycleStep, Mixin};
+/// use docker_sandbox_kit::{KitDescriptor, LifecycleStep, Mixin};
 ///
 /// let descriptor = KitDescriptor::mixin("Acme tools")
 ///     .with_install(LifecycleStep::new("pip install acme-cli").as_user("agent"));
 /// let mixin = Mixin::new("/kits/acme-tools", descriptor)?;
 /// assert_eq!(mixin.name(), "acme-tools");
-/// # Ok::<(), docker_sandbox::Error>(())
+/// # Ok::<(), docker_sandbox_kit::Error>(())
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mixin {
@@ -162,7 +162,7 @@ impl Mixin {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::File`] when the directory or its `spec.yaml` cannot be
+    /// Returns [`Error::Client`] ([`docker_sandbox::Error::File`]) when the directory or its `spec.yaml` cannot be
     /// read, and [`Error::InvalidKit`] when the directory is the root, which
     /// names no mixin, or the descriptor cannot be forged.
     pub fn read(dir: impl AsRef<Path>) -> Result<Self> {
@@ -173,7 +173,7 @@ impl Mixin {
     fn read_dir(dir: &Path) -> Result<Self> {
         let file_error = |path: &Path| {
             let path = path.to_owned();
-            move |source| Error::File { path, source }
+            move |source| docker_sandbox::Error::File { path, source }
         };
         let canonical = dir.canonicalize().map_err(file_error(dir))?;
         let reference = canonical.display().to_string();
@@ -252,15 +252,15 @@ struct ResolvedBase {
     image: Option<String>,
 }
 
-/// Writes kit packages without the `sbx` CLI (feature `kit-forge`): a base
+/// Writes kit packages without the `sbx` CLI (feature `forge`): a base
 /// kit, rebuilt from its published image or taken from a compiled package,
 /// and mixins forged from their descriptor.
 ///
 /// ```no_run
 /// use docker_sandbox::Client;
-/// use docker_sandbox::kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
+/// use docker_sandbox_kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
 ///
-/// # async fn run() -> docker_sandbox::Result<()> {
+/// # async fn run() -> docker_sandbox_kit::Result<()> {
 /// let client = Client::connect().await?;
 /// let tools = KitDescriptor::mixin("Acme tools")
 ///     .with_network_allow(["api.acme.example:443"])
@@ -311,7 +311,7 @@ impl KitForge {
     }
 
     /// Takes the base kit, the first kit, of `package`: compiled once with
-    /// `KitCompiler` (feature `kit-compiler`) or `audit kit-compile`. Its
+    /// `KitCompiler` (feature `compiler`) or `audit kit-compile`. Its
     /// other kits and their images are left out.
     #[must_use]
     pub fn with_base_package(mut self, package: KitPackage) -> Self {
@@ -347,7 +347,7 @@ impl KitForge {
     /// kit policy of the daemon refuses the kits, or when a pinned base kit
     /// exports another digest; [`Error::InvalidKit`] when the base kit is not
     /// a v3 workload kit or refuses its arguments; the errors of the settings,
-    /// pull and export requests; [`Error::Archive`] and [`Error::Package`]
+    /// pull and export requests; [`Error::Client`] ([`docker_sandbox::Error::Archive`]) and [`Error::Client`] ([`docker_sandbox::Error::Package`])
     /// when the export cannot be read or the package cannot be written.
     pub async fn forge(&self, output: impl Into<PathBuf>) -> Result<KitPackage> {
         self.forge_to(output.into()).await
@@ -412,7 +412,7 @@ impl KitForge {
         request.kit_artifacts = artifacts;
         let archives: Vec<&[u8]> = images.iter().map(|i| i.archive.as_slice()).collect();
         write_package(&output, &to_json(&request), &to_json(&metadata), &archives)?;
-        KitPackage::open(&output)
+        KitPackage::open(&output).map_err(Error::from)
     }
 
     /// The base kit, once the kit policy of the daemon is checked: taken from
@@ -516,7 +516,7 @@ impl KitForge {
         match self.client.daemon().setting(key).await {
             Ok(setting) => Ok(Some(setting.value)),
             Err(error) if error.is_not_found() => Ok(None),
-            Err(error) => Err(error),
+            Err(error) => Err(error.into()),
         }
     }
 }
@@ -575,12 +575,12 @@ fn write_package(
     std::fs::rename(&staging, output).map_err(|error| package_error(output, &error))
 }
 
-/// An [`Error::Package`] about `path`.
+/// A [`docker_sandbox::Error::Package`] about `path`, as an [`Error::Client`].
 fn package_error(path: &Path, error: &std::io::Error) -> Error {
-    Error::Package {
+    Error::Client(docker_sandbox::Error::Package {
         path: path.to_owned(),
         message: error.to_string(),
-    }
+    })
 }
 
 /// `error`, an [`Error::InvalidKit`] named after `kit` when it is one.

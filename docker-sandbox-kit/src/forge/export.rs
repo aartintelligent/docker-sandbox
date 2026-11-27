@@ -9,8 +9,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::client::Client;
 use crate::error::{Error, Result};
+use docker_sandbox::Client;
 
 /// Largest file kept from an export: the index, manifests and configuration
 /// are a few kilobytes, layers are skipped.
@@ -31,7 +31,7 @@ const BLOCK: usize = 512;
 ///
 /// # Errors
 ///
-/// Fails with the errors of the export request, and with [`Error::Archive`]
+/// Fails with the errors of the export request, and with [`Error::Client`] ([`docker_sandbox::Error::Archive`])
 /// when the stream is not a tar archive or ends in the middle of an entry.
 pub(super) async fn small_files(
     client: &Client,
@@ -209,7 +209,7 @@ impl TarScan {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Archive`] when the archive ended in the middle of an
+    /// Returns [`Error::Client`] ([`docker_sandbox::Error::Archive`]) when the archive ended in the middle of an
     /// entry.
     fn finish(self) -> Result<BTreeMap<String, Vec<u8>>> {
         match self.state {
@@ -245,12 +245,12 @@ fn pax_path(records: &[u8]) -> Option<String> {
         .find_map(|field| field.strip_prefix("path=").map(str::to_owned))
 }
 
-/// An [`Error::Archive`] of this module.
+/// A [`docker_sandbox::Error::Archive`] of this module, as an [`Error::Client`].
 fn archive_error(message: &str) -> Error {
-    Error::Archive {
+    Error::Client(docker_sandbox::Error::Archive {
         operation: OPERATION,
         message: message.to_owned(),
-    }
+    })
 }
 
 #[cfg(test)]

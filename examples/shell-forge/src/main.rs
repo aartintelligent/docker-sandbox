@@ -35,8 +35,8 @@ use std::time::Duration;
 use anyhow::{Context, Result, ensure};
 use docker_sandbox::Client;
 use docker_sandbox::exec::ExecSpec;
-use docker_sandbox::kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
 use docker_sandbox::sandbox::{CreateRequest, Sandbox};
+use docker_sandbox_kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
 use example_common::{connect, sandbox};
 use serde_json::json;
 

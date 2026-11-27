@@ -35,8 +35,8 @@ use super::artifact::{
 use super::descriptor::{LIFECYCLE, LifecycleConfig, NETWORK, NetworkConfig, SchemaVersion};
 use super::oci::{DESCRIPTOR_ANNOTATION, ImageConfig, ImageIndex};
 use super::{args, export};
-use crate::client::Client;
 use crate::error::{Error, Result};
+use docker_sandbox::Client;
 
 /// Registry of references that name none, as Docker normalizes them.
 const DEFAULT_REGISTRY: &str = "docker.io";
@@ -243,7 +243,7 @@ struct SkillsConfig {
 ///
 /// # Errors
 ///
-/// Returns the errors of the pull and export requests; [`Error::Archive`]
+/// Returns the errors of the pull and export requests; [`Error::Client`] ([`docker_sandbox::Error::Archive`])
 /// when the export is not a tar archive; [`Error::InvalidKit`] when the image
 /// is not a v3 workload kit, holds parts this crate cannot read, or refuses
 /// the arguments; [`Error::Forge`] when a pinned reference exports another

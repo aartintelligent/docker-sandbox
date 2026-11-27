@@ -10,6 +10,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # Target of the programs run inside sandboxes: Linux, static, on the architecture of the host.
 live_target := `uname -m | sed 's/arm64/aarch64/'` + "-unknown-linux-musl"
 
+# Every feature of the two published crates but `live`, which needs a real daemon.
+features := "docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge"
+
 # List the available recipes.
 default:
     @just --list
@@ -49,39 +52,40 @@ typos:
 # Run the test suite with nextest, falling back to cargo test. The `live`
 # feature stays off: it needs a real daemon (see `test-live`).
 test:
-    cargo nextest run --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy || cargo test --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy
+    cargo nextest run --workspace --features {{features}} || cargo test --workspace --features {{features}}
 
 # Run the doctests — nextest does not run them.
 doctest:
-    cargo test --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy --doc
+    cargo test --workspace --features {{features}} --doc
 
-# Check that the tests run every line of the library and at least 95 % of its regions, as CI does,
-# and list the lines they miss.
+# Check that the tests run every line of the two published crates and at least 95 % of their
+# regions, as CI does, and list the lines they miss.
 # Needs `cargo-llvm-cov` and `rustup component add llvm-tools`; `just coverage-html` browses the
 # report. The line percentage of the table can stay under 100 % with every line run: for each
 # function, `llvm-cov` keeps its best-covered build (unit or integration tests), not their union.
 coverage:
-    cargo llvm-cov nextest -p docker-sandbox --features kit-compiler,kit-forge,secrecy --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
+    cargo llvm-cov nextest -p docker-sandbox -p docker-sandbox-kit --features {{features}} --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
 
-# Write the coverage report of the library as HTML and open it.
+# Write the coverage report of the two published crates as HTML and open it.
 coverage-html:
-    cargo llvm-cov nextest -p docker-sandbox --features kit-compiler,kit-forge,secrecy --html --open
+    cargo llvm-cov nextest -p docker-sandbox -p docker-sandbox-kit --features {{features}} --html --open
 
 # Run the integration tests against the real daemon and sbx CLI of the current user. They create
 # and remove their own sandboxes and images; the state of the daemon is recorded before and
 # checked after, even when a test fails. The program they run inside sandboxes, live-probe, is
 # built statically for the architecture of the host (`rustup target add <arch>-unknown-linux-musl`).
+# The live tests of docker-sandbox-kit forge their packages, without the CLI.
 test-live:
     cargo run --quiet -p audit -- state --save
     cargo run --quiet -p audit -- kit-compile audit/assets/kits/audit-mixin-v3
     cargo build --quiet --release -p live-probe --target {{live_target}}
-    status=0; DOCKER_SANDBOX_LIVE_PACKAGE="$PWD/target/audit/kits/audit-mixin-v3" DOCKER_SANDBOX_LIVE_PROBE="$PWD/target/{{live_target}}/release/live-probe" cargo test -p docker-sandbox --features live,kit-forge --test live -- --test-threads=1 || status=$?; cargo run --quiet -p audit -- state --check; exit $status
+    status=0; DOCKER_SANDBOX_LIVE_PACKAGE="$PWD/target/audit/kits/audit-mixin-v3" DOCKER_SANDBOX_LIVE_PROBE="$PWD/target/{{live_target}}/release/live-probe" cargo test -p docker-sandbox --features live --test live -- --test-threads=1 || status=$?; cargo test -p docker-sandbox-kit --features live --test live -- --test-threads=1 || status=$?; cargo run --quiet -p audit -- state --check; exit $status
 
 # CI pins a dated nightly (see .github/workflows/ci.yml) because newer nightlies break `filetime`;
 # locally, any nightly at or before that date works.
 # Build the API docs exactly as docs.rs would.
 doc:
-    RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly-2026-10-14 doc -p docker-sandbox --features kit-compiler,kit-forge,secrecy --no-deps
+    RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly-2026-10-14 doc -p docker-sandbox -p docker-sandbox-kit --features {{features}} --no-deps
 
 # ------------------------------------------------------------------------------
 # Supply chain & compatibility — dependency policy, feature combinations, MSRV.
@@ -97,9 +101,9 @@ deny:
 deny-examples:
     cargo deny --manifest-path examples/Cargo.toml check advisories
 
-# Check that every feature combination of the library compiles on its own.
+# Check that every feature combination of the two published crates compiles on its own.
 hack:
-    cargo hack check -p docker-sandbox --feature-powerset --no-dev-deps
+    cargo hack check -p docker-sandbox -p docker-sandbox-kit --feature-powerset --no-dev-deps
 
 # Verify the crates build on the MSRV declared in Cargo.toml.
 msrv:

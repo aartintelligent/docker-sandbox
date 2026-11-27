@@ -54,6 +54,16 @@ changelog_include = ["audit"]
 changelog_update  = true
 git_tag_name      = "v{{ version }}"
 
+# The kit crate has its own versions and tags. Its first version is published
+# by hand, as trusted publishing needs (CONTRIBUTING.md): until then,
+# release-plz leaves it alone.
+[[package]]
+name             = "docker-sandbox-kit"
+changelog_update = true
+git_tag_name     = "docker-sandbox-kit-v{{ version }}"
+git_release_name = "docker-sandbox-kit v{{ version }}"
+release          = false
+
 # The audit tool is a member that is never published, versioned or tagged.
 # `publish = false` is repeated here: release-plz checks every member's
 # manifest against its configuration before it honours `release`.

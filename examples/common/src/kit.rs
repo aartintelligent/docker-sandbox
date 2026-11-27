@@ -17,7 +17,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use docker_sandbox::Client;
-use docker_sandbox::kit::{CompileJob, KitCompiler, KitForge, KitPackage};
+use docker_sandbox::kit::KitPackage;
+use docker_sandbox_kit::{CompileJob, KitCompiler, KitForge};
 
 /// Directory of the cached packages, in the target directory of the examples.
 const CACHE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/kits");

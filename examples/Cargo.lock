@@ -277,8 +277,26 @@ dependencies = [
  "hyper",
  "hyper-util",
  "percent-encoding",
- "regex",
  "secrecy",
+ "serde",
+ "serde_json",
+ "tar",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
+name = "docker-sandbox-kit"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "docker-sandbox",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "regex",
  "serde",
  "serde_json",
  "sha2",
@@ -286,7 +304,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "zeroize",
 ]
 
 [[package]]
@@ -561,6 +578,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "docker-sandbox",
+ "docker-sandbox-kit",
  "example-common",
  "serde_json",
  "tokio",
@@ -612,6 +630,7 @@ dependencies = [
  "bytes",
  "crossterm",
  "docker-sandbox",
+ "docker-sandbox-kit",
  "http-body-util",
  "hyper",
  "hyper-util",
@@ -752,6 +771,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "docker-sandbox",
+ "docker-sandbox-kit",
  "example-common",
  "serde_json",
  "tokio",

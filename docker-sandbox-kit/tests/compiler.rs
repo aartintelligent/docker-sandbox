@@ -4,21 +4,24 @@
 //! [`fake_sbx`]: it talks to the capturing proxy of the compiler as the real
 //! CLI would, so that the whole compilation runs without Docker Sandboxes.
 
-#![cfg(feature = "kit-compiler")]
+#![cfg(feature = "compiler")]
 #![allow(
     clippy::unwrap_used,
     reason = "test helpers fail the test that calls them by panicking"
 )]
 
+// The fake daemon of the tests of `docker-sandbox`, shared rather than copied.
+#[path = "../../docker-sandbox/tests/support/mod.rs"]
 mod support;
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use docker_sandbox::kit::{CompileJob, KitCompiler};
+use docker_sandbox::Client;
 use docker_sandbox::sandbox::CreateRequest;
-use docker_sandbox::{Client, Error};
+use docker_sandbox_kit::Error;
+use docker_sandbox_kit::{CompileJob, KitCompiler};
 use serde_json::{Value, json};
 use support::{FakeDaemon, Reply, connect, sandbox_json};
 use tokio::sync::Mutex;
@@ -234,7 +237,7 @@ async fn compilations_time_out() {
         .await
         .unwrap_err();
     assert!(
-        matches!(error, Error::Timeout { operation: "kit compilation", after } if after == Duration::from_millis(500)),
+        matches!(error, Error::Client(docker_sandbox::Error::Timeout { operation: "kit compilation", after }) if after == Duration::from_millis(500)),
         "{error}"
     );
 }
@@ -258,5 +261,8 @@ async fn a_missing_cli_or_proxy_socket_is_an_error() {
     let deep = dir.path().join("w".repeat(120));
     let compiler = KitCompiler::new(fake_sbx_in(dir.path()), client, deep);
     let error = compiler.compile(&job).await.unwrap_err();
-    assert!(matches!(error, Error::Package { .. }), "{error}");
+    assert!(
+        matches!(error, Error::Client(docker_sandbox::Error::Package { .. })),
+        "{error}"
+    );
 }

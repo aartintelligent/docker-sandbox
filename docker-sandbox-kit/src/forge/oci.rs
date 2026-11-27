@@ -406,7 +406,7 @@ mod tests {
                 .unwrap(),
         )
         .unwrap();
-        assert_eq!(built_by["name"], "docker-sandbox");
+        assert_eq!(built_by["name"], "docker-sandbox-kit");
         let config_path = format!(
             "blobs/sha256/{}",
             manifest["config"]["digest"]

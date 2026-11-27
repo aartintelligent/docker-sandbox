@@ -4,18 +4,20 @@
 //! the package through the socket, and the refusals before anything is
 //! written.
 
-#![cfg(feature = "kit-forge")]
+#![cfg(feature = "forge")]
 #![allow(
     clippy::unwrap_used,
     reason = "test helpers fail the test that calls them by panicking"
 )]
 
+// The fake daemon of the tests of `docker-sandbox`, shared rather than copied.
+#[path = "../../docker-sandbox/tests/support/mod.rs"]
 mod support;
 
 use std::path::Path;
 
-use docker_sandbox::Error;
-use docker_sandbox::kit::{KitDescriptor, KitForge, KitPackage, LifecycleStep, Mixin};
+use docker_sandbox::kit::KitPackage;
+use docker_sandbox_kit::{Error, KitDescriptor, KitForge, LifecycleStep, Mixin};
 use serde_json::{Value, json};
 use support::{FakeDaemon, FakeDaemonBuilder, Reply, connect};
 
@@ -49,7 +51,8 @@ fn setting(key: &str, value: impl Into<Value>) -> Reply {
 /// The kit artifact of `docker.io/sbx/shell:latest` the CLI wrote, captured
 /// by the audit, and the reference it pinned.
 fn captured_shell() -> (Value, String) {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/post_sandbox_200.json");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../docker-sandbox/tests/fixtures/post_sandbox_200.json");
     let fixture: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
     let request = &fixture["request"];
     (
@@ -247,7 +250,7 @@ async fn forged_packages_create_sandboxes_through_the_socket() {
         json!(["api.acme.example:443"])
     );
     let metadata = read(&output, "kit.json");
-    assert_eq!(metadata["forged_by"]["name"], "docker-sandbox");
+    assert_eq!(metadata["forged_by"]["name"], "docker-sandbox-kit");
     assert_eq!(metadata["mixins"], json!(["/kits/acme-tools"]));
     assert_eq!(read(&output, "create-body.json")["name"], "{{name}}");
 
@@ -666,7 +669,10 @@ async fn failures_of_the_daemon_and_of_the_disk_are_reported() {
         )
         .start();
     let error = refused(&truncated, "docker.io/sbx/shell", &output).await;
-    assert!(matches!(error, Error::Http { .. }), "{error}");
+    assert!(
+        matches!(error, Error::Client(docker_sandbox::Error::Http { .. })),
+        "{error}"
+    );
     let mut malformed = shell_export();
     malformed[124..136].copy_from_slice(b"zzzzzzzzzzz\0");
     let daemon = serving(permissive(), malformed).start();
@@ -693,7 +699,10 @@ async fn failures_of_the_daemon_and_of_the_disk_are_reported() {
     std::fs::write(&file, "x").unwrap();
     let daemon = serving(permissive(), shell_export()).start();
     let error = refused(&daemon, "docker.io/sbx/shell", &file).await;
-    assert!(matches!(error, Error::Package { .. }), "{error}");
+    assert!(
+        matches!(error, Error::Client(docker_sandbox::Error::Package { .. })),
+        "{error}"
+    );
     assert!(!output.exists());
 }
 
@@ -714,5 +723,11 @@ async fn compiled_packages_without_a_creation_template_are_refused() {
         .forge(dir.path().join("refused"))
         .await
         .unwrap_err();
-    assert!(matches!(error, Error::InvalidRequest(_)), "{error}");
+    assert!(
+        matches!(
+            error,
+            Error::Client(docker_sandbox::Error::InvalidRequest(_))
+        ),
+        "{error}"
+    );
 }
