@@ -18,16 +18,22 @@ ports, give agents their credentials and scope network access.
 ```rust,no_run
 use std::time::Duration;
 
+use docker_sandbox::kit::KitForge;
 use docker_sandbox::prelude::*;
 
 #[tokio::main]
 async fn main() -> docker_sandbox::Result<()> {
     let client = Client::connect().await?;
 
-    // A sandbox of the claude kit, from a package forged through the socket
-    // (below) or compiled once with the CLI. The daemon gives the agent the
-    // credential it holds for the kit, a Claude subscription for instance.
-    let package = KitPackage::open("/var/lib/kits/claude")?;
+    // The claude kit, rebuilt from its published image through the socket
+    // (feature `kit-forge`): no `sbx` CLI, not even once. The daemon treats
+    // the sandbox as one the CLI created, and gives the agent the credential
+    // it holds for the kit, a Claude subscription for instance.
+    let package = KitForge::new(client.clone())
+        .with_base("docker.io/sbx/claude:latest")
+        .with_arg("model", "claude-haiku-5-5")
+        .forge("/var/lib/kits/claude")
+        .await?;
     let created = package.create(&client, "job-42").await?;
 
     // Handles own a clone of the client: store them, move them into tasks.
@@ -56,22 +62,11 @@ async fn main() -> docker_sandbox::Result<()> {
 }
 ```
 
-With the `kit-forge` feature, that package needs no CLI at all: `KitForge`
-rebuilds the published kit from its image through the socket, with its kit
-arguments and mixins of your own, in the form the CLI would give it, so that
-the daemon treats the sandbox as one the CLI created, the credential of its
-agent included. To give the agent an API key of your own instead, use a
-`ProxiedKey`: the sandbox only holds a placeholder.
-
-```rust,ignore
-use docker_sandbox::kit::KitForge;
-
-let package = KitForge::new(client.clone())
-    .with_base("docker.io/sbx/claude:latest")
-    .with_arg("model", "claude-haiku-5-5")
-    .forge("/var/lib/kits/claude")
-    .await?;
-```
+The package stays on disk: `KitPackage::open` takes it again for the next
+sandboxes, and `KitCompiler` (feature `kit-compiler`) compiles one with the CLI
+instead. To give the agent an API key of your own, use a `ProxiedKey`: the
+sandbox only holds a placeholder, and the proxy writes the key into the
+requests to the hosts of the key.
 
 > This project is not affiliated with Docker, Inc. The `sandboxd` socket API is
 > private and changes with every `sbx` release: the audit tool of this

@@ -11,16 +11,24 @@
 //! # Example
 //!
 //! ```no_run
+//! # #[cfg(feature = "kit-forge")]
+//! # async fn run() -> docker_sandbox::Result<()> {
 //! use std::time::Duration;
+//!
+//! use docker_sandbox::kit::KitForge;
 //! use docker_sandbox::prelude::*;
 //!
-//! # async fn run() -> docker_sandbox::Result<()> {
 //! let client = Client::connect().await?;
 //!
-//! // A sandbox of the claude kit, from a package forged through the socket
-//! // (below) or compiled once with the CLI. The daemon gives the agent the
-//! // credential it holds for the kit, a Claude subscription for instance.
-//! let package = KitPackage::open("/var/lib/kits/claude")?;
+//! // The claude kit, rebuilt from its published image through the socket
+//! // (feature `kit-forge`): no `sbx` CLI, not even once. The daemon treats
+//! // the sandbox as one the CLI created, and gives the agent the credential
+//! // it holds for the kit, a Claude subscription for instance.
+//! let package = KitForge::new(client.clone())
+//!     .with_base("docker.io/sbx/claude:latest")
+//!     .with_arg("model", "claude-haiku-5-5")
+//!     .forge("/var/lib/kits/claude")
+//!     .await?;
 //! let created = package.create(&client, "job-42").await?;
 //!
 //! // Handles own a clone of the client: store them, move them into tasks.
@@ -50,30 +58,12 @@
 //! # }
 //! ```
 //!
-//! With the `kit-forge` feature, that package needs no CLI at all:
-//! [`KitForge`](kit::KitForge) rebuilds the published kit from its image
-//! through the socket, with its kit arguments and mixins of your own, in the
-//! form the CLI would give it, so that the daemon treats the sandbox as one the
-//! CLI created, the credential of its agent included. To give the agent an API
-//! key of your own instead, use a [`ProxiedKey`](sandbox::ProxiedKey): the
-//! sandbox only holds a placeholder.
-//!
-//! ```no_run
-//! # #[cfg(feature = "kit-forge")]
-//! # async fn run() -> docker_sandbox::Result<()> {
-//! use docker_sandbox::Client;
-//! use docker_sandbox::kit::KitForge;
-//!
-//! let client = Client::connect().await?;
-//! let package = KitForge::new(client.clone())
-//!     .with_base("docker.io/sbx/claude:latest")
-//!     .with_arg("model", "claude-haiku-5-5")
-//!     .forge("/var/lib/kits/claude")
-//!     .await?;
-//! assert_eq!(package.kit_refs().len(), 1);
-//! # Ok(())
-//! # }
-//! ```
+//! The package stays on disk: [`KitPackage::open`](kit::KitPackage::open)
+//! takes it again for the next sandboxes, and `KitCompiler` (feature
+//! `kit-compiler`) compiles one with the CLI instead. To give the agent an API
+//! key of your own, use a [`ProxiedKey`](sandbox::ProxiedKey): the sandbox only
+//! holds a placeholder, and the proxy writes the key into the requests to the
+//! hosts of the key.
 //!
 //! # Modules
 //!
@@ -168,7 +158,8 @@ pub use transport::NdjsonStream;
 /// daemon does not break decoding.
 pub type Extra = serde_json::Map<String, serde_json::Value>;
 
-/// Compiles the examples of the README as doctests.
-#[cfg(doctest)]
+/// Compiles the examples of the README as doctests, with the `kit-forge`
+/// feature its first example forges the claude kit with.
+#[cfg(all(doctest, feature = "kit-forge"))]
 #[doc = include_str!("../README.md")]
 struct ReadmeDoctests;
