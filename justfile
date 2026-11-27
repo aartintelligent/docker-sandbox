@@ -49,11 +49,11 @@ typos:
 # Run the test suite with nextest, falling back to cargo test. The `live`
 # feature stays off: it needs a real daemon (see `test-live`).
 test:
-    cargo nextest run --workspace --features docker-sandbox/kit-compiler,docker-sandbox/secrecy || cargo test --workspace --features docker-sandbox/kit-compiler,docker-sandbox/secrecy
+    cargo nextest run --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy || cargo test --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy
 
 # Run the doctests — nextest does not run them.
 doctest:
-    cargo test --workspace --features docker-sandbox/kit-compiler,docker-sandbox/secrecy --doc
+    cargo test --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy --doc
 
 # Check that the tests run every line of the library and at least 95 % of its regions, as CI does,
 # and list the lines they miss.
@@ -61,11 +61,11 @@ doctest:
 # report. The line percentage of the table can stay under 100 % with every line run: for each
 # function, `llvm-cov` keeps its best-covered build (unit or integration tests), not their union.
 coverage:
-    cargo llvm-cov nextest -p docker-sandbox --features kit-compiler,secrecy --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
+    cargo llvm-cov nextest -p docker-sandbox --features kit-compiler,kit-forge,secrecy --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
 
 # Write the coverage report of the library as HTML and open it.
 coverage-html:
-    cargo llvm-cov nextest -p docker-sandbox --features kit-compiler,secrecy --html --open
+    cargo llvm-cov nextest -p docker-sandbox --features kit-compiler,kit-forge,secrecy --html --open
 
 # Run the integration tests against the real daemon and sbx CLI of the current user. They create
 # and remove their own sandboxes and images; the state of the daemon is recorded before and
@@ -81,7 +81,7 @@ test-live:
 # locally, any nightly at or before that date works.
 # Build the API docs exactly as docs.rs would.
 doc:
-    RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly-2026-10-14 doc -p docker-sandbox --features kit-compiler,secrecy --no-deps
+    RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly-2026-10-14 doc -p docker-sandbox --features kit-compiler,kit-forge,secrecy --no-deps
 
 # ------------------------------------------------------------------------------
 # Supply chain & compatibility — dependency policy, feature combinations, MSRV.

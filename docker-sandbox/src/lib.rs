@@ -47,7 +47,7 @@
 //! | [`sandbox`] | [`Client::sandbox`], [`Client::sandboxes`] | Listing, creation, life cycle, sessions, ports, files, credentials, SSH |
 //! | [`exec`] | [`Sandbox::exec`](sandbox::Sandbox::exec), [`Sandbox::attach`](sandbox::Sandbox::attach) | Commands, interactive executions, agent sessions |
 //! | [`policy`] | [`Client::policy`], [`Sandbox::allow_hosts`](sandbox::Sandbox::allow_hosts) | Network rules, checks, activity log |
-//! | [`kit`] | [`KitPackage`](kit::KitPackage) | Compiled kit packages: creation, kits added in place or by recreation, compilation (feature `kit-compiler`) |
+//! | [`kit`] | [`KitPackage`](kit::KitPackage) | Kit packages: creation, kits added in place or by recreation, compilation (feature `kit-compiler`), forging without the CLI (feature `kit-forge`) |
 //! | [`image`] | [`Client::images`] | Images: list, pull, load, export, remove |
 //! | [`event`] | [`Client::events`] | The daemon event stream |
 //! | [`mcp`] | [`Client::mcp`], [`Sandbox::load_mcp_server`](sandbox::Sandbox::load_mcp_server) | MCP gateway, servers, policy checks |
@@ -102,6 +102,7 @@
 //! | Feature | Adds |
 //! |---|---|
 //! | `kit-compiler` | [`KitCompiler`](kit::KitCompiler) and [`CompileJob`](kit::CompileJob): compiling kit compositions with the `sbx` CLI |
+//! | `kit-forge` | [`KitForge`](kit::KitForge), [`KitDescriptor`](kit::KitDescriptor), [`LifecycleStep`](kit::LifecycleStep) and [`Mixin`](kit::Mixin): forging kit packages without the CLI |
 //! | `live` | Nothing to the library: runs the integration tests against the real daemon |
 //! | `secrecy` | `From<secrecy::SecretString>` for [`Secret`](sandbox::Secret): a secret held as a `SecretString` is passed on without being exposed |
 

@@ -135,6 +135,23 @@ pub enum Error {
     /// sent no creation request.
     #[error("kit compilation failed: {0}")]
     Compile(String),
+
+    /// A kit descriptor is not one this crate can forge (feature `kit-forge`):
+    /// not a v3 mixin, or declaring something the daemon is not known to
+    /// accept from it.
+    #[error("invalid kit {kit}: {message}")]
+    InvalidKit {
+        /// Name or reference of the kit.
+        kit: String,
+        /// What is wrong with it.
+        message: String,
+    },
+
+    /// A kit package could not be forged (feature `kit-forge`): no base kit,
+    /// two kits of the same name, or a kit policy of the daemon that forbids
+    /// it.
+    #[error("kit forging refused: {0}")]
+    Forge(String),
 }
 
 impl Error {

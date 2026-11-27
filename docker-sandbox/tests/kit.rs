@@ -148,7 +148,7 @@ async fn packages_compiled_by_another_sbx_version_still_load() {
     write_package(dir.path(), &json!({ "name": "{{name}}", "agent": "shell" }));
     std::fs::write(
         dir.path().join("kit.json"),
-        json!({ "compiled_with": { "sbx": "v0.53.0" }, "images": [{ "file": "images/00.oci.tar", "ref": "sbx-kit-src:spec-abc" }] }).to_string(),
+        json!({ "compiled_with": { "sbx": "v0.53.0", "api_version": "0.51.0" }, "images": [{ "file": "images/00.oci.tar", "ref": "sbx-kit-src:spec-abc" }] }).to_string(),
     )
     .unwrap();
     let held = json!([{ "repository": "sbx-kit-src", "tag": "spec-abc", "id": "sha256:1" }]);
@@ -158,8 +158,10 @@ async fn packages_compiled_by_another_sbx_version_still_load() {
     let client = connect(&daemon).await;
     let package = KitPackage::open(dir.path()).unwrap();
 
-    // The daemon runs v0.54.0: a warning is logged, the package is used.
+    // The daemon runs v0.54.0, API 0.52.0: warnings are logged, the package
+    // is used.
     assert_eq!(package.compiled_with(), Some("v0.53.0"));
+    assert_eq!(package.compiled_api(), Some("0.51.0"));
     assert_eq!(package.load_images(&client).await.unwrap(), 0);
 }
 

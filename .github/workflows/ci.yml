@@ -181,8 +181,8 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
-      - run: cargo nextest run --locked --workspace --features docker-sandbox/kit-compiler,docker-sandbox/secrecy
-      - run: cargo test --locked --workspace --features docker-sandbox/kit-compiler,docker-sandbox/secrecy --doc
+      - run: cargo nextest run --locked --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy
+      - run: cargo test --locked --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy --doc
 
   # Guards the coverage of the library: every line of `docker-sandbox` must run
   # under its tests — unit, fake daemon, fixtures. The gate is enforced here,
@@ -213,7 +213,7 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-llvm-cov,cargo-nextest
-      - run: cargo llvm-cov nextest --locked -p docker-sandbox --features kit-compiler,secrecy --lcov --output-path target/lcov.info
+      - run: cargo llvm-cov nextest --locked -p docker-sandbox --features kit-compiler,kit-forge,secrecy --lcov --output-path target/lcov.info
       # Merge-queue commits are temporary: Codecov tracks `main` and the pull
       # requests.
       - uses: codecov/codecov-action@v7
@@ -251,7 +251,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: cargo doc --locked -p docker-sandbox --features kit-compiler,secrecy --no-deps
+      - run: cargo doc --locked -p docker-sandbox --features kit-compiler,kit-forge,secrecy --no-deps
 
   # Guards the MSRV: the main workspace compiles on exactly the `rust-version`
   # of Cargo.toml.
