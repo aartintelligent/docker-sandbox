@@ -242,6 +242,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "percent-encoding",
+ "regex",
  "secrecy",
  "serde",
  "serde_json",

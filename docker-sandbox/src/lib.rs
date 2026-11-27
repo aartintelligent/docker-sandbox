@@ -102,7 +102,7 @@
 //! | Feature | Adds |
 //! |---|---|
 //! | `kit-compiler` | [`KitCompiler`](kit::KitCompiler) and [`CompileJob`](kit::CompileJob): compiling kit compositions with the `sbx` CLI |
-//! | `kit-forge` | [`KitForge`](kit::KitForge), [`KitDescriptor`](kit::KitDescriptor), [`LifecycleStep`](kit::LifecycleStep) and [`Mixin`](kit::Mixin): forging kit packages without the CLI |
+//! | `kit-forge` | [`KitForge`](kit::KitForge), [`KitDescriptor`](kit::KitDescriptor), [`LifecycleStep`](kit::LifecycleStep) and [`Mixin`](kit::Mixin): forging kit packages without the CLI, base kit rebuilt from its image and mixins |
 //! | `live` | Nothing to the library: runs the integration tests against the real daemon |
 //! | `secrecy` | `From<secrecy::SecretString>` for [`Secret`](sandbox::Secret): a secret held as a `SecretString` is passed on without being exposed |
 

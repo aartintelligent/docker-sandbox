@@ -4,8 +4,9 @@
 //! kit composition: a creation template whose `kit_artifacts` describe each
 //! kit, and the source images of the local mixins. `KitCompiler` (feature
 //! `kit-compiler`) captures them from the CLI; [`KitForge`] writes them
-//! itself, for mixins described by
-//! a [`KitDescriptor`], on the base kit of a package compiled before:
+//! itself, through the socket alone: the base kit rebuilt from its published
+//! image, or taken from a package compiled before, and mixins described by a
+//! [`KitDescriptor`]:
 //!
 //! ```text
 //! <output>/kit.json            metadata: forged by this crate, API of the daemon, kits, images
@@ -13,22 +14,32 @@
 //! <output>/images/NN.oci.tar   source images of the mixins
 //! ```
 //!
+//! A published base kit is pulled and exported once, when the package is
+//! forged; its layers are read as they go by, never held in memory. The
+//! daemon pulls the image again, when missing, as it creates a sandbox.
+//!
 //! The format of the artifacts and images is the private contract between the
 //! CLI and the daemon, measured by the audit of this repository for the `sbx`
 //! versions this crate supports ([`SUPPORTED_API`](crate::SUPPORTED_API)).
 //! A forged package records the API it was forged for.
 //!
-//! The CLI checks the kit policy of the daemon before it loads a local kit;
-//! forging does too: it refuses when `kit.allowLocalKits` is off, or when
-//! `kit.requireSignature` is on, since a forged kit carries no signature.
+//! The CLI checks the kit policy of the daemon before it uses a kit; forging
+//! does too. It refuses when `kit.requireSignature` is on, since it cannot
+//! check a signature and a forged kit carries none; mixins when
+//! `kit.allowLocalKits` is off; a published base kit outside the sources of
+//! `kit.allowedSources`. A setting the daemon does not know keeps its
+//! default.
 
+mod args;
 mod artifact;
+mod base;
 mod descriptor;
+mod export;
 mod oci;
 
 pub use self::descriptor::{KitDescriptor, LifecycleStep};
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
@@ -43,6 +54,13 @@ const ALLOW_LOCAL_KITS: &str = "kit.allowLocalKits";
 
 /// Setting of the daemon that requires signed kits.
 const REQUIRE_SIGNATURE: &str = "kit.requireSignature";
+
+/// Setting of the daemon listing the prefixes of the references kits may
+/// come from, `*` for any.
+const ALLOWED_SOURCES: &str = "kit.allowedSources";
+
+/// Default of [`ALLOWED_SOURCES`], as the daemon describes it.
+const DEFAULT_SOURCES: &[&str] = &["docker.io/", "dhi.io/"];
 
 /// A mixin to forge: its descriptor, and the reference the kit list of the
 /// sandbox shows it under.
@@ -143,12 +161,34 @@ impl Mixin {
     }
 }
 
-/// Writes kit packages without the `sbx` CLI (feature `kit-forge`): mixins
-/// forged from their descriptor, on the base kit of a compiled package.
+/// Where the base kit of a package comes from.
+#[derive(Debug, Clone)]
+enum Base {
+    /// A published kit, rebuilt from its image.
+    Published(String),
+    /// The first kit of a compiled package.
+    Package(KitPackage),
+}
+
+/// The base kit of a package being forged.
+struct ResolvedBase {
+    /// Creation template, without `kits` and `kit_artifacts`.
+    template: Value,
+    /// Reference of the kit, the first entry of `kits`.
+    reference: String,
+    /// The kit artifact, the first entry of `kit_artifacts`.
+    artifact: Value,
+    /// The published reference it was rebuilt from, if it was.
+    image: Option<String>,
+}
+
+/// Writes kit packages without the `sbx` CLI (feature `kit-forge`): a base
+/// kit, rebuilt from its published image or taken from a compiled package,
+/// and mixins forged from their descriptor.
 ///
 /// ```no_run
 /// use docker_sandbox::Client;
-/// use docker_sandbox::kit::{KitDescriptor, KitForge, KitPackage, LifecycleStep, Mixin};
+/// use docker_sandbox::kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
 ///
 /// # async fn run() -> docker_sandbox::Result<()> {
 /// let client = Client::connect().await?;
@@ -156,9 +196,10 @@ impl Mixin {
 ///     .with_network_allow(["api.acme.example:443"])
 ///     .with_install(LifecycleStep::new("pip install acme-cli").as_user("agent"));
 /// let package = KitForge::new(client.clone())
-///     .with_base_package(KitPackage::open("/var/lib/kits/shell")?)
+///     .with_base("docker.io/sbx/claude:latest")
+///     .with_arg("model", "claude-haiku-5-5")
 ///     .with_mixin(Mixin::new("/kits/acme-tools", tools)?)
-///     .forge("/var/lib/kits/shell+acme-tools")
+///     .forge("/var/lib/kits/claude+acme-tools")
 ///     .await?;
 /// package.create(&client, "job-42").await?;
 /// # Ok(())
@@ -168,8 +209,10 @@ impl Mixin {
 pub struct KitForge {
     /// Client of the daemon the package is forged for.
     client: Client,
-    /// Package whose base kit (its first kit) the mixins are composed with.
-    base: Option<KitPackage>,
+    /// The base kit the mixins are composed with.
+    base: Option<Base>,
+    /// Values of the arguments of a published base kit, by name.
+    args: BTreeMap<String, String>,
     /// Mixins, in composition order.
     mixins: Vec<Mixin>,
 }
@@ -181,8 +224,20 @@ impl KitForge {
         Self {
             client,
             base: None,
+            args: BTreeMap::new(),
             mixins: Vec::new(),
         }
+    }
+
+    /// Takes as base kit the published v3 workload kit `reference`, e.g.
+    /// `docker.io/sbx/claude:latest`, optionally pinned by digest as
+    /// `docker.io/sbx/claude:latest@sha256:…`, and normalized as Docker does
+    /// (`sbx/shell` is `docker.io/sbx/shell:latest`). Its image is pulled and
+    /// exported when the package is forged, and the kit rebuilt from it.
+    #[must_use]
+    pub fn with_base(mut self, reference: impl Into<String>) -> Self {
+        self.base = Some(Base::Published(reference.into()));
+        self
     }
 
     /// Takes the base kit, the first kit, of `package`: compiled once with
@@ -190,7 +245,18 @@ impl KitForge {
     /// other kits and their images are left out.
     #[must_use]
     pub fn with_base_package(mut self, package: KitPackage) -> Self {
-        self.base = Some(package);
+        self.base = Some(Base::Package(package));
+        self
+    }
+
+    /// Gives the argument `name` of the published base kit the value `value`,
+    /// in place of its default. The value is checked against the values or
+    /// the pattern the kit declares, substituted for its
+    /// `${{ kit.args.<name> }}` placeholders, and set in the variable the kit
+    /// names, as the CLI does with `--kit-arg`.
+    #[must_use]
+    pub fn with_arg(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+        self.args.insert(name.into(), value.into());
         self
     }
 
@@ -206,22 +272,18 @@ impl KitForge {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Forge`] without a base kit or a mixin, when two kits
-    /// share a name, or when the kit policy of the daemon refuses local or
-    /// unsigned kits; the errors of the settings requests; [`Error::Archive`]
-    /// and [`Error::Package`] when the package cannot be written.
+    /// Returns [`Error::Forge`] without a base kit, with a compiled package
+    /// but no mixin or with arguments, when two kits share a name, when the
+    /// kit policy of the daemon refuses the kits, or when a pinned base kit
+    /// exports another digest; [`Error::InvalidKit`] when the base kit is not
+    /// a v3 workload kit or refuses its arguments; the errors of the settings,
+    /// pull and export requests; [`Error::Archive`] and [`Error::Package`]
+    /// when the export cannot be read or the package cannot be written.
     pub async fn forge(&self, output: impl Into<PathBuf>) -> Result<KitPackage> {
         let output = output.into();
-        let base = self.base.as_ref().ok_or_else(|| {
-            Error::Forge("no base kit: give a compiled package with `with_base_package`".to_owned())
-        })?;
-        if self.mixins.is_empty() {
-            return Err(Error::Forge("no mixin to forge".to_owned()));
-        }
-        self.check_policy().await?;
-
-        let base_artifact = base.kit_artifacts().into_iter().next().unwrap_or_default();
-        let base_name = base_artifact
+        let base = self.resolve_base().await?;
+        let base_name = base
+            .artifact
             .pointer("/manifest/name")
             .and_then(Value::as_str)
             .unwrap_or_default();
@@ -235,8 +297,8 @@ impl KitForge {
             }
         }
 
-        let mut kits = vec![base.kit_refs().into_iter().next().unwrap_or_default()];
-        let mut artifacts = vec![base_artifact.clone()];
+        let mut kits = vec![base.reference.clone()];
+        let mut artifacts = vec![base.artifact];
         let mut images = Vec::new();
         for mixin in &self.mixins {
             let image = oci::source_image(&mixin.spec, mixin.descriptor.as_json())?;
@@ -251,11 +313,10 @@ impl KitForge {
             images.push(image);
         }
 
-        let mut template = serde_json::to_value(base.request("{{name}}")?)
-            .map_err(|e| package_error(base.dir(), e))?;
+        let mut template = base.template;
         template["kits"] = json!(kits);
         template["kit_artifacts"] = Value::Array(artifacts);
-        let metadata = json!({
+        let mut metadata = json!({
             "forged_by": { "name": "docker-sandbox", "version": env!("CARGO_PKG_VERSION") },
             "compiled_with": { "api_version": self.client.health().api_version },
             "base": kits.first(),
@@ -267,27 +328,112 @@ impl KitForge {
                 "bytes": image.archive.len(),
             })).collect::<Vec<_>>(),
         });
+        if let Some(image) = base.image {
+            metadata["base_image"] = json!(image);
+        }
         let archives: Vec<&[u8]> = images.iter().map(|i| i.archive.as_slice()).collect();
         write_package(&output, &template, &metadata, &archives)?;
         KitPackage::open(&output)
     }
 
-    /// Refuses to forge when the kit policy of the daemon forbids local kits
-    /// or requires signed ones. A setting the daemon does not know keeps its
-    /// default, which allows forging.
-    async fn check_policy(&self) -> Result<()> {
-        if self.setting(ALLOW_LOCAL_KITS).await? == Some(Value::Bool(false)) {
+    /// The base kit, once the kit policy of the daemon is checked: taken from
+    /// its package, or rebuilt from its image.
+    async fn resolve_base(&self) -> Result<ResolvedBase> {
+        match &self.base {
+            None => Err(Error::Forge(
+                "no base kit: give a published kit with `with_base` or a compiled package with \
+                 `with_base_package`"
+                    .to_owned(),
+            )),
+            Some(Base::Package(package)) => {
+                if !self.args.is_empty() {
+                    return Err(Error::Forge(
+                        "kit arguments apply to a published base kit: a compiled package holds \
+                         the values it was compiled with"
+                            .to_owned(),
+                    ));
+                }
+                if self.mixins.is_empty() {
+                    return Err(Error::Forge(
+                        "no mixin to forge on the compiled package".to_owned(),
+                    ));
+                }
+                self.check_policy(None).await?;
+                let template = serde_json::to_value(package.request("{{name}}")?)
+                    .map_err(|e| package_error(package.dir(), e))?;
+                Ok(ResolvedBase {
+                    template,
+                    reference: package.kit_refs().into_iter().next().unwrap_or_default(),
+                    artifact: package
+                        .kit_artifacts()
+                        .into_iter()
+                        .next()
+                        .unwrap_or_default(),
+                    image: None,
+                })
+            }
+            Some(Base::Published(requested)) => {
+                let reference = base::Reference::parse(requested)?;
+                self.check_policy(Some(&reference)).await?;
+                let kit = base::rebuild(&self.client, &reference, &self.args).await?;
+                let mut template = json!({
+                    "name": "{{name}}",
+                    "agent": kit.name,
+                    "enable_virtiofs_cache": true,
+                    "pull_policy": "missing",
+                });
+                if !self.args.is_empty() {
+                    template["kit_args"] = json!(self.args);
+                }
+                Ok(ResolvedBase {
+                    template,
+                    reference: kit.reference,
+                    artifact: kit.artifact,
+                    image: Some(requested.clone()),
+                })
+            }
+        }
+    }
+
+    /// Refuses to forge when the kit policy of the daemon requires signed
+    /// kits, forbids local kits and there are mixins, or does not allow the
+    /// source of the published base kit `published`.
+    async fn check_policy(&self, published: Option<&base::Reference>) -> Result<()> {
+        if self.setting(REQUIRE_SIGNATURE).await? == Some(Value::Bool(true)) {
+            return Err(Error::Forge(format!(
+                "the daemon requires signed kits ({REQUIRE_SIGNATURE} is on), and forging can \
+                 neither check nor give a signature"
+            )));
+        }
+        if !self.mixins.is_empty()
+            && self.setting(ALLOW_LOCAL_KITS).await? == Some(Value::Bool(false))
+        {
             return Err(Error::Forge(format!(
                 "the daemon forbids local kits ({ALLOW_LOCAL_KITS} is off)"
             )));
         }
-        if self.setting(REQUIRE_SIGNATURE).await? == Some(Value::Bool(true)) {
-            return Err(Error::Forge(format!(
-                "the daemon requires signed kits ({REQUIRE_SIGNATURE} is on), and a forged kit \
-                 carries no signature"
-            )));
+        let Some(reference) = published else {
+            return Ok(());
+        };
+        let sources: Vec<String> = match self.setting(ALLOWED_SOURCES).await? {
+            None => DEFAULT_SOURCES.iter().map(|&s| s.to_owned()).collect(),
+            Some(value) => serde_json::from_value(value).map_err(|_| {
+                Error::Forge(format!(
+                    "the daemon holds a {ALLOWED_SOURCES} that is not a list of prefixes"
+                ))
+            })?,
+        };
+        let repository = &reference.repository;
+        if sources
+            .iter()
+            .any(|prefix| prefix == "*" || repository.starts_with(prefix.as_str()))
+        {
+            return Ok(());
         }
-        Ok(())
+        Err(Error::Forge(format!(
+            "the daemon only allows kits from {} ({ALLOWED_SOURCES}), not {repository}",
+            sources.join(", ")
+        )))
     }
 
     /// The value of the setting `key`, `None` when the daemon does not know

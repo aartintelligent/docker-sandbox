@@ -45,9 +45,10 @@ live = []
 # `SecretString` is passed on without being exposed.
 secrecy = ["dep:secrecy"]
 # `KitForge`, `KitDescriptor` and `Mixin`: writes kit packages without the `sbx`
-# CLI, the mixins forged from their descriptor. Needs the SHA-256 digests of
-# the OCI image layouts it writes (`sha2`).
-kit-forge = ["dep:sha2"]
+# CLI, the mixins forged from their descriptor and the base kit rebuilt from its
+# published image. Needs the SHA-256 digests of the OCI image layouts it writes
+# (`sha2`), and the patterns kit arguments declare for their values (`regex`).
+kit-forge = ["dep:regex", "dep:sha2"]
 
 [dependencies]
 bytes            = { workspace = true }
@@ -66,6 +67,7 @@ tokio            = { workspace = true, features = ["fs", "io-util", "macros", "n
 tracing          = { workspace = true }
 zeroize          = { workspace = true }
 secrecy          = { workspace = true, optional = true }
+regex            = { workspace = true, optional = true }
 sha2             = { workspace = true, optional = true }
 
 [dev-dependencies]
