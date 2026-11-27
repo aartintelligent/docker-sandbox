@@ -16,7 +16,8 @@
 //! Otherwise the daemon withholds it, accepts a value pushed for its service
 //! all the same, and names the service in [`CredentialsOutcome::withheld`]:
 //! the value is not injected. Custom secrets, which target hosts rather than
-//! declared services, do not depend on bindings.
+//! declared services, do not depend on bindings: a [`ProxiedKey`](super::ProxiedKey)
+//! gives an agent its key that way.
 
 use std::collections::BTreeMap;
 use std::fmt;
