@@ -194,6 +194,16 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   (`bindings_path`) authorizes it; pushing a value is not enough. Custom
   secrets, which target hosts rather than declared services, do not depend on
   it (see "Secrets").
+- **The credential of an agent through the socket alone** (`create-ag` …
+  `probe-ag-removed`, the claude kit rebuilt without the CLI, its own
+  credential withheld): the variable the agent reads its key from
+  (`ANTHROPIC_API_KEY`) is set to a placeholder at creation (`environment`),
+  and a dummy custom secret for that placeholder is pushed for a host (the
+  echo service, standing for the API). A request carrying the placeholder in
+  `x-api-key` reaches the host with the value instead (its digest checked),
+  the placeholder before the push and after the removal; a search of the
+  files of the sandbox as root finds no value. A program gives an agent its
+  key this way, with no bindings file and no CLI.
 - **Tool**: `audit kit-compile <dir>… [--base shell] [--kit-arg k=v]` writes
   `target/audit/kits/<name>/` (`kit.json`, `create-body.json` with
   `"name": "{{name}}"`, `images/NN.oci.tar`), cleans the daemon up, then verifies

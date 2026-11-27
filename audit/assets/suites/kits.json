@@ -1775,6 +1775,186 @@
         "-f"
       ],
       "note": "the pushed value goes with the sandbox"
+    },
+    {
+      "name": "kit-forge-agent",
+      "category": "kit-agent-secret",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json-l",
+        "--base-image",
+        "docker.io/sbx/claude:latest",
+        "--out",
+        "{work}/kit-forged-agent"
+      ],
+      "note": "the claude kit rebuilt through the socket, nothing from the CLI"
+    },
+    {
+      "name": "load-forged-agent",
+      "category": "kit-agent-secret",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-agent/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-ag",
+      "category": "kit-agent-secret",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-agent/create-body.json",
+        "replace": {
+          "\"name\": \"{{name}}\"": "\"name\": \"audit-ag\", \"environment\": {\"ANTHROPIC_API_KEY\": \"sbx-cs-auditagent0123\"}"
+        }
+      },
+      "note": "the variable the agent reads its key from holds a placeholder, set at creation (CreateRequest::with_env); the credential the kit declares is withheld"
+    },
+    {
+      "name": "session-hold-ag",
+      "category": "kit-agent-secret",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-ag/session",
+        "hold": "audit-ag"
+      }
+    },
+    {
+      "name": "credentials-ag-empty",
+      "category": "kit-agent-secret",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ag/credentials",
+        "body": {}
+      }
+    },
+    {
+      "name": "start-ag",
+      "category": "kit-agent-secret",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ag/start",
+        "body": {}
+      }
+    },
+    {
+      "name": "probe-ag-before",
+      "category": "kit-agent-secret",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ag/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "curl -sS -m 20 https://postman-echo.com/headers -H \"x-api-key: $ANTHROPIC_API_KEY\" | python3 -c \"import hashlib, json, os, sys; h = json.load(sys.stdin)['headers'].get('x-api-key'); print('x-api-key=%s' % ('absent' if h is None else 'placeholder' if h == os.environ['ANTHROPIC_API_KEY'] else 'replaced sha256:' + hashlib.sha256(h.encode()).hexdigest()[:16]))\""
+          ]
+        }
+      },
+      "note": "before the secret: the echo service receives the placeholder"
+    },
+    {
+      "name": "push-ag-custom-secret",
+      "category": "kit-agent-secret",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ag/credentials",
+        "body": {
+          "custom_secrets": [
+            {
+              "env_name": "ANTHROPIC_API_KEY",
+              "sentinel": "sbx-cs-auditagent0123",
+              "target": "postman-echo.com",
+              "targets": [
+                "postman-echo.com"
+              ],
+              "value": "audit-agent-dummy-value-not-a-secret"
+            }
+          ]
+        }
+      },
+      "note": "a dummy custom secret for the placeholder, sent to the echo service only"
+    },
+    {
+      "name": "probe-ag-after",
+      "category": "kit-agent-secret",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ag/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "curl -sS -m 20 https://postman-echo.com/headers -H \"x-api-key: $ANTHROPIC_API_KEY\" | python3 -c \"import hashlib, json, os, sys; h = json.load(sys.stdin)['headers'].get('x-api-key'); print('x-api-key=%s' % ('absent' if h is None else 'placeholder' if h == os.environ['ANTHROPIC_API_KEY'] else 'replaced sha256:' + hashlib.sha256(h.encode()).hexdigest()[:16]))\""
+          ]
+        }
+      },
+      "note": "the proxy puts the value in place of the placeholder in the x-api-key header: the echo service receives the dummy value, whose digest is printed, never the value"
+    },
+    {
+      "name": "search-ag-value",
+      "category": "kit-agent-secret",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ag/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "echo \"env ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY\"; grep -rlsF -e audit-agent-dummy-value-not-a-secret /home /root /tmp /etc /run /var /opt /usr/local 2>/dev/null; echo \"searched\""
+          ],
+          "user": "0"
+        }
+      },
+      "note": "the sandbox holds the placeholder only: a search of its files as root finds no value"
+    },
+    {
+      "name": "remove-ag-custom-secret",
+      "category": "kit-agent-secret",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ag/credentials",
+        "body": {
+          "custom_secrets": []
+        }
+      }
+    },
+    {
+      "name": "probe-ag-removed",
+      "category": "kit-agent-secret",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-ag/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "curl -sS -m 20 https://postman-echo.com/headers -H \"x-api-key: $ANTHROPIC_API_KEY\" | python3 -c \"import hashlib, json, os, sys; h = json.load(sys.stdin)['headers'].get('x-api-key'); print('x-api-key=%s' % ('absent' if h is None else 'placeholder' if h == os.environ['ANTHROPIC_API_KEY'] else 'replaced sha256:' + hashlib.sha256(h.encode()).hexdigest()[:16]))\""
+          ]
+        }
+      },
+      "note": "once removed, the placeholder reaches the echo service as it is"
+    },
+    {
+      "name": "session-release-ag",
+      "category": "kit-agent-secret",
+      "release": "audit-ag"
+    },
+    {
+      "name": "rm-ag",
+      "category": "kit-agent-secret",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-ag",
+        "-f"
+      ],
+      "note": "sbx rm pushes no credential"
     }
   ]
 }
