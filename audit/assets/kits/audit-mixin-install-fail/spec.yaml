@@ -1,0 +1,13 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Audit mixin install failure
+description: Test mixin of the docker-sbx audit, whose install command writes a marker and exits with code 3.
+version: "0.1.0"
+capabilities:
+  - type: com.docker.sandbox/lifecycle@1
+    config:
+      install:
+        - command: echo "audit-mixin-install-fail ran" > /tmp/audit-install-fail.txt; exit 3
+          user: agent
+          description: Writes a marker, then fails

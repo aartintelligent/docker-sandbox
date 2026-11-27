@@ -6,7 +6,8 @@
 //! |---|---|
 //! | `suites/*.json` | Scenario suites, replayed in [`SUITES`] order |
 //! | `kits/audit-mixin-v3/` | Test mixin used by the `kits` suite and the live tests |
-//! | `kits/audit-mixin-{net,net-install,cred,cred-required,cred-echo,mcp}/` | Test mixins of the `kits` suite: network rules, credentials, MCP gateway |
+//! | `kits/audit-mixin-{net,net-install,cred,cred-required,cred-echo,mcp,install-fail}/` | Test mixins of the `kits` suite: network rules, credentials, MCP gateway, a failing install command |
+//! | `kits/audit-mixin-net-{lock,extra}/` | Test mixins of the `network` suite: a deny of every host with one allowed, another host allowed |
 //! | `kits/audit-mixin-json{,-b,…,-l}/` | Test mixins written in the JSON subset of YAML, forged by `kit-forge` |
 //! | `fixtures/` | Input files of the scenarios (`{fixtures}`) |
 //! | `notes.md` | Hand-written observations, inserted into `API.md` |
@@ -32,6 +33,7 @@ pub(crate) const SUITES: &[(&str, &str)] = &[
     ("kits", include_str!("../assets/suites/kits.json")),
     ("errors", include_str!("../assets/suites/errors.json")),
     ("agents", include_str!("../assets/suites/agents.json")),
+    ("network", include_str!("../assets/suites/network.json")),
 ];
 
 /// Hand-written observations inserted into `API.md`.
@@ -90,6 +92,18 @@ const KITS: &[(&str, &str)] = &[
     (
         "audit-mixin-cred-echo/spec.yaml",
         include_str!("../assets/kits/audit-mixin-cred-echo/spec.yaml"),
+    ),
+    (
+        "audit-mixin-install-fail/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-install-fail/spec.yaml"),
+    ),
+    (
+        "audit-mixin-net-lock/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-net-lock/spec.yaml"),
+    ),
+    (
+        "audit-mixin-net-extra/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-net-extra/spec.yaml"),
     ),
     (
         "audit-mixin-json/spec.yaml",
