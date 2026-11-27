@@ -180,6 +180,20 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   credential of its own declaration. The suite never runs the CLI on the
   claude kit: `exec`, `run`, `cp`, `kit add` and `port publish` push the
   stored credentials of the user before acting (`policy ls` and `rm` do not).
+- **A withheld credential stays withheld** (`assets/kits/audit-mixin-cred-echo`,
+  a credential of a service no secret can be named after, injected into a
+  header of the public echo service; `create-wc` … `probe-wc-after`): a
+  sandbox created through the socket without a bindings file answers
+  `"withheld": ["audit-withheld-probe"]`; a dummy value then pushed for that
+  service (`credential_values` and `credential_sources`, as
+  `Sandbox::push_service_secret` sends them) is accepted
+  (`"credential_source_updates_applied": true`), shows in the
+  `credential_sources` of the sandbox, but the answer lists the service as
+  withheld again and the echo service receives no such header. A credential a
+  kit declares is injected only when the bindings file the daemon reads
+  (`bindings_path`) authorizes it; pushing a value is not enough. Custom
+  secrets, which target hosts rather than declared services, do not depend on
+  it (see "Secrets").
 - **Tool**: `audit kit-compile <dir>… [--base shell] [--kit-arg k=v]` writes
   `target/audit/kits/<name>/` (`kit.json`, `create-body.json` with
   `"name": "{{name}}"`, `images/NN.oci.tar`), cleans the daemon up, then verifies

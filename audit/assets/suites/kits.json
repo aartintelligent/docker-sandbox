@@ -1631,6 +1631,150 @@
         "-f"
       ],
       "note": "sbx rm pushes no credential"
+    },
+    {
+      "name": "kit-compile-cred-echo",
+      "category": "kit-credentials",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-compile",
+        "{kits}/audit-mixin-cred-echo",
+        "--out",
+        "{work}/kit-package-cred-echo"
+      ],
+      "note": "the shell kit and a mixin declaring a credential, compiled by the CLI; the package holds no bindings file"
+    },
+    {
+      "name": "load-cred-echo-source",
+      "category": "kit-credentials",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-package-cred-echo/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-wc",
+      "category": "kit-credentials",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-package-cred-echo/create-body.json",
+        "replace": {
+          "{{name}}": "audit-wc"
+        }
+      },
+      "note": "created through the socket without a bindings file: the creation answers withheld [\"audit-withheld-probe\"]"
+    },
+    {
+      "name": "session-hold-wc",
+      "category": "kit-credentials",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-wc/session",
+        "hold": "audit-wc"
+      }
+    },
+    {
+      "name": "credentials-wc-empty",
+      "category": "kit-credentials",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-wc/credentials",
+        "body": {}
+      }
+    },
+    {
+      "name": "start-wc",
+      "category": "kit-credentials",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-wc/start",
+        "body": {}
+      }
+    },
+    {
+      "name": "probe-wc-before",
+      "category": "kit-credentials",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-wc/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "curl -sS -m 20 https://postman-echo.com/headers | python3 -c \"import json, sys; h = json.load(sys.stdin)['headers']; print('x-audit-withheld=%s' % h.get('x-audit-withheld'))\""
+          ]
+        }
+      },
+      "note": "the declared header is absent from the request the echo service receives"
+    },
+    {
+      "name": "push-wc-credential",
+      "category": "kit-credentials",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-wc/credentials",
+        "body": {
+          "credential_values": [
+            {
+              "service": "audit-withheld-probe",
+              "value": "dummy-withheld-probe-not-a-secret"
+            }
+          ],
+          "credential_sources": {
+            "audit-withheld-probe": {
+              "source": "SANDBOX_STORED_CREDENTIAL_AUDIT_WC_AUDIT_WITHHELD_PROBE",
+              "type": "env"
+            }
+          }
+        }
+      },
+      "note": "accepted (credential_source_updates_applied), the answer still lists the service as withheld"
+    },
+    {
+      "name": "probe-wc-after",
+      "category": "kit-credentials",
+      "request": {
+        "method": "POST",
+        "path": "/sandbox/audit-wc/exec",
+        "body": {
+          "cmd": [
+            "sh",
+            "-c",
+            "curl -sS -m 20 https://postman-echo.com/headers | python3 -c \"import json, sys; h = json.load(sys.stdin)['headers']; print('x-audit-withheld=%s' % h.get('x-audit-withheld'))\""
+          ]
+        }
+      },
+      "note": "the header is still absent: a value pushed through the socket does not lift withheld, the binding is what authorizes a declared credential"
+    },
+    {
+      "name": "inspect-wc",
+      "category": "kit-credentials",
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-wc"
+      },
+      "note": "the pushed source shows in credential_sources, unused"
+    },
+    {
+      "name": "session-release-wc",
+      "category": "kit-credentials",
+      "release": "audit-wc"
+    },
+    {
+      "name": "rm-wc",
+      "category": "kit-credentials",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-wc",
+        "-f"
+      ],
+      "note": "the pushed value goes with the sandbox"
     }
   ]
 }

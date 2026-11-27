@@ -6,7 +6,7 @@
 //! |---|---|
 //! | `suites/*.json` | Scenario suites, replayed in [`SUITES`] order |
 //! | `kits/audit-mixin-v3/` | Test mixin used by the `kits` suite and the live tests |
-//! | `kits/audit-mixin-{net,net-install,cred,cred-required,mcp}/` | Test mixins of the `kits` suite: network rules, credentials, MCP gateway |
+//! | `kits/audit-mixin-{net,net-install,cred,cred-required,cred-echo,mcp}/` | Test mixins of the `kits` suite: network rules, credentials, MCP gateway |
 //! | `kits/audit-mixin-json{,-b,…,-k}/` | Test mixins written in the JSON subset of YAML, forged by `kit-forge` |
 //! | `fixtures/` | Input files of the scenarios (`{fixtures}`) |
 //! | `notes.md` | Hand-written observations, inserted into `API.md` |
@@ -86,6 +86,10 @@ const KITS: &[(&str, &str)] = &[
     (
         "audit-mixin-mcp/spec.yaml",
         include_str!("../assets/kits/audit-mixin-mcp/spec.yaml"),
+    ),
+    (
+        "audit-mixin-cred-echo/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-cred-echo/spec.yaml"),
     ),
     (
         "audit-mixin-json/spec.yaml",
