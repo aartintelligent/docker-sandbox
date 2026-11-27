@@ -356,9 +356,14 @@ jobs:
       - uses: crate-ci/committed@v1.1.12
         with:
           args: -vv --no-merge-commit
-          # The default range walks `HEAD~N` through the merge commit's first
-          # parent, which is `main`, so it falls off the end of a short history.
-          commits: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+          # The commits of the pull request alone: those of its head that its
+          # base branch, as fetched, does not hold. The default range walks
+          # `HEAD~N` through the merge commit's first parent, which is `main`,
+          # so it falls off the end of a short history; and the `base.sha` of
+          # the event can name a commit no longer fetched, the old tip of a
+          # stacked branch merged and deleted before the pull request above it
+          # is rebased onto `main` ("revspec not found").
+          commits: origin/${{ github.base_ref }}..${{ github.event.pull_request.head.sha }}
 
   # Single required status check for branch protection — green only when every
   # job it needs to be succeeded or was skipped.
