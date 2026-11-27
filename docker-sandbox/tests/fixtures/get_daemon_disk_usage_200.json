@@ -6,27 +6,27 @@
     "images": [
       {
         "containers": 0,
-        "created_at": "2026-11-24T16:40:49.758090207Z",
-        "id": "sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245",
+        "created_at": "2026-11-27T02:24:32.503373223Z",
+        "id": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
         "names": [
-          "docker.io/library/sandbox-kit-assembled:abcb8e131d141d15",
-          "docker.io/sbx/claude@sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245"
+          "docker.io/library/sandbox-kit-assembled:a17f21961034ae91",
+          "docker.io/sbx/claude@sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783"
         ],
-        "shared_size": 26359,
-        "size": 1553662206,
-        "unique_size": 1553635847
+        "shared_size": 0,
+        "size": 1578855587,
+        "unique_size": 1578855587
       },
       {
         "containers": 0,
-        "created_at": "2026-11-24T18:05:17.985405567Z",
-        "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "created_at": "2026-11-27T02:45:21.374703202Z",
+        "id": "sha256:ce985e32b6a93628c6b67c866e1b2d55513ba4c7ee6e29de805aabe088109c5c",
         "names": [
-          "docker.io/library/sandbox-kit-assembled:c1400a176754093d",
-          "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d"
+          "docker.io/library/sandbox-kit-assembled:b8ac0e203ed3c470",
+          "docker.io/sbx/claude:latest"
         ],
-        "shared_size": 11445,
-        "size": 1022536530,
-        "unique_size": 1022525085
+        "shared_size": 0,
+        "size": 1584057165,
+        "unique_size": 1584057165
       },
       {
         "containers": 0,
@@ -38,6 +38,50 @@
         "shared_size": 26359,
         "size": 1553528920,
         "unique_size": 1553502561
+      },
+      {
+        "containers": 0,
+        "created_at": "2026-11-24T16:40:49.483215493Z",
+        "id": "sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245",
+        "names": [
+          "docker.io/sbx/claude@sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245"
+        ],
+        "shared_size": 26359,
+        "size": 1553662206,
+        "unique_size": 1553635847
+      },
+      {
+        "containers": 0,
+        "created_at": "2026-11-25T12:13:57.825027879Z",
+        "id": "sha256:78d62f3672e480ed2d07859c0b81c4bccd3fb0f27b4c0304220e09d54fea6dfd",
+        "names": [
+          "docker.io/sbx/copilot@sha256:78d62f3672e480ed2d07859c0b81c4bccd3fb0f27b4c0304220e09d54fea6dfd"
+        ],
+        "shared_size": 0,
+        "size": 1358202263,
+        "unique_size": 1358202263
+      },
+      {
+        "containers": 0,
+        "created_at": "2026-11-25T09:25:23.426224768Z",
+        "id": "sha256:3084dab04596ca3ec52b09f1ab7826bbf4c2b1903fd9b365d186dbecc0b0a4fc",
+        "names": [
+          "docker.io/sbx/opencode@sha256:3084dab04596ca3ec52b09f1ab7826bbf4c2b1903fd9b365d186dbecc0b0a4fc"
+        ],
+        "shared_size": 0,
+        "size": 1305950120,
+        "unique_size": 1305950120
+      },
+      {
+        "containers": 0,
+        "created_at": "2026-11-24T11:59:05.351292274Z",
+        "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+        "names": [
+          "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d"
+        ],
+        "shared_size": 11445,
+        "size": 1022536530,
+        "unique_size": 1022525085
       },
       {
         "containers": 0,
@@ -54,9 +98,9 @@
     "summaries": [
       {
         "active": 0,
-        "reclaimable": 5152156484,
-        "size": 5152156484,
-        "total_count": 4,
+        "reclaimable": 10979221619,
+        "size": 10979221619,
+        "total_count": 8,
         "type": "Images"
       },
       {
