@@ -4,6 +4,8 @@
 //! here, so that their own code stays about the library:
 //!
 //! - [`connect`] reaches the daemon of the current user;
+//! - [`kit::forged`] forges a published kit without the `sbx` CLI, for the
+//!   agent examples;
 //! - [`kit::package`] compiles a kit once with the `sbx` CLI and caches it,
 //!   [`kit::package_with_mixin`] a composition with a mixin, and
 //!   [`kit::package_with_args`] a kit with arguments;
