@@ -35,9 +35,11 @@ mod artifact;
 mod base;
 mod descriptor;
 mod export;
+mod mcp;
 mod oci;
 
 pub use self::descriptor::{KitDescriptor, LifecycleStep};
+pub use self::mcp::McpServer;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};

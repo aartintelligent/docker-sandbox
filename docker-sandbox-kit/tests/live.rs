@@ -9,7 +9,8 @@
 //!
 //! The tests create sandboxes from packages forged through the socket alone:
 //! `shell` and `claude` rebuilt from their published image, `claude` with two of
-//! its arguments, and a forged mixin. They need no package and no `sbx` CLI.
+//! its arguments, an MCP server registered in Claude Code by a mixin, and a
+//! forged mixin. They need no package and no `sbx` CLI.
 //! The agent of `claude` is never started: resolved as the CLI resolves it,
 //! the kit is authorized the credential the daemon holds for `anthropic`,
 //! which the proxy would write into requests to the hosts of Anthropic, and
@@ -32,7 +33,7 @@ use docker_sandbox::Client;
 use docker_sandbox::exec::ExecSpec;
 use docker_sandbox::image::ImageSummary;
 use docker_sandbox::sandbox::{ProxiedKey, Sandbox};
-use docker_sandbox_kit::{KitDescriptor, KitForge, LifecycleStep, Mixin, Result};
+use docker_sandbox_kit::{Agent, KitDescriptor, KitForge, LifecycleStep, McpServer, Mixin, Result};
 
 /// A sandbox name unique to this test run.
 fn sandbox_name(test: &str) -> String {
@@ -225,19 +226,26 @@ async fn forged_package_on_the_published_shell_kit() -> Result<()> {
     .await
 }
 
-/// The claude kit rebuilt from its image with two of its arguments, and
-/// a forged mixin. The agent is never started.
+/// The claude kit rebuilt from its image with two of its arguments, an MCP
+/// server registered by a mixin and a forged mixin, built in memory. The
+/// agent is never started, and Claude Code never connects to the server: the
+/// test reads what the install command of the mixin registered.
 #[tokio::test]
 async fn claude_rebuilt_with_its_arguments() -> Result<()> {
-    run("forged-claude", |client, name, dir| async move {
-        let package = KitForge::new(client.clone())
-            .with_base("docker.io/sbx/claude:latest")
+    run("forged-claude", |client, name, _dir| async move {
+        let tools = McpServer::host("docker-sandbox-live", 47813);
+        let package = KitForge::agent(client.clone(), Agent::Claude)
             .with_arg("model", "claude-haiku-5-5")
             .with_arg("reasoningEffort", "low")
+            .with_mixin(Mixin::mcp(Agent::Claude, [tools.clone()])?)
             .with_mixin(mixin())
-            .forge(dir.join("claude+forged"))
+            .build()
             .await?;
-        let created = package.create(&client, &name).await?;
+        // The token of the server is given at creation, a dummy one.
+        let request = package
+            .request(&name)?
+            .with_env(tools.token_env().unwrap(), "docker-sandbox-live-token");
+        let created = package.create_with(&client, &request).await?;
         // Resolved as the CLI resolves it, the kit is authorized the
         // credential it declares, without a bindings file: the daemon
         // withholds nothing. With its effective capabilities in another
@@ -262,6 +270,18 @@ async fn claude_rebuilt_with_its_arguments() -> Result<()> {
         )
         .await?;
         assert_eq!(settings, "claude-haiku-5-5 low\n");
+        // Only the server of the mixin is read from the configuration of
+        // Claude Code, which `claude mcp add` wrote at install time.
+        let registered = shell(
+            &sandbox,
+            "python3 -c \"import json; s = json.load(open('/home/agent/.claude.json'))['mcpServers']\
+             ['docker-sandbox-live']; print(s['type'], s['url'], s['headers']['Authorization'])\"",
+        )
+        .await?;
+        assert_eq!(
+            registered,
+            "http http://host.docker.internal:47813/mcp Bearer docker-sandbox-live-token\n"
+        );
         assert!(
             sandbox
                 .exec(&ExecSpec::new([

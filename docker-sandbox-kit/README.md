@@ -130,6 +130,44 @@ base kit, forged or compiled, for another composition, without pulling the
 image again. A forged package is tied to the API of the daemon it was forged
 for, a compiled one to the `sbx` version that compiled it.
 
+## MCP servers for the agent
+
+The daemon only loads into the gateway of a sandbox the MCP servers registered
+with `sbx mcp add`, which writes a file of its state. `Mixin::mcp` gives the
+agent its servers another way, with nothing written on the host: a mixin whose
+install commands register them in the configuration of the agent, inside the
+sandbox, as the kit of the agent registers the gateway. Claude has that
+adapter (`claude mcp add`); the other agents do not yet.
+
+```rust,no_run
+use docker_sandbox::Client;
+use docker_sandbox_kit::{Agent, KitForge, McpServer, Mixin};
+
+# async fn run(client: Client, token: &str) -> docker_sandbox_kit::Result<()> {
+// Served by a process of the host, in any language, on a loopback port.
+let tools = McpServer::host("tools", 47813);
+// Called by the agent itself, its token from a variable of the sandbox.
+let docs = McpServer::remote("docs", "https://mcp.example.com/mcp").with_bearer_env("DOCS_TOKEN");
+let package = KitForge::agent(client.clone(), Agent::Claude)
+    .with_mixin(Mixin::mcp(Agent::Claude, [tools.clone(), docs])?)
+    .build()
+    .await?;
+// The tokens are given at creation: one package, a token per sandbox.
+let request = package
+    .request("job-42")?
+    .with_env(tools.token_env().unwrap_or_default(), token)
+    .with_env("DOCS_TOKEN", "the placeholder of a ProxiedKey for mcp.example.com");
+package.create_with(&client, &request).await?;
+# Ok(())
+# }
+```
+
+A server of the host is reached at `http://host.docker.internal:<port>/mcp`,
+and checks the bearer token the sandbox holds: random, and its own. For a
+remote server, the variable holds the placeholder of a `ProxiedKey`, so that
+the proxy writes the key in its place and the sandbox never holds it. The
+mixin allows the host of each server.
+
 The [`shell-forge`](../examples/shell-forge/src/main.rs) and
 [`agent-kit-forge`](../examples/agent-kit-forge/src/main.rs) examples of the
 repository run all of this against the real daemon.
@@ -138,7 +176,7 @@ repository run all of this against the real daemon.
 
 | Feature | Adds |
 |---|---|
-| `forge` (default) | `KitForge`, `KitDescriptor`, `LifecycleStep` and `Mixin` |
+| `forge` (default) | `KitForge`, `KitDescriptor`, `LifecycleStep`, `Mixin` and `McpServer` |
 | `compiler` | `KitCompiler` and `CompileJob`; needs the `sbx` CLI at run time |
 | `live` | Nothing to the library: runs the integration tests against the real daemon |
 

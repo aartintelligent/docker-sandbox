@@ -37,7 +37,8 @@ and the examples in a workspace of their own:
   `README.md`, `CHANGELOG.md`):
   - `forge/` (feature `forge`, default): `KitForge`, packages written without the CLI, the base
     kit rebuilt from its published image and mixins from kit descriptors (`KitDescriptor`,
-    `LifecycleStep`, `Mixin`);
+    `LifecycleStep`, `Mixin`), MCP servers registered in the agent by a mixin (`McpServer`,
+    `Mixin::mcp`, claude only);
   - `compiler/` (feature `compiler`): `KitCompiler`, packages compiled once by the CLI behind a
     capturing proxy;
   - `error.rs`: its `Error`, whose `Client` variant keeps the errors of `docker-sandbox`.

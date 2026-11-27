@@ -174,7 +174,12 @@ sandbox gets them as `CLAUDE_MODEL` and `CLAUDE_REASONING_EFFORT`, and in
 without the `sbx` CLI: `KitForge` rebuilds the `claude` kit from its image and
 checks the values against what the kit declares (`KitForge::with_arg`). The
 daemon authorizes the credential of the kit as for a sandbox the CLI creates.
-It starts no agent either.
+It also gives Claude Code the MCP server of the examples, served on a loopback
+port of the host, through a mixin (`Mixin::mcp`): its install command runs
+`claude mcp add` inside the sandbox, so that nothing is registered on the host,
+and the token of the server is given at creation. The example sends the
+`initialize` request of Claude Code from inside the sandbox, to the URL and
+with the header it registered. It starts no agent either.
 
 ### The MCP variants
 
