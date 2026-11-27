@@ -6,8 +6,10 @@
 //! found in the environment, give the keys to its proxy ([`credentials`]),
 //! load the MCP server of the `-mcp` variant and check it from inside the
 //! sandbox, and plug the terminal into the agent session, opened with what
-//! `sbx run` passes from the host ([`host`]). Without a key, the agent offers
-//! its own login inside the session, when it has one.
+//! `sbx run` passes from the host ([`host`]). Without a key, the agent uses
+//! the credential the daemon holds for its kit, such as a subscription,
+//! unless the daemon withholds it (the creation says so); then it offers its
+//! own login inside the session, when it has one.
 
 use anyhow::{Context, Result, bail};
 
@@ -211,7 +213,10 @@ pub async fn run(agent: &Agent, with_mcp: bool) -> Result<()> {
     let outcome = sandbox::with_sandbox_from(&client, &package, &request, |sandbox| async move {
         let _running = sandbox.ensure_running().await?;
         if keys.is_empty() {
-            eprintln!("no key in the environment: the agent offers its own login, if it has one");
+            eprintln!(
+                "no key in the environment: the agent uses the credential the daemon holds for \
+                 its kit, or offers its own login"
+            );
         } else {
             sandbox.push_proxied_keys(&keys).await?;
             eprintln!(

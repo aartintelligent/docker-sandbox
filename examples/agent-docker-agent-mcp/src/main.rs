@@ -6,7 +6,7 @@
 //! registration are removed when the session ends. When `sbx` starts this
 //! binary as the MCP server, it serves MCP instead of running the example.
 //!
-//! Credentials: the key of any model provider, as for OpenCode. It reaches the agent as a placeholder the proxy replaces; without any, log in inside the session.
+//! Credentials: the key of any model provider, as for OpenCode. It reaches the agent as a placeholder the proxy replaces; without any, the credential the daemon holds for the kit serves, or log in inside the session.
 //!
 //! ```sh
 //! just example agent-docker-agent-mcp
