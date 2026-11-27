@@ -1,0 +1,31 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Audit mixin MCP
+description: Test mixin of the docker-sbx audit, records the MCP gateway its install and startup commands are given.
+version: "0.1.0"
+capabilities:
+  - type: com.docker.sandbox/lifecycle@1
+    config:
+      install:
+        - command: |
+            {
+              echo "url=${MCP_GATEWAY_URL:-unset}"
+              if [ -n "$MCP_SENTINEL_TOKEN_NAME" ]; then echo "token=set"; else echo "token=unset"; fi
+            } > /home/agent/audit-mcp-install.txt
+          user: agent
+          description: Records the MCP gateway at install time
+          env:
+            - MCP_GATEWAY_URL
+            - MCP_SENTINEL_TOKEN_NAME
+      startup:
+        - command: |
+            {
+              echo "url=${MCP_GATEWAY_URL:-unset}"
+              if [ -n "$MCP_SENTINEL_TOKEN_NAME" ]; then echo "token=set"; else echo "token=unset"; fi
+            } > /tmp/audit-mcp-startup.txt
+          user: agent
+          description: Records the MCP gateway at each start
+          env:
+            - MCP_GATEWAY_URL
+            - MCP_SENTINEL_TOKEN_NAME

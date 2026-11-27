@@ -1,0 +1,25 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Audit mixin credential echo
+description: Test mixin of the docker-sbx audit, declares an optional credential of a service no secret can be named after, injected into a header of the public echo service.
+version: "0.1.0"
+capabilities:
+  # sbx refuses a credential whose inject domain the kit does not allow.
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      runtime:
+        allow:
+          - postman-echo.com:443
+  - type: com.docker.sandbox/credential@1
+    name: Audit withheld probe
+    description: Dummy credential of the audit
+    optional: true
+    config:
+      service: audit-withheld-probe
+      phase: runtime
+      apiKey:
+        inject:
+          - domain: postman-echo.com
+            header: X-Audit-Withheld
+            format: "%s"

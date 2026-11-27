@@ -27,6 +27,7 @@
 //! | `spy` | Interactive capture of the CLI traffic |
 //! | `summarize` | Route catalog and scenario matrix of a capture |
 //! | `kit-compile` | Kit packages replayable through the socket alone |
+//! | `kit-forge` | Experiment: the package of a v3 mixin written without the CLI |
 //! | `raw`, `replay` | Arbitrary or captured requests sent straight to the socket |
 //!
 //! Run it as the user owning the daemon, with a pinned `sbx` version.
@@ -43,7 +44,9 @@ mod assets;
 mod client;
 mod compare;
 mod fixtures;
+mod kitbase;
 mod kitc;
+mod kitforge;
 mod mcp_echo;
 mod perms;
 mod privacy;
@@ -138,6 +141,8 @@ enum Cmd {
     State(StateArgs),
     /// Compile local kits into a package replayable through the socket alone
     KitCompile(KitCompileArgs),
+    /// Experiment: write the package of a v3 mixin without the sbx CLI
+    KitForge(KitForgeArgs),
     /// Replay a captured request straight to the socket
     Replay(ReplayArgs),
     /// Send an arbitrary request (--upgrade for exec/attach streams)
@@ -169,6 +174,7 @@ impl Cmd {
                 state::run(sock, &args.sbx, &args.file, args.save, args.check).await
             }
             Self::KitCompile(args) => args.run(sock).await,
+            Self::KitForge(args) => args.run(sock).await,
             Self::Replay(args) => {
                 raw::replay(sock, &args.capture, args.conn, args.seq, args.dry_run).await
             }
@@ -715,6 +721,65 @@ impl KitCompileArgs {
             out: &out,
             verify: !self.no_verify,
             timeout: Duration::from_secs(self.timeout_secs),
+        })
+        .await
+    }
+}
+
+/// Arguments of `kit-forge`.
+#[derive(Args)]
+struct KitForgeArgs {
+    /// Kit directory of a v3 mixin, its `spec.yaml` written in the JSON subset of YAML
+    kit: PathBuf,
+    /// Package compiled by `kit-compile` whose base kit is reused
+    #[arg(
+        long,
+        required_unless_present = "base_image",
+        conflicts_with = "base_image"
+    )]
+    base_package: Option<PathBuf>,
+    /// Published base kit rebuilt through the socket, e.g. `docker.io/sbx/shell:latest`
+    #[arg(long)]
+    base_image: Option<String>,
+    /// Output directory (default: `target/audit/kits/<kit name>-forged`)
+    #[arg(long)]
+    out: Option<PathBuf>,
+    /// Top-level fields left out of the mixin artifact, e.g. `commands,v3Selection`
+    #[arg(long, value_delimiter = ',')]
+    omit: Vec<String>,
+    /// Top-level fields left out of the base kit artifact
+    #[arg(long, value_delimiter = ',')]
+    omit_base: Vec<String>,
+    /// Value of an argument the base kit declares, as `name=value` (with `--base-image`)
+    #[arg(long = "base-arg", requires = "base_image")]
+    base_args: Vec<String>,
+    /// Package compiled by the CLI for the same kits, to compare the artifacts
+    #[arg(long)]
+    compare: Option<PathBuf>,
+}
+
+impl KitForgeArgs {
+    async fn run(self, sock: &Path) -> Result<()> {
+        let out = self
+            .out
+            .clone()
+            .unwrap_or_else(|| kitforge::default_out(Path::new(OUTPUT), &self.kit));
+        let base = match (&self.base_package, &self.base_image) {
+            (Some(package), _) => kitforge::BaseSource::Package(package),
+            (None, Some(reference)) => kitforge::BaseSource::Image {
+                reference,
+                socket: sock,
+                args: kitc::parse_kit_args(&self.base_args)?,
+            },
+            (None, None) => bail!("--base-package or --base-image is required"),
+        };
+        kitforge::run(&kitforge::ForgeOpts {
+            kit: &self.kit,
+            base,
+            out: &out,
+            omit: &self.omit,
+            omit_base: &self.omit_base,
+            compare: self.compare.as_deref(),
         })
         .await
     }

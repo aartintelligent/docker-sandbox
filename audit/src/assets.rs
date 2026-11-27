@@ -6,6 +6,8 @@
 //! |---|---|
 //! | `suites/*.json` | Scenario suites, replayed in [`SUITES`] order |
 //! | `kits/audit-mixin-v3/` | Test mixin used by the `kits` suite and the live tests |
+//! | `kits/audit-mixin-{net,net-install,cred,cred-required,cred-echo,mcp}/` | Test mixins of the `kits` suite: network rules, credentials, MCP gateway |
+//! | `kits/audit-mixin-json{,-b,…,-l}/` | Test mixins written in the JSON subset of YAML, forged by `kit-forge` |
 //! | `fixtures/` | Input files of the scenarios (`{fixtures}`) |
 //! | `notes.md` | Hand-written observations, inserted into `API.md` |
 //! | `probe-routes.txt` | Additional routes for `probe` |
@@ -60,10 +62,84 @@ const FIXTURES: &[(&str, &str)] = &[
 ];
 
 /// Kit sources, relative to the kits directory.
-const KITS: &[(&str, &str)] = &[(
-    "audit-mixin-v3/spec.yaml",
-    include_str!("../assets/kits/audit-mixin-v3/spec.yaml"),
-)];
+const KITS: &[(&str, &str)] = &[
+    (
+        "audit-mixin-v3/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-v3/spec.yaml"),
+    ),
+    (
+        "audit-mixin-net/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-net/spec.yaml"),
+    ),
+    (
+        "audit-mixin-net-install/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-net-install/spec.yaml"),
+    ),
+    (
+        "audit-mixin-cred/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-cred/spec.yaml"),
+    ),
+    (
+        "audit-mixin-cred-required/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-cred-required/spec.yaml"),
+    ),
+    (
+        "audit-mixin-mcp/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-mcp/spec.yaml"),
+    ),
+    (
+        "audit-mixin-cred-echo/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-cred-echo/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-b/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-b/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-c/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-c/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-d/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-d/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-e/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-e/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-f/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-f/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-g/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-g/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-h/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-h/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-i/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-i/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-j/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-j/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-k/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-k/spec.yaml"),
+    ),
+    (
+        "audit-mixin-json-l/spec.yaml",
+        include_str!("../assets/kits/audit-mixin-json-l/spec.yaml"),
+    ),
+];
 
 /// Parses the embedded suite `name`.
 ///

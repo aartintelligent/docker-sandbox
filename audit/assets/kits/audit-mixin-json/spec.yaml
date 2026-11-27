@@ -1,0 +1,37 @@
+# syntax=docker/sandbox-kit:3
+{
+  "schemaVersion": "3",
+  "kind": "mixin",
+  "displayName": "Audit mixin JSON",
+  "description": "Test mixin of the docker-sbx audit, written in the JSON subset of YAML so that kit-forge reads it: an install command, a startup command and a dummy allowed host.",
+  "version": "0.1.0",
+  "capabilities": [
+    {
+      "type": "com.docker.sandbox/network-policy@1",
+      "config": {
+        "runtime": {
+          "allow": ["audit-forge-allow.example.com:443"]
+        }
+      }
+    },
+    {
+      "type": "com.docker.sandbox/lifecycle@1",
+      "config": {
+        "install": [
+          {
+            "command": "echo \"audit-mixin-json installed\" > /home/agent/audit-mixin-json.txt",
+            "user": "agent",
+            "description": "Writes a marker file"
+          }
+        ],
+        "startup": [
+          {
+            "command": "echo \"audit-mixin-json started\" > /tmp/audit-mixin-json-startup.txt",
+            "user": "agent",
+            "description": "Writes a marker file at each start"
+          }
+        ]
+      }
+    }
+  ]
+}

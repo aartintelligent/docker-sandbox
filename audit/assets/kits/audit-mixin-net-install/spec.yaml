@@ -1,0 +1,12 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Audit mixin install network
+description: Test mixin of the docker-sbx audit, asks for a dummy host during installation, which only a workload kit may do.
+version: "0.1.0"
+capabilities:
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      install:
+        allow:
+          - audit-kit-install.example.com:443
