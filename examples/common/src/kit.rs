@@ -1,5 +1,5 @@
 //! Kit packages compiled once with the `sbx` CLI, then replayed through the
-//! socket alone.
+//! socket alone, and packages of published kits forged without the CLI.
 //!
 //! The daemon cannot resolve kit references by itself: a package captures what
 //! the CLI sends once, and every later sandbox of that kit is created from it.
@@ -8,15 +8,44 @@
 //! the examples is cached as `<base>+<mixin>`, one with kit arguments as
 //! `<base>@<name>=<value>,…`: delete the first after a change of the
 //! mixin to compile it again.
+//!
+//! [`forged`] needs no CLI: `KitForge` rebuilds a published kit from its image
+//! through the socket, under `examples/target/forged/<kit>`, at every run. The
+//! image is pulled once; later runs only read its export, a few seconds.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use docker_sandbox::Client;
-use docker_sandbox::kit::{CompileJob, KitCompiler, KitPackage};
+use docker_sandbox::kit::{CompileJob, KitCompiler, KitForge, KitPackage};
 
 /// Directory of the cached packages, in the target directory of the examples.
 const CACHE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/kits");
+
+/// Directory of the forged packages, in the target directory of the examples.
+const FORGED: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/forged");
+
+/// Repository of the published kits of `sbx`, one per agent and `shell`.
+const PUBLISHED: &str = "docker.io/sbx";
+
+/// The package of the published kit `kit` (`claude`, `codex`, …), forged
+/// without the `sbx` CLI from `docker.io/sbx/<kit>:latest`. The daemon
+/// authorizes the credential the kit declares as for a sandbox the CLI
+/// creates: the package holds the kit as the CLI resolves it.
+///
+/// # Errors
+///
+/// Fails when the image cannot be pulled or exported, or when the kit holds
+/// a capability the library does not know the CLI to resolve.
+pub async fn forged(client: &Client, kit: &str) -> Result<KitPackage> {
+    let reference = format!("{PUBLISHED}/{kit}:latest");
+    eprintln!("forging the {kit} kit from {reference}, without the sbx CLI");
+    KitForge::new(client.clone())
+        .with_base(&reference)
+        .forge(PathBuf::from(FORGED).join(kit))
+        .await
+        .with_context(|| format!("forging the {kit} kit"))
+}
 
 /// The package of the kit `base` (`shell`, `claude`, `opencode`, …), compiled
 /// on first use.

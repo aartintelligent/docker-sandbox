@@ -17,10 +17,11 @@ the user owning the daemon, with the `sbx` CLI installed: the first run of a
 kit compiles it once with the CLI (see [`common/src/kit.rs`](common/src/kit.rs))
 and caches the package under `examples/target/kits/`. The kit images pulled on
 that occasion stay on the daemon, as the cache of the next sandboxes.
-[`shell-forge`](shell-forge/src/main.rs) and
-[`agent-kit-forge`](agent-kit-forge/src/main.rs) need no CLI at all: they forge
-their packages through the socket alone (`KitForge`, feature `kit-forge`),
-under `examples/target/forged/`.
+The agent examples, [`shell-forge`](shell-forge/src/main.rs) and
+[`agent-kit-forge`](agent-kit-forge/src/main.rs) need no CLI for their kits:
+they forge their packages through the socket alone (`KitForge`, feature
+`kit-forge`), under `examples/target/forged/`, at every run. The `-mcp`
+variants still register their MCP server with `sbx mcp add`.
 
 When a kit declares a credential the daemon does not authorize, the creation
 of a sandbox reports it as withheld, and the examples print it: the daemon
@@ -104,8 +105,13 @@ What they measured on `sbx` v0.54.0:
 ## Coding agents
 
 One example per agent `sbx` knows, and an `-mcp` variant that also gives the
-agent the MCP server of the examples. Each runs the agent session in the
-local terminal; the sandbox is deleted when the session ends.
+agent the MCP server of the examples. Each forges the kit of its agent from
+`docker.io/sbx/<agent>:latest` without the `sbx` CLI
+([`common/src/kit.rs`](common/src/kit.rs)), runs the agent session in the
+local terminal, and deletes the sandbox when the session ends. The library
+refuses a kit that declares a capability it does not know the CLI to
+resolve, with its name: the order of the capabilities, which the daemon
+checks before it authorizes the credential of the kit, would be a guess.
 
 Like `sbx run AGENT [PATH] [-- AGENT_ARGS...]`, an example takes the directory
 the agent works on, mounted read-write at the same path, and arguments for the

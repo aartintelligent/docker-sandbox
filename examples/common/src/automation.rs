@@ -2,10 +2,10 @@
 //! that does not trust the agent.
 //!
 //! [`run`] is the whole flow of the `agent-*-automation` examples, the flow of
-//! a runner: compile the kit once, create a sandbox with the placeholder of
-//! the key found in the environment and give the key to its proxy, mount the
-//! task written on the host as its workspace, run the
-//! agent in its non-interactive mode with a deadline, then check the result
+//! a runner: forge the kit without the `sbx` CLI, create a sandbox with the
+//! placeholder of the key found in the environment and give the key to its
+//! proxy, mount the task written on the host as its workspace, run the agent
+//! in its non-interactive mode with a deadline, then check the result
 //! with the project's own tests, and show what changed and which hosts the
 //! agent reached. The agent works on the files of the host, as with `sbx run`:
 //! nothing is copied back.
@@ -100,7 +100,7 @@ pub async fn run(agent: &Agent, headless: Headless) -> Result<()> {
         );
     }
     let client = connect().await?;
-    let package = kit::package(&client, agent.kit).await?;
+    let package = kit::forged(&client, agent.kit).await?;
     let described = package
         .agent()
         .context("the kit declares no agent program")?;

@@ -1,12 +1,12 @@
 //! Running a coding agent in a throw-away sandbox, with or without an MCP
 //! server.
 //!
-//! [`run`] is the whole flow of the `agent-*` examples: compile the kit of the
-//! agent once, create a sandbox from it with the placeholders of the keys
-//! found in the environment, give the keys to its proxy ([`credentials`]),
-//! load the MCP server of the `-mcp` variant and check it from inside the
-//! sandbox, and plug the terminal into the agent session, opened with what
-//! `sbx run` passes from the host ([`host`]). Without a key, the agent uses
+//! [`run`] is the whole flow of the `agent-*` examples: forge the kit of the
+//! agent without the `sbx` CLI ([`kit::forged`]), create a sandbox from it
+//! with the placeholders of the keys found in the environment, give the keys
+//! to its proxy ([`credentials`]), load the MCP server of the `-mcp` variant
+//! and check it from inside the sandbox, and plug the terminal into the agent
+//! session, opened with what `sbx run` passes from the host ([`host`]). Without a key, the agent uses
 //! the credential the daemon holds for its kit, such as a subscription,
 //! unless the daemon withholds it (the creation says so); then it offers its
 //! own login inside the session, when it has one.
@@ -174,7 +174,7 @@ impl Agent {
 ///
 /// # Errors
 ///
-/// Fails when the kit cannot be compiled, the sandbox cannot be created or
+/// Fails when the kit cannot be forged, the sandbox cannot be created or
 /// started, or the session breaks. The sandbox and the MCP registration are
 /// removed in every case.
 pub async fn run(agent: &Agent, with_mcp: bool) -> Result<()> {
@@ -183,7 +183,7 @@ pub async fn run(agent: &Agent, with_mcp: bool) -> Result<()> {
     }
     let launch = Launch::parse(std::env::args().skip(1))?;
     let client = connect().await?;
-    let package = kit::package(&client, agent.kit).await?;
+    let package = kit::forged(&client, agent.kit).await?;
     let name = sandbox::unique_name(agent.kit);
     let registration = if with_mcp {
         Some(mcp::Registration::add(&client, &format!("{name}-tools")).await?)
