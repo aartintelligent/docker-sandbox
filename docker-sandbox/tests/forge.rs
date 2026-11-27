@@ -1,6 +1,8 @@
 //! Kit packages forged without the `sbx` CLI, against a fake daemon: the
-//! package written, the sandbox created from it through the socket, and the
-//! refusals before anything is written.
+//! package written, the base kit rebuilt from the export of its image and
+//! compared with the artifact the CLI wrote for it, the sandbox created from
+//! the package through the socket, and the refusals before anything is
+//! written.
 
 #![cfg(feature = "kit-forge")]
 #![allow(
@@ -36,11 +38,127 @@ fn base_package(dir: &Path) -> KitPackage {
 }
 
 /// A daemon setting answer of `key` with `value`.
-fn setting(key: &str, value: bool) -> Reply {
+fn setting(key: &str, value: impl Into<Value>) -> Reply {
+    let value = value.into();
     Reply::json(
         200,
         &json!({ "key": key, "value": value, "default": value, "source": "default", "type": "bool" }),
     )
+}
+
+/// The kit artifact of `docker.io/sbx/shell:latest` the CLI wrote, captured
+/// by the audit, and the reference it pinned.
+fn captured_shell() -> (Value, String) {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/post_sandbox_200.json");
+    let fixture: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let request = &fixture["request"];
+    (
+        request["kit_artifacts"][0].clone(),
+        request["kits"][0].as_str().unwrap().to_owned(),
+    )
+}
+
+/// The export of the image of a kit whose index digest is `digest`, whose
+/// descriptor is `descriptor` and whose configuration starts `entrypoint`
+/// then `cmd`, as `GET /docker/images/export` streams it: a layer larger than
+/// what is kept, then the small files. A `null` descriptor is an image that
+/// is not a kit.
+fn image_export(digest: &str, descriptor: &Value, entrypoint: &Value, cmd: &Value) -> Vec<u8> {
+    let hex = digest.trim_start_matches("sha256:");
+    let annotations = if descriptor.is_null() {
+        json!({})
+    } else {
+        json!({ "vnd.docker.sandbox.kit.descriptor": descriptor.to_string() })
+    };
+    let index = json!({
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "manifests": [],
+        "annotations": annotations,
+    });
+    let files: [(String, Vec<u8>); 5] = [
+        ("blobs/sha256/1a7e9".to_owned(), vec![7; (2 << 20) + 1]),
+        (
+            format!("blobs/sha256/{hex}"),
+            index.to_string().into_bytes(),
+        ),
+        (
+            "blobs/sha256/c0f19".to_owned(),
+            json!({ "config": { "Entrypoint": entrypoint, "Cmd": cmd } })
+                .to_string()
+                .into_bytes(),
+        ),
+        (
+            "index.json".to_owned(),
+            json!({ "manifests": [{ "digest": digest }] })
+                .to_string()
+                .into_bytes(),
+        ),
+        (
+            "manifest.json".to_owned(),
+            json!([{ "Config": "blobs/sha256/c0f19" }])
+                .to_string()
+                .into_bytes(),
+        ),
+    ];
+    let mut archive = tar::Builder::new(Vec::new());
+    for (path, contents) in files {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(contents.len() as u64);
+        header.set_mode(0o644);
+        archive
+            .append_data(&mut header, path, contents.as_slice())
+            .unwrap();
+    }
+    archive.into_inner().unwrap()
+}
+
+/// `daemon` able to pull an image and export it as `export`.
+fn serving(daemon: FakeDaemonBuilder, export: Vec<u8>) -> FakeDaemonBuilder {
+    daemon
+        .route(
+            "POST",
+            "/docker/images/create",
+            Reply::ndjson(&[json!({ "status": "Status: Image is up to date" })]),
+        )
+        .route(
+            "GET",
+            "/docker/images/export",
+            Reply::raw(200, "application/x-tar", export),
+        )
+}
+
+/// The export of the captured shell kit.
+fn shell_export() -> Vec<u8> {
+    let (artifact, _) = captured_shell();
+    let entrypoint = &artifact["v3Entrypoint"];
+    let skipped = entrypoint.as_array().unwrap().len() - 1;
+    let cmd: Vec<Value> =
+        artifact["manifest"]["runOptions"].as_array().unwrap()[skipped..].to_vec();
+    image_export(
+        artifact["v3Digest"].as_str().unwrap(),
+        &artifact["v3"],
+        entrypoint,
+        &json!(cmd),
+    )
+}
+
+/// The descriptor of an agent kit: an argument used by its install command,
+/// a network rule and a credential.
+fn agent_descriptor() -> Value {
+    json!({
+        "schemaVersion": "3",
+        "kind": "workload",
+        "displayName": "Agent",
+        "args": { "model": { "default": "base-1", "env": "AGENT_MODEL", "pattern": "[A-Za-z0-9._-]*" } },
+        "capabilities": [
+            { "type": "com.docker.sandbox/network-policy@1", "config": { "runtime": { "allow": ["api.agent.example:443"] } } },
+            { "type": "com.docker.sandbox/credential@1", "config": { "service": "agent", "apiKey": {
+                "inject": [{ "domain": "api.agent.example", "header": "x-api-key", "format": "%s" }] } } },
+            { "type": "com.docker.sandbox/lifecycle@1", "config": { "install": [
+                { "command": "echo ${{ kit.args.model }} > /home/agent/model", "user": "agent" }] } }
+        ]
+    })
 }
 
 /// A daemon whose kit policy allows local and unsigned kits, which holds no
@@ -246,6 +364,14 @@ async fn incomplete_compositions_are_refused() {
     assert!(matches!(no_base, Error::Forge(ref m) if m.contains("no base kit")));
     let no_mixin = refusal(KitForge::new(client.clone()).with_base_package(base.clone())).await;
     assert!(matches!(no_mixin, Error::Forge(ref m) if m.contains("no mixin")));
+    let with_args = refusal(
+        KitForge::new(client.clone())
+            .with_base_package(base.clone())
+            .with_arg("model", "x")
+            .with_mixin(tools()),
+    )
+    .await;
+    assert!(matches!(with_args, Error::Forge(ref m) if m.contains("kit arguments apply")));
     let twice = refusal(
         KitForge::new(client.clone())
             .with_base_package(base.clone())
@@ -262,5 +388,253 @@ async fn incomplete_compositions_are_refused() {
     )
     .await;
     assert!(matches!(base_name, Error::Forge(ref m) if m.contains("shell")));
+    assert!(!output.exists());
+}
+
+#[tokio::test]
+async fn published_base_kits_are_rebuilt_as_the_cli_writes_them() {
+    let dir = tempfile::tempdir().unwrap();
+    let (captured, pinned) = captured_shell();
+    let daemon = serving(permissive(), shell_export()).start();
+    let client = connect(&daemon).await;
+    let output = dir.path().join("shell");
+
+    let package = KitForge::new(client.clone())
+        .with_base("docker.io/sbx/shell:latest")
+        .forge(&output)
+        .await
+        .unwrap();
+
+    // Field by field, the artifact the CLI wrote for the same image.
+    assert_eq!(package.kit_artifacts(), [captured]);
+    assert_eq!(package.kit_refs(), std::slice::from_ref(&pinned));
+    assert!(
+        package.images().is_empty(),
+        "the daemon pulls the base image"
+    );
+    let pull = daemon.request("POST", "/docker/images/create");
+    assert_eq!(pull.query()["fromImage"], "docker.io/sbx/shell:latest");
+    let export = daemon.request("GET", "/docker/images/export");
+    assert_eq!(export.query()["name"], "docker.io/sbx/shell:latest");
+    let metadata = read(&output, "kit.json");
+    assert_eq!(metadata["base_image"], "docker.io/sbx/shell:latest");
+    assert_eq!(metadata["base"], pinned);
+
+    let created = package.create(&client, "job-42").await.unwrap();
+    assert_eq!(created.name, "job-42");
+    let body = daemon.request("POST", "/sandbox").json();
+    assert_eq!(body["agent"], "shell");
+    assert_eq!(body["kits"], json!([pinned]));
+    assert_eq!(body["pull_policy"], "missing");
+    assert_eq!(body["enable_virtiofs_cache"], true);
+    assert!(body.get("kit_args").is_none());
+    assert!(
+        daemon
+            .requests()
+            .iter()
+            .all(|r| r.path() != "/docker/images/load")
+    );
+}
+
+#[tokio::test]
+async fn arguments_and_mixins_compose_on_a_published_base() {
+    let dir = tempfile::tempdir().unwrap();
+    let export = image_export(
+        "sha256:a9e7",
+        &agent_descriptor(),
+        &json!(["agent"]),
+        &json!([]),
+    );
+    let daemon = serving(permissive(), export).start();
+    let client = connect(&daemon).await;
+    let forge = KitForge::new(client.clone())
+        .with_base("ghcr.io/acme/agent:2")
+        .with_mixin(tools());
+    // `ghcr.io/` is not a default source of kits.
+    let refused = forge.forge(dir.path().join("refused")).await.unwrap_err();
+    assert!(
+        matches!(refused, Error::Forge(ref m) if m.contains("only allows kits from docker.io/, dhi.io/")),
+        "{refused}"
+    );
+
+    let daemon = serving(
+        permissive().route(
+            "GET",
+            "/daemon/settings/kit.allowedSources",
+            setting("kit.allowedSources", json!(["ghcr.io/acme/"])),
+        ),
+        image_export(
+            "sha256:a9e7",
+            &agent_descriptor(),
+            &json!(["agent"]),
+            &json!([]),
+        ),
+    )
+    .start();
+    let client = connect(&daemon).await;
+    let package = KitForge::new(client.clone())
+        .with_base("ghcr.io/acme/agent:2")
+        .with_arg("model", "small-1")
+        .with_mixin(tools())
+        .forge(dir.path().join("agent"))
+        .await
+        .unwrap();
+    assert_eq!(
+        package.kit_refs(),
+        ["ghcr.io/acme/agent@sha256:a9e7", "/kits/acme-tools"]
+    );
+    let artifacts = package.kit_artifacts();
+    let base = &artifacts[0];
+    assert_eq!(base["environment"]["variables"]["AGENT_MODEL"], "small-1");
+    assert_eq!(base["v3ArgValues"], json!({ "model": "small-1" }));
+    assert_eq!(base["credentials"][0]["service"], "agent");
+    assert!(
+        base["commands"]["install"][0]["command"]
+            .as_str()
+            .unwrap()
+            .ends_with("sh -c 'echo small-1 > /home/agent/model'")
+    );
+    assert_eq!(base["storageSource"], "oci://ghcr.io/acme/agent:2");
+    assert!(base.get("kitHubPublication").is_none());
+    assert_eq!(artifacts[1]["manifest"]["name"], "acme-tools");
+    assert_eq!(package.images().len(), 1, "the source image of the mixin");
+
+    package.create(&client, "job-42").await.unwrap();
+    let body = daemon.request("POST", "/sandbox").json();
+    assert_eq!(body["agent"], "agent");
+    assert_eq!(body["kit_args"], json!({ "model": "small-1" }));
+
+    for (name, value, expected) in [
+        (
+            "model",
+            "it's",
+            "does not match the pattern of the argument model",
+        ),
+        ("effort", "high", "declares no argument effort"),
+    ] {
+        let error = KitForge::new(client.clone())
+            .with_base("ghcr.io/acme/agent:2")
+            .with_arg(name, value)
+            .forge(dir.path().join("refused"))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, Error::InvalidKit { ref message, .. } if message.contains(expected)),
+            "{error}"
+        );
+    }
+    assert!(!dir.path().join("refused").exists());
+}
+
+#[tokio::test]
+async fn the_sources_and_signatures_of_published_kits_are_checked() {
+    let dir = tempfile::tempdir().unwrap();
+    let cases = [
+        ("kit.allowedSources", json!(["*"]), None),
+        (
+            "kit.allowedSources",
+            json!("docker.io/"),
+            Some("not a list of prefixes"),
+        ),
+        (
+            "kit.allowedSources",
+            json!(["dhi.io/"]),
+            Some("not docker.io/sbx/shell"),
+        ),
+        (
+            "kit.requireSignature",
+            json!(true),
+            Some("requires signed kits"),
+        ),
+    ];
+    for (key, value, refusal) in cases {
+        let daemon = serving(
+            permissive().route(
+                "GET",
+                &format!("/daemon/settings/{key}"),
+                setting(key, value),
+            ),
+            shell_export(),
+        )
+        .start();
+        let forged = KitForge::new(connect(&daemon).await)
+            .with_base("sbx/shell")
+            .forge(dir.path().join("shell"))
+            .await;
+        match refusal {
+            None => assert_eq!(forged.unwrap().kit_refs().len(), 1),
+            Some(expected) => {
+                let error = forged.unwrap_err();
+                assert!(
+                    matches!(error, Error::Forge(ref m) if m.contains(expected)),
+                    "{error}"
+                );
+            }
+        }
+    }
+}
+
+/// The refusal of `daemon` to forge into `output` a package on the published
+/// base kit `reference`.
+async fn refused(daemon: &FakeDaemon, reference: &str, output: &Path) -> Error {
+    KitForge::new(connect(daemon).await)
+        .with_base(reference)
+        .forge(output)
+        .await
+        .unwrap_err()
+}
+
+#[tokio::test]
+async fn images_that_are_not_the_kit_asked_for_are_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = dir.path().join("refused");
+    // A pinned reference exported as another image.
+    let daemon = serving(permissive(), shell_export()).start();
+    let error = refused(&daemon, "docker.io/sbx/shell:latest@sha256:0bad", &output).await;
+    assert!(
+        matches!(error, Error::Forge(ref m) if m.contains("was exported as sha256:a43a")),
+        "{error}"
+    );
+    let pull = daemon.request("POST", "/docker/images/create");
+    assert_eq!(pull.query()["fromImage"], "docker.io/sbx/shell@sha256:0bad");
+
+    // An image without a kit descriptor, a mixin, an export cut short, an
+    // image the daemon cannot export, a reference that is not one.
+    let plain = image_export("sha256:0c1", &Value::Null, &json!([]), &json!([]));
+    let mut cut = shell_export();
+    cut.truncate(5000);
+    let mixin = image_export(
+        "sha256:0c2",
+        &json!({ "schemaVersion": "3", "kind": "mixin" }),
+        &json!([]),
+        &json!([]),
+    );
+    for (export, expected) in [
+        (
+            plain,
+            "invalid kit docker.io/sbx/shell:latest: the image is not a kit",
+        ),
+        (mixin, "a base kit is a workload kit"),
+        (cut, "the export ended in the middle of an entry"),
+    ] {
+        let daemon = serving(permissive(), export).start();
+        let error = refused(&daemon, "docker.io/sbx/shell", &output).await;
+        assert!(error.to_string().contains(expected), "{error}");
+    }
+    let daemon = permissive()
+        .route("POST", "/docker/images/create", Reply::ndjson(&[]))
+        .route(
+            "GET",
+            "/docker/images/export",
+            Reply::json(404, &json!({ "message": "image not found" })),
+        )
+        .start();
+    assert!(
+        refused(&daemon, "docker.io/sbx/shell", &output)
+            .await
+            .is_not_found()
+    );
+    let error = refused(&daemon, "docker.io/sbx/shell@latest", &output).await;
+    assert!(matches!(error, Error::InvalidKit { .. }), "{error}");
     assert!(!output.exists());
 }

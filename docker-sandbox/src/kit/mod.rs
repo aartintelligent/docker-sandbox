@@ -15,7 +15,8 @@
 //! Packages are produced by `KitCompiler` (feature `kit-compiler`) or by
 //! `audit kit-compile`; a package is tied to the `sbx` version that compiled
 //! it, recompile it after upgrading `sbx`. `KitForge` (feature `kit-forge`)
-//! writes them without the CLI, for mixins described by a `KitDescriptor`; a
+//! writes them without the CLI, through the socket alone: the base kit rebuilt
+//! from its published image, and mixins described by a `KitDescriptor`; a
 //! forged package is tied to the API of the daemon it was forged for.
 
 mod agent;

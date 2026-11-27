@@ -122,8 +122,12 @@ httparse = "1"
 # Pseudo-terminals for the `sbx exec -it` scenarios of the audit.
 portable-pty = "0.9"
 
-# Pattern matching in the audit: route templating, scrubbing, the router
-# inventory scan of the `sbx` binary.
+# Pattern matching. In the audit: route templating, scrubbing, the router
+# inventory scan of the `sbx` binary. In the library, under its `kit-forge`
+# feature: the patterns kit arguments declare for their values, Go-like (RE2)
+# regular expressions that the `sbx` CLI checks and the library now does, and
+# their `${{ kit.args.<name> }}` placeholders. Default features: the patterns of
+# published kits may use Unicode classes.
 regex = "1"
 
 # Rotated daemon logs (`daemon-<time>.log.gz`) read back by the audit.

@@ -84,7 +84,7 @@ pub(super) fn mixin(parts: &MixinParts<'_>) -> Value {
 }
 
 /// The capabilities of `descriptor`, in order.
-fn capabilities(descriptor: &Value) -> impl Iterator<Item = &Value> {
+pub(super) fn capabilities(descriptor: &Value) -> impl Iterator<Item = &Value> {
     descriptor
         .get("capabilities")
         .and_then(Value::as_array)
@@ -93,13 +93,13 @@ fn capabilities(descriptor: &Value) -> impl Iterator<Item = &Value> {
 }
 
 /// Whether `capability` is of the type `kind`.
-fn is(capability: &Value, kind: &str) -> bool {
+pub(super) fn is(capability: &Value, kind: &str) -> bool {
     capability.get("type").and_then(Value::as_str) == Some(kind)
 }
 
 /// `descriptor` normalized as the CLI does: lifecycle commands written as
 /// `["sh", "-c", command]`.
-fn effective(descriptor: &Value) -> Value {
+pub(super) fn effective(descriptor: &Value) -> Value {
     let mut effective = descriptor.clone();
     if let Some(capabilities) = effective
         .get_mut("capabilities")
@@ -151,7 +151,7 @@ fn selection(descriptor: &Value, reference: &str) -> Value {
 /// environment that keeps [`INSTALL_ENV`] and the variables the step names,
 /// startup commands as `["sh", "-c", command]`; a command the kit writes as a
 /// list is kept as it is. `None` without lifecycle.
-fn commands(descriptor: &Value) -> Option<Value> {
+pub(super) fn commands(descriptor: &Value) -> Option<Value> {
     let mut phases = Map::new();
     for capability in capabilities(descriptor).filter(|c| is(c, LIFECYCLE)) {
         for phase in ["install", "startup"] {
@@ -208,7 +208,7 @@ fn wrap_install(command: &str, step: &Value) -> String {
 
 /// The run-time network rules of the descriptor, as the `caps.network` of the
 /// artifact. `None` without any.
-fn network(descriptor: &Value) -> Option<Value> {
+pub(super) fn network(descriptor: &Value) -> Option<Value> {
     let mut rules = Map::new();
     for capability in capabilities(descriptor).filter(|c| is(c, NETWORK)) {
         for decision in ["allow", "deny"] {
