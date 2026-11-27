@@ -16,7 +16,9 @@
 //!
 //! Before anything is forged, the example shows what a forged mixin may not
 //! declare: the library refuses it with a message, rather than sending the
-//! daemon a kit it would half apply. It then shows that the package is a
+//! daemon a kit it would half apply. Its error tells a refused kit
+//! (`Error::InvalidKit`) from a failure of the client, which it keeps as it
+//! is (`Error::Client`): a mixin directory that does not exist. It then shows that the package is a
 //! creation request and its images, the request assembled again from its
 //! parts (`CreateRequest::for_agent`). Then it creates the sandbox and checks
 //! that both mixins ran, and that the daemon applied the network rule of the
@@ -32,11 +34,11 @@
 
 use std::time::Duration;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use docker_sandbox::Client;
 use docker_sandbox::exec::ExecSpec;
-use docker_sandbox::kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
 use docker_sandbox::sandbox::{CreateRequest, Sandbox};
+use docker_sandbox_kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
 use example_common::{connect, sandbox};
 use serde_json::json;
 
@@ -208,7 +210,15 @@ fn refusals() -> Result<()> {
     let error = KitDescriptor::from_json(credential)
         .err()
         .context("a mixin declaring a credential was accepted")?;
-    println!("refused, a credential: {error}");
+    // A refused kit names itself and the reason, and retrying never helps.
+    let docker_sandbox_kit::Error::InvalidKit { kit, message } = &error else {
+        bail!("a credential was refused as {error}, not as an invalid kit");
+    };
+    ensure!(
+        !error.is_transient(),
+        "a refused kit is reported as transient"
+    );
+    println!("refused, a credential: kit {kit}, {message}");
 
     let yaml = "schemaVersion: \"3\"\nkind: mixin\ndisplayName: YAML\n";
     let error = KitDescriptor::parse(yaml)
@@ -221,6 +231,25 @@ fn refusals() -> Result<()> {
         .err()
         .context("a step without a command was accepted")?;
     println!("refused, a step without a command: {error}");
+
+    // A directory that does not exist is no refusal of the kit: the error of
+    // the client is kept as docker-sandbox reports it, a host file here, and
+    // classified as the daemon errors are.
+    let error = Mixin::read(format!("{JSON_MIXIN}-missing"))
+        .err()
+        .context("a missing mixin directory was read")?;
+    let cause = error
+        .client()
+        .context("a missing directory is reported as a refusal")?;
+    println!(
+        "not read, a missing mixin directory: {cause} (not found by the daemon: {}, conflict: {}, \
+         invalid input: {}, timeout: {}, worth retrying: {})",
+        error.is_not_found(),
+        error.is_conflict(),
+        error.is_invalid_input(),
+        error.is_timeout(),
+        error.is_transient()
+    );
     Ok(())
 }
 

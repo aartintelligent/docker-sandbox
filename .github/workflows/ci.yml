@@ -78,21 +78,21 @@ jobs:
           # What every crate is built with: the root manifest and lockfile, the
           # toolchain, the lint configuration, and this workflow.
           shared='^(Cargo\.(toml|lock)|rust-toolchain\.toml|clippy\.toml|\.github/workflows/ci\.yml)$'
-          # What the library builds and tests from; its README holds doctests,
-          # its changelog nothing that compiles.
-          library="$shared|^docker-sandbox/(Cargo\.toml|README\.md)$|^docker-sandbox/(src|tests)/"
+          # What the two published crates build and test from; their READMEs
+          # hold doctests, their changelogs nothing that compiles.
+          library="$shared|^docker-sandbox(-kit)?/(Cargo\.toml|README\.md)$|^docker-sandbox(-kit)?/(src|tests)/"
           area library "$library"
-          # What Codecov reports on: the library, and its own configuration,
+          # What Codecov reports on: the two crates, and its own configuration,
           # applied to the upload of the pull request that changes it.
           area coverage "$library|^codecov\.yml$"
           area rust "$library|^audit/Cargo\.toml$|^audit/(src|assets)/"
-          area examples "$shared|^examples/|^docker-sandbox/Cargo\.toml$|^docker-sandbox/src/"
+          area examples "$shared|^examples/|^docker-sandbox(-kit)?/Cargo\.toml$|^docker-sandbox(-kit)?/src/"
           # What the privacy check reads: the audit data, and the files of the
-          # published crate.
-          area audit-data "$shared|^audit/Cargo\.toml$|^audit/(src|snapshots)/|^docker-sandbox/tests/fixtures/|^docker-sandbox/(Cargo\.toml|README\.md|CHANGELOG\.md|LICENSE-[A-Z]+)$|^docker-sandbox/src/"
+          # published crates.
+          area audit-data "$shared|^audit/Cargo\.toml$|^audit/(src|snapshots)/|^docker-sandbox/tests/fixtures/|^docker-sandbox(-kit)?/(Cargo\.toml|README\.md|CHANGELOG\.md|LICENSE-[A-Z]+)$|^docker-sandbox(-kit)?/src/"
           area dependencies '(^|/)Cargo\.(toml|lock)$|^deny\.toml$|^\.github/workflows/ci\.yml$'
           # macOS runners are the slowest and the dearest: the tests run there
-          # when the library changes, the only code that depends on the platform.
+          # when the crates change, the only code that depends on the platform.
           if changed "$library"; then
             echo 'test-os=["ubuntu-latest", "macos-latest"]'
           else
@@ -181,11 +181,12 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
-      - run: cargo nextest run --locked --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy
-      - run: cargo test --locked --workspace --features docker-sandbox/kit-compiler,docker-sandbox/kit-forge,docker-sandbox/secrecy --doc
+      - run: cargo nextest run --locked --workspace --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge
+      - run: cargo test --locked --workspace --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge --doc
 
-  # Guards the coverage of the library: every line of `docker-sandbox` must run
-  # under its tests — unit, fake daemon, fixtures. The gate is enforced here,
+  # Guards the coverage of the published crates: every line of `docker-sandbox`
+  # and `docker-sandbox-kit` must run under their tests — unit, fake daemon,
+  # fixtures. The gate is enforced here,
   # after the upload, so that Codecov still annotates the uncovered lines of a
   # failing pull request and an outage of the service blocks nothing.
   coverage:
@@ -213,7 +214,7 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-llvm-cov,cargo-nextest
-      - run: cargo llvm-cov nextest --locked -p docker-sandbox --features kit-compiler,kit-forge,secrecy --lcov --output-path target/lcov.info
+      - run: cargo llvm-cov nextest --locked -p docker-sandbox -p docker-sandbox-kit --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge --lcov --output-path target/lcov.info
       # Merge-queue commits are temporary: Codecov tracks `main` and the pull
       # requests.
       - uses: codecov/codecov-action@v7
@@ -227,7 +228,7 @@ jobs:
       # The line percentage of the `llvm-cov` table is no gate: for each
       # function, it keeps the best-covered build (unit or integration tests),
       # not their union.
-      - run: cargo llvm-cov report -p docker-sandbox --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
+      - run: cargo llvm-cov report -p docker-sandbox -p docker-sandbox-kit --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
 
   # Guards the documentation: builds with the docs.rs flags, warnings as errors.
   docs:
@@ -251,7 +252,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: cargo doc --locked -p docker-sandbox --features kit-compiler,kit-forge,secrecy --no-deps
+      - run: cargo doc --locked -p docker-sandbox -p docker-sandbox-kit --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge --no-deps
 
   # Guards the MSRV: the main workspace compiles on exactly the `rust-version`
   # of Cargo.toml.
@@ -276,8 +277,8 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo check --locked --workspace --all-features --all-targets
 
-  # Guards feature independence: every feature combination of the library
-  # compiles on its own.
+  # Guards feature independence: every feature combination of the published
+  # crates compiles on its own.
   features:
     name: Feature powerset
     needs: changes
@@ -298,7 +299,7 @@ jobs:
       # Without `--no-dev-deps`, which rewrites the manifest and so the lockfile
       # that `--locked` guards: resolver 3 already keeps the features of the
       # dev-dependencies out of a check of the library.
-      - run: cargo hack check --locked -p docker-sandbox --feature-powerset
+      - run: cargo hack check --locked -p docker-sandbox -p docker-sandbox-kit --feature-powerset
 
   # Guards the supply chain (deny.toml) when a manifest, a lockfile or the
   # policy changes: everything for the main workspace; licenses and sources for

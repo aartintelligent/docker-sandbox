@@ -7,7 +7,7 @@
 # ------------------------------------------------------------------------------
 
 # Resolve the graph with every feature on, so that optional dependencies such
-# as those of the `kit-compiler` feature are checked too.
+# as those of the `compiler` feature of `docker-sandbox-kit` are checked too.
 [graph]
 all-features = true
 

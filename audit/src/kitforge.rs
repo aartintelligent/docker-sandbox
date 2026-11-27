@@ -34,7 +34,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use docker_sandbox::Client;
-use docker_sandbox::kit::{KitForge, KitPackage, Mixin};
+use docker_sandbox::kit::KitPackage;
+use docker_sandbox_kit::{KitForge, Mixin};
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 

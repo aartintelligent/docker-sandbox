@@ -25,7 +25,7 @@ include = ["/src", "/README.md", "/CHANGELOG.md", "/LICENSE-APACHE", "/LICENSE-M
 
 # Every feature but `live`, which only gates the live integration tests.
 [package.metadata.docs.rs]
-features     = ["kit-compiler", "kit-forge", "secrecy"]
+features     = ["secrecy"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 # Quality gates are centralized in the workspace root `Cargo.toml`.
@@ -33,22 +33,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 workspace = true
 
 [features]
-# `KitCompiler`: runs `sbx create` once behind a capturing proxy to produce a
-# kit package. Needs the `sbx` CLI at run time, a child process (`tokio/process`),
-# an HTTP server for the proxy (`hyper/server`) and the channel that stops it
-# (`tokio/sync`).
-kit-compiler = ["hyper/server", "tokio/process", "tokio/sync"]
 # Runs the integration tests against the real daemon of the current user
 # (`tests/live.rs`); it adds no code to the library.
 live = []
 # `From<secrecy::SecretString>` for `Secret`: a secret the program holds as a
 # `SecretString` is passed on without being exposed.
 secrecy = ["dep:secrecy"]
-# `KitForge`, `KitDescriptor` and `Mixin`: writes kit packages without the `sbx`
-# CLI, the mixins forged from their descriptor and the base kit rebuilt from its
-# published image. Needs the SHA-256 digests of the OCI image layouts it writes
-# (`sha2`), and the patterns kit arguments declare for their values (`regex`).
-kit-forge = ["dep:regex", "dep:sha2"]
 
 [dependencies]
 bytes            = { workspace = true }
@@ -67,8 +57,6 @@ tokio            = { workspace = true, features = ["fs", "io-util", "macros", "n
 tracing          = { workspace = true }
 zeroize          = { workspace = true }
 secrecy          = { workspace = true, optional = true }
-regex            = { workspace = true, optional = true }
-sha2             = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

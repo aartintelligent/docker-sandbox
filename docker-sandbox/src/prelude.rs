@@ -8,8 +8,6 @@ pub use crate::exec::{
     AgentSessionSpec, AttachSpec, ExecOutput, ExecSession, ExecSpec, TerminalSize,
 };
 pub use crate::kit::KitPackage;
-#[cfg(feature = "kit-compiler")]
-pub use crate::kit::{CompileJob, KitCompiler};
 pub use crate::policy::{NetworkCheck, RuleChange};
 pub use crate::sandbox::{
     CreateRequest, CredentialsUpdate, CustomSecret, PortBinding, ProxiedKey, Sandbox, SandboxInfo,

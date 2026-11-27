@@ -24,7 +24,7 @@
 
 use anyhow::{Context, Result, ensure};
 use docker_sandbox::exec::ExecSpec;
-use docker_sandbox::kit::KitForge;
+use docker_sandbox_kit::KitForge;
 use example_common::{connect, sandbox};
 use serde_json::Value;
 

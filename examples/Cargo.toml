@@ -26,11 +26,14 @@ version      = "0.1.0"
 # ------------------------------------------------------------------------------
 
 [workspace.dependencies]
-# The library, with the kit compiler and the kit forge: most examples compile
-# the kits they run once with the `sbx` CLI, then drive the daemon through the
-# socket alone; `shell-forge` and `agent-kit-forge` forge theirs without the
-# CLI. `secrecy` lets `shell-secrets` pass on a `SecretString`.
-docker-sandbox = { path = "../docker-sandbox", features = ["kit-compiler", "kit-forge", "secrecy"] }
+# The library. `secrecy` lets `shell-secrets` pass on a `SecretString`.
+docker-sandbox = { path = "../docker-sandbox", features = ["secrecy"] }
+
+# The kit packages of the library, with the kit compiler and the kit forge:
+# most examples compile the kits they run once with the `sbx` CLI, then drive
+# the daemon through the socket alone; `shell-forge`, `agent-kit-forge` and the
+# agent examples forge theirs without the CLI.
+docker-sandbox-kit = { path = "../docker-sandbox-kit", features = ["compiler", "forge"] }
 
 # What the examples share: kit cache, throw-away sandboxes, terminal relay,
 # agent credentials, and the MCP servers and in-sandbox client of the MCP

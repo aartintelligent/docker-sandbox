@@ -1,7 +1,7 @@
 //! `kit-compile`: compiles local kits into a package replayable through the
 //! socket alone.
 //!
-//! The compilation itself is done by [`docker_sandbox::kit::KitCompiler`]: it runs
+//! The compilation itself is done by [`docker_sandbox_kit::KitCompiler`]: it runs
 //! `sbx create` once on a throw-away sandbox behind a capturing proxy and writes
 //! the exact bytes the CLI sent to the daemon:
 //!
@@ -22,7 +22,8 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use docker_sandbox::Client;
 use docker_sandbox::image::ImageSummary;
-use docker_sandbox::kit::{CompileJob, KitCompiler, KitPackage};
+use docker_sandbox::kit::KitPackage;
+use docker_sandbox_kit::{CompileJob, KitCompiler};
 
 /// Options of the `kit-compile` command.
 pub(crate) struct KitcOpts<'a> {

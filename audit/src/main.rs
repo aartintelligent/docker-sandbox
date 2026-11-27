@@ -77,8 +77,8 @@ const SNAPSHOTS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/snapshots");
 const OUTPUT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/audit");
 /// Root of the workspace.
 const WORKSPACE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
-/// The crate the workspace publishes, whose files the privacy check covers.
-const PUBLISHED_CRATE: &str = "docker-sandbox";
+/// The crates the workspace publishes, whose files the privacy check covers.
+const PUBLISHED_CRATES: &[&str] = &["docker-sandbox", "docker-sandbox-kit"];
 /// Test fixtures of the library crate.
 const LIBRARY_FIXTURES: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -323,9 +323,11 @@ impl PrivacyCheckArgs {
         let root = Path::new(WORKSPACE);
         let paths = if self.paths.is_empty() {
             let mut paths = vec![PathBuf::from(SNAPSHOTS), PathBuf::from(LIBRARY_FIXTURES)];
-            let published = privacy::published_files(root, PUBLISHED_CRATE)?;
-            eprintln!("{} files published with {PUBLISHED_CRATE}", published.len());
-            paths.extend(published);
+            for name in PUBLISHED_CRATES {
+                let published = privacy::published_files(root, name)?;
+                eprintln!("{} files published with {name}", published.len());
+                paths.extend(published);
+            }
             paths
         } else {
             self.paths

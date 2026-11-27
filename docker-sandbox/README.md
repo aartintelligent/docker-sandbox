@@ -11,29 +11,25 @@
 A typed async Rust client for the `sandboxd` socket of
 [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) (`sbx`). It drives the
 daemon directly, without going through the `sbx` CLI: create sandboxes from
-kits forged through the socket alone or compiled once with the CLI, keep them
-running, run commands and agent sessions, move files in and out, publish
-ports, give agents their credentials and scope network access.
+kit packages, keep them running, run commands and agent sessions, move files in
+and out, publish ports, give agents their credentials and scope network access.
+The [`docker-sandbox-kit`](../docker-sandbox-kit/README.md) crate writes the
+kit packages, forged through the socket alone or compiled once with the CLI.
 
 ```rust,no_run
 use std::time::Duration;
 
-use docker_sandbox::kit::KitForge;
 use docker_sandbox::prelude::*;
 
 #[tokio::main]
 async fn main() -> docker_sandbox::Result<()> {
     let client = Client::connect().await?;
 
-    // The claude kit, rebuilt from its published image through the socket
-    // (feature `kit-forge`): no `sbx` CLI, not even once. The daemon treats
-    // the sandbox as one the CLI created, and gives the agent the credential
-    // it holds for the kit, a Claude subscription for instance.
-    let package = KitForge::new(client.clone())
-        .with_base("docker.io/sbx/claude:latest")
-        .with_arg("model", "claude-haiku-5-5")
-        .forge("/var/lib/kits/claude")
-        .await?;
+    // The claude kit, forged once through the socket by `docker-sandbox-kit`
+    // and kept on disk: no `sbx` CLI, not even once. The daemon treats the
+    // sandbox as one the CLI created, and gives the agent the credential it
+    // holds for the kit, a Claude subscription for instance.
+    let package = KitPackage::open("/var/lib/kits/claude")?;
     let created = package.create(&client, "job-42").await?;
 
     // Handles own a clone of the client: store them, move them into tasks.
@@ -62,11 +58,11 @@ async fn main() -> docker_sandbox::Result<()> {
 }
 ```
 
-The package stays on disk: `KitPackage::open` takes it again for the next
-sandboxes, and `KitCompiler` (feature `kit-compiler`) compiles one with the CLI
-instead. To give the agent an API key of your own, use a `ProxiedKey`: the
-sandbox only holds a placeholder, and the proxy writes the key into the
-requests to the hosts of the key.
+The package is written by `docker-sandbox-kit`: `KitForge` forges it through
+the socket alone, the base kit rebuilt from its published image with its
+arguments, and `KitCompiler` compiles it once with the CLI. To give the agent an
+API key of your own, use a `ProxiedKey`: the sandbox only holds a placeholder,
+and the proxy writes the key into the requests to the hosts of the key.
 
 > This project is not affiliated with Docker, Inc. The `sandboxd` socket API is
 > private and changes with every `sbx` release: the audit tool of this
@@ -80,7 +76,7 @@ requests to the hosts of the key.
 | `sandbox` | Listing, creation with its progress stream, start, stop, deletion, saving as a template, sessions that keep a sandbox running, ports, host paths, credentials and API keys given through the proxy alone (`ProxiedKey`), files and directories, SSH tunnels |
 | `exec` | Commands run to completion, interactive executions and agent sessions over upgraded connections, terminal resizing |
 | `policy` | Network rules (global or per sandbox), checks of a target, the activity log of the proxy |
-| `kit` | Kit packages replayed through the socket alone: forged without the CLI, a published base kit rebuilt with its arguments and mixins described in JSON or in Rust (feature `kit-forge`), or compiled once with the CLI (feature `kit-compiler`); sandboxes created from them, kits added to a running sandbox in place or by recreating its container |
+| `kit` | Kit packages replayed through the socket alone, written by `docker-sandbox-kit`: sandboxes created from them, kits added to a running sandbox in place or by recreating its container |
 | `image` | Listing, inspection, pulls, loading, export, removal |
 | `event` | The daemon event stream, with or without the initial replay |
 | `mcp` | The MCP gateway of a sandbox, the servers loaded into it, and policy checks of a server before it is registered |
@@ -94,8 +90,6 @@ allow-lists are unknown.
 
 | Feature | Adds |
 |---|---|
-| `kit-compiler` | `KitCompiler` and `CompileJob`: compiling kit compositions into packages with the `sbx` CLI |
-| `kit-forge` | `KitForge`, `KitDescriptor`, `LifecycleStep` and `Mixin`: forging packages without the CLI, through the socket alone: the base kit rebuilt from its published image with its arguments, or taken from a compiled package, and mixins described in JSON or in Rust |
 | `live` | Nothing to the library: runs the integration tests against the real daemon |
 | `secrecy` | `From<secrecy::SecretString>` for `Secret`: a secret held as a `SecretString` is passed on without being exposed |
 
@@ -145,7 +139,7 @@ changes.
 
 ## Documentation
 
-- The API reference: `cargo doc --features kit-compiler,kit-forge,secrecy --no-deps --open`.
+- The API reference: `cargo doc --features secrecy --no-deps --open`.
 - The measured contract of the audited version:
   `audit/snapshots/<version>/api/` (`API.md`, `openapi.json`).
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md): tooling, quality gates, commits.

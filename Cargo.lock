@@ -87,6 +87,7 @@ dependencies = [
  "bytes",
  "clap",
  "docker-sandbox",
+ "docker-sandbox-kit",
  "flate2",
  "http-body-util",
  "httparse",
@@ -242,8 +243,28 @@ dependencies = [
  "hyper",
  "hyper-util",
  "percent-encoding",
- "regex",
  "secrecy",
+ "serde",
+ "serde_json",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
+name = "docker-sandbox-kit"
+version = "0.2.0"
+dependencies = [
+ "bytes",
+ "docker-sandbox",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "percent-encoding",
+ "regex",
  "serde",
  "serde_json",
  "sha2",
@@ -252,7 +273,6 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tracing",
- "zeroize",
 ]
 
 [[package]]
