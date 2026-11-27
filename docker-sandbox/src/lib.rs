@@ -103,6 +103,7 @@
 //! |---|---|
 //! | `kit-compiler` | [`KitCompiler`](kit::KitCompiler) and [`CompileJob`](kit::CompileJob): compiling kit compositions with the `sbx` CLI |
 //! | `live` | Nothing to the library: runs the integration tests against the real daemon |
+//! | `secrecy` | `From<secrecy::SecretString>` for [`Secret`](sandbox::Secret): a secret held as a `SecretString` is passed on without being exposed |
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

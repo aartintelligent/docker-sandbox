@@ -5,6 +5,8 @@
 //! and query values are percent-encoded when the URI is built, so that no
 //! sandbox, image or setting name can alter the route.
 
+use std::fmt;
+use std::io;
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -12,6 +14,7 @@ use http::header::{ACCEPT, CONTENT_TYPE};
 use http::{HeaderMap, HeaderValue, Method};
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 use serde::Serialize;
+use zeroize::Zeroizing;
 
 use crate::error::{Error, Result};
 
@@ -49,8 +52,8 @@ pub(crate) enum Deadline {
     Exactly(Duration),
 }
 
-/// An outgoing request.
-#[derive(Debug)]
+/// An outgoing request. Its [`Debug`](fmt::Debug) shows the size of the body,
+/// never its content, which may carry secrets.
 pub(crate) struct Request {
     /// Name of the operation, used in errors and logs (`sandbox start`).
     pub(crate) operation: &'static str,
@@ -120,6 +123,21 @@ impl Request {
         Ok(self.body(Bytes::from(bytes), JSON))
     }
 
+    /// Sets a JSON body that carries secret values: written into one buffer
+    /// sized beforehand, so that its growth leaves no partial copy behind, and
+    /// wiped from memory once the request is done with it.
+    pub(crate) fn secret_json<T: Serialize + ?Sized>(self, body: &T) -> Result<Self> {
+        let operation = self.operation;
+        let error = |e: serde_json::Error| {
+            Error::InvalidRequest(format!("{operation}: cannot serialize the body: {e}"))
+        };
+        let mut size = ByteCount(0);
+        serde_json::to_writer(&mut size, body).map_err(error)?;
+        let mut bytes = Zeroizing::new(Vec::with_capacity(size.0));
+        serde_json::to_writer(&mut *bytes, body).map_err(error)?;
+        Ok(self.body(Bytes::from_owner(bytes), JSON))
+    }
+
     /// Sets an empty JSON object as body, as the CLI sends to action routes.
     pub(crate) fn empty_json(self) -> Self {
         self.body(Bytes::from_static(b"{}"), JSON)
@@ -172,9 +190,60 @@ impl Request {
     }
 }
 
+impl fmt::Debug for Request {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Request")
+            .field("operation", &self.operation)
+            .field("method", &self.method)
+            .field("path", &self.path)
+            .field("query", &self.query)
+            .field("body_bytes", &self.body.len())
+            .field("deadline", &self.deadline)
+            .finish_non_exhaustive()
+    }
+}
+
+/// A writer that only counts the bytes written to it, to size a buffer before
+/// writing into it.
+struct ByteCount(usize);
+
+impl io::Write for ByteCount {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0 += buf.len();
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::io::Write as _;
+
     use super::*;
+
+    #[test]
+    fn secret_bodies_are_the_json_of_the_value_without_a_copy_in_the_debug_output() {
+        let body = serde_json::json!({ "custom_secrets": [{ "value": "dummy-value" }] });
+        let request = Request::post("credentials update", "/sandbox/job-42/credentials")
+            .secret_json(&body)
+            .unwrap();
+        assert_eq!(request.body, serde_json::to_vec(&body).unwrap());
+        assert_eq!(request.headers[CONTENT_TYPE], JSON);
+        let debug = format!("{request:?}");
+        assert!(!debug.contains("dummy-value"), "{debug}");
+        assert!(debug.contains("body_bytes"), "{debug}");
+    }
+
+    #[test]
+    fn byte_counts_size_what_is_written() {
+        let mut count = ByteCount(0);
+        count.write_all(b"abc").unwrap();
+        count.flush().unwrap();
+        assert_eq!(count.0, 3);
+    }
 
     #[test]
     fn segments_and_queries_are_escaped() {
@@ -215,6 +284,13 @@ mod tests {
             .unwrap_err();
         assert!(
             matches!(error, Error::InvalidRequest(ref m) if m == "sandbox save: cannot serialize the body: not serializable"),
+            "{error}"
+        );
+        let error = Request::post("credentials update", "/sandbox/a/credentials")
+            .secret_json(&Unserializable)
+            .unwrap_err();
+        assert!(
+            matches!(error, Error::InvalidRequest(ref m) if m == "credentials update: cannot serialize the body: not serializable"),
             "{error}"
         );
     }

@@ -826,15 +826,32 @@ async fn ssh_tunnels_carry_bytes_both_ways() {
     );
 }
 
+/// A `SecretString` the program holds is passed on without the program
+/// exposing it (feature `secrecy`).
+#[cfg(feature = "secrecy")]
+#[test]
+fn secrecy_strings_are_taken_as_secrets() {
+    let secret = Secret::from(secrecy::SecretString::from("dummy-value".to_owned()));
+    assert_eq!(secret.expose_secret(), "dummy-value");
+    assert_eq!(format!("{secret:?}"), "Secret(***)");
+}
+
 #[test]
 fn secrets_never_show_in_debug_output() {
     let secret = Secret::new("dummy-value");
-    assert_eq!(secret.expose(), "dummy-value");
+    assert_eq!(secret.expose_secret(), "dummy-value");
     assert_eq!(format!("{secret:?}"), "Secret(***)");
-    assert_eq!(Secret::from("dummy-value".to_owned()), secret);
+    assert_eq!(
+        Secret::from("dummy-value".to_owned()).expose_secret(),
+        secret.expose_secret()
+    );
+    // The daemon takes the value as a plain JSON string, both ways.
+    assert_eq!(serde_json::to_value(&secret).unwrap(), json!("dummy-value"));
+    let read: Secret = serde_json::from_value(json!("dummy-value")).unwrap();
+    assert_eq!(read.expose_secret(), "dummy-value");
 
     let cleared = ServiceCredential::cleared("github");
-    assert_eq!(cleared.value.expose(), "");
+    assert_eq!(cleared.value.expose_secret(), "");
     assert!(!format!("{:?}", ServiceCredential::new("github", "dummy-value")).contains("dummy"));
 }
 
@@ -1121,7 +1138,11 @@ async fn custom_secrets_are_replaced_whole_or_removed_on_purpose() {
     );
     let decoded: CredentialsUpdate =
         serde_json::from_value(json!({ "custom_secrets": [] })).unwrap();
-    assert_eq!(decoded.custom_secrets, Some(Vec::new()));
+    assert!(
+        decoded
+            .custom_secrets
+            .is_some_and(|secrets| secrets.is_empty())
+    );
     let decoded: CredentialsUpdate = serde_json::from_value(json!({})).unwrap();
-    assert_eq!(decoded.custom_secrets, None);
+    assert!(decoded.custom_secrets.is_none());
 }

@@ -1,7 +1,10 @@
 //! Credentials pushed to a sandbox (`POST /sandbox/{name}/credentials`).
 //!
 //! Values travel in clear text over the socket and are never readable back from
-//! the daemon. Inside the sandbox, the agent only sees placeholders that the
+//! the daemon. On this side, a [`Secret`] wipes its value from memory when it
+//! is dropped, and so does the body of a credentials request once sent: the
+//! copies this crate makes do not outlive their use (those of the caller, and
+//! the buffers of the operating system, are out of its reach). Inside the sandbox, the agent only sees placeholders that the
 //! sandbox proxy replaces with the real value in the headers of its outgoing
 //! requests. What a push carries stays with the sandbox, through restarts,
 //! until another push changes it or the sandbox goes: a push of custom secrets
@@ -18,48 +21,63 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use zeroize::Zeroizing;
 
 use super::Sandbox;
 use crate::Extra;
 use crate::error::Result;
 use crate::transport::Request;
 
-/// A secret value: serialized as-is, redacted by [`Debug`].
+/// A secret value: redacted by [`Debug`], wiped from memory when dropped, and
+/// serialized as it is, since the daemon takes it in clear text.
+///
+/// It has no [`Display`](fmt::Display) and no equality: reading it is
+/// explicit, with [`Secret::expose_secret`].
 ///
 /// ```
 /// use docker_sandbox::sandbox::Secret;
 ///
 /// let secret = Secret::new("s3cr3t");
 /// assert_eq!(format!("{secret:?}"), "Secret(***)");
-/// assert_eq!(secret.expose(), "s3cr3t");
+/// assert_eq!(secret.expose_secret(), "s3cr3t");
 /// ```
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct Secret(String);
+#[derive(Clone)]
+pub struct Secret(Zeroizing<String>);
 
 impl Secret {
     /// Wraps a secret value.
     pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
+        Self(Zeroizing::new(value.into()))
     }
 
     /// Returns the underlying value.
     #[must_use]
-    pub fn expose(&self) -> &str {
+    pub fn expose_secret(&self) -> &str {
         &self.0
     }
 }
 
 impl From<String> for Secret {
     fn from(value: String) -> Self {
-        Self(value)
+        Self::new(value)
     }
 }
 
 impl From<&str> for Secret {
     fn from(value: &str) -> Self {
-        Self(value.to_owned())
+        Self::new(value)
+    }
+}
+
+#[cfg(feature = "secrecy")]
+#[cfg_attr(docsrs, doc(cfg(feature = "secrecy")))]
+impl From<secrecy::SecretString> for Secret {
+    /// Takes the value of a [`secrecy::SecretString`], which wipes its own
+    /// copy when dropped.
+    fn from(value: secrecy::SecretString) -> Self {
+        use secrecy::ExposeSecret;
+        Self::new(value.expose_secret())
     }
 }
 
@@ -69,11 +87,23 @@ impl fmt::Debug for Secret {
     }
 }
 
+impl Serialize for Secret {
+    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for Secret {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        String::deserialize(deserializer).map(Self::new)
+    }
+}
+
 /// Body of `POST /sandbox/{name}/credentials`.
 ///
 /// An empty update (`{}`) is valid: the `sbx` CLI sends one before every
 /// operation.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CredentialsUpdate {
     /// Proxy-injected secrets: `None` leaves those of the sandbox as they are,
     /// a list replaces them all, and an empty list removes them.
@@ -227,7 +257,7 @@ fn env_name_part(name: &str) -> String {
 }
 
 /// A secret injected by the sandbox proxy into requests to `targets`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomSecret {
     /// Environment variable that holds the placeholder inside the sandbox.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -269,7 +299,7 @@ impl CustomSecret {
 }
 
 /// A credential for a service known to `sbx`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceCredential {
     /// Service identifier, e.g. `github`.
     pub service: String,
@@ -361,7 +391,8 @@ impl Sandbox {
     ///
     /// Fails if the sandbox does not exist or the update is rejected.
     pub async fn push_credentials(&self, update: &CredentialsUpdate) -> Result<CredentialsOutcome> {
-        let request = Request::post("credentials update", self.path("credentials")).json(update)?;
+        let request =
+            Request::post("credentials update", self.path("credentials")).secret_json(update)?;
         self.transport().json(request).await
     }
 

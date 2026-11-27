@@ -82,6 +82,17 @@ http-body-util = "0.1"
 # Byte buffers exchanged with hyper and through the streams.
 bytes = "1"
 
+# Wipes secret values from memory when they are dropped: the `Secret` of the
+# library and the bodies of the requests that carry credentials. No feature:
+# `Zeroizing` and its `AsRef` are in the default set.
+zeroize = "1"
+
+# Optional in the library (feature `secrecy`): accepts a `SecretString` as a
+# `Secret`, so that programs that already hold one need not expose it to pass
+# it on. Its types stay out of the public API, which keeps the library free of
+# its breaking changes.
+secrecy = "0.10"
+
 # `Stream` for the event and execution streams of the library.
 futures-core = "0.3"
 
