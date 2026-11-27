@@ -10,6 +10,10 @@
 //! - The daemon answers a batch of rule changes with HTTP 200 and reports a
 //!   failed change inside: `RuleChangeResult::is_applied` and `into_result`
 //!   tell it.
+//! - A host a rule cannot name is refused by the library, as the CLI refuses
+//!   it, before anything is sent (`HostPattern`): a bare `*`, a bare IPv6
+//!   address, and the URL and path forms the daemon would accept but never
+//!   apply.
 //! - A rule scoped to a sandbox, for a host or for an HTTP method and path, is
 //!   removed through that sandbox: the global removal does not find it.
 //! - A host path permission (`Sandbox::allow_host_path`) is a grant, listed
@@ -23,7 +27,9 @@
 
 use anyhow::{Context, Result, ensure};
 use docker_sandbox::Client;
-use docker_sandbox::policy::{NetworkCheck, Policy, Protocol, RuleChange};
+use docker_sandbox::policy::{
+    HostPattern, InvalidHostPattern, NetworkCheck, Policy, Protocol, RuleChange,
+};
 use docker_sandbox::sandbox::Sandbox;
 use example_common::{connect, kit, sandbox};
 
@@ -55,6 +61,7 @@ async fn main() -> Result<()> {
 
     global_rule(&policy).await?;
     failed_change(&policy).await?;
+    refused_hosts(&policy).await?;
     policy.refresh().await?;
     println!("policy reloaded");
 
@@ -117,6 +124,40 @@ async fn failed_change(policy: &Policy) -> Result<()> {
         .err()
         .context("the failed change is a success")?;
     println!("removal of a missing rule: HTTP 200, the change failed: {error}");
+    Ok(())
+}
+
+/// Shows the hosts a rule cannot name, each refused with its reason, and a
+/// change naming one refused before anything reaches the daemon.
+async fn refused_hosts(policy: &Policy) -> Result<()> {
+    let accepted = HostPattern::parse("**.example.com:443")?;
+    println!(
+        "host accepted: {}; the CLI forms also take ?, [12], IPv4, CIDR and [IPv6]:port",
+        accepted.as_str()
+    );
+    for host in [
+        "*",
+        "2001:db8::1",
+        "https://api.example.com",
+        "api.example.com/v1",
+    ] {
+        let Err(InvalidHostPattern { pattern, reason }) = HostPattern::parse(host) else {
+            anyhow::bail!("{host} was accepted");
+        };
+        println!("host refused: {pattern:?}, {reason}");
+    }
+    // The change is refused by the library, not by the daemon: the daemon,
+    // which would accept the URL form and never apply it, receives nothing.
+    let error = policy
+        .apply(&[RuleChange::allow(["https://api.example.com"])])
+        .await
+        .err()
+        .context("a rule naming a URL was sent")?;
+    ensure!(
+        matches!(error, docker_sandbox::Error::InvalidRequest(_)) && !error.is_invalid_input(),
+        "the change reached the daemon: {error}"
+    );
+    println!("rule change refused before it was sent (Error::InvalidRequest): {error}");
     Ok(())
 }
 

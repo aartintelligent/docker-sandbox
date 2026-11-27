@@ -23,8 +23,12 @@
 //! parts (`CreateRequest::for_agent`). Then it creates the sandbox and checks
 //! that both mixins ran, and that the daemon applied the network rule of the
 //! first and removed it with the sandbox. The package is built in memory
-//! (`KitForge::build`): nothing is written until the example saves it
-//! (`KitPackage::save`) under `examples/target/forged/`, to take its base kit
+//! (`KitForge::build`), its images too (`ImageArchive::Memory`); the same
+//! package is assembled by hand from its request and its images
+//! (`KitPackage::in_memory`, `PackageImage::in_memory`), as a kit forger of
+//! one's own would. Nothing is written until the example saves it
+//! (`KitPackage::save`) under `examples/target/forged/`, its images then files
+//! of its directory (`ImageArchive::File`), to take its base kit
 //! for another composition (`KitForge::with_base_package`), without pulling
 //! the image again. The source images of the mixins stay on the daemon, as the
 //! kit images of the other examples do.
@@ -38,10 +42,11 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail, ensure};
 use docker_sandbox::Client;
 use docker_sandbox::exec::ExecSpec;
+use docker_sandbox::kit::{ImageArchive, KitPackage, PackageImage};
 use docker_sandbox::sandbox::{CreateRequest, Sandbox};
 use docker_sandbox_kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
 use example_common::{connect, sandbox};
-use serde_json::json;
+use serde_json::{Value, json};
 
 /// The published base kit, rebuilt from its image.
 const BASE: &str = "docker.io/sbx/shell:latest";
@@ -130,6 +135,7 @@ async fn main() -> Result<()> {
         "its creation request is a request for the {agent} agent with these kits and their \
          artifacts (CreateRequest::for_agent)"
     );
+    by_hand(&package, &assembled)?;
 
     let name = sandbox::unique_name("forge");
     let rule = format!("kit:{name}");
@@ -160,14 +166,29 @@ async fn main() -> Result<()> {
     );
     println!("the daemon removed the rules with the sandbox");
 
-    // Kept on disk, the base kit of the package is composed again with
-    // another mixin: nothing is pulled or exported this time.
+    reuse(&client, &package).await
+}
+
+/// Saves `package`, then composes its base kit again with another mixin:
+/// kept on disk, it is pulled or exported no more.
+async fn reuse(client: &Client, package: &KitPackage) -> Result<()> {
     let saved = package.save(OUTPUT)?;
     println!(
         "the package, built in memory, saved to {}",
         saved
             .dir()
             .map_or_else(String::new, |dir| dir.display().to_string())
+    );
+    ensure!(
+        saved
+            .images()
+            .iter()
+            .all(|image| matches!(image.archive, ImageArchive::File(_))),
+        "an image of the saved package is not a file"
+    );
+    println!(
+        "its {} images are now files of that directory",
+        saved.images().len()
     );
     let reused = KitForge::new(client.clone())
         .with_base_package(saved)
@@ -177,6 +198,33 @@ async fn main() -> Result<()> {
     println!(
         "the base kit of the package composed again: {}",
         reused.kit_refs().join(", ")
+    );
+    Ok(())
+}
+
+/// Assembles by hand the package `package` from its creation request
+/// `request` and its images, as a kit forger of one's own would, and checks
+/// that it is the same package.
+fn by_hand(package: &KitPackage, request: &CreateRequest) -> Result<()> {
+    let mut images = Vec::new();
+    for image in package.images() {
+        let (Some(reference), ImageArchive::Memory(archive)) = (&image.reference, &image.archive)
+        else {
+            bail!("an image of the package built in memory is not in memory");
+        };
+        println!("  image {reference}: {} bytes, in memory", archive.len());
+        images.push(PackageImage::in_memory(reference, archive.clone()));
+    }
+    let assembled = KitPackage::in_memory(serde_json::to_value(request)?, Value::Null, images)?;
+    ensure!(
+        assembled.request("{{name}}")? == package.request("{{name}}")?
+            && assembled.images().len() == package.images().len(),
+        "the package assembled by hand differs from the one built"
+    );
+    println!(
+        "the same package assembled by hand from its request and its {} images \
+         (KitPackage::in_memory)",
+        assembled.images().len()
     );
     Ok(())
 }
