@@ -594,8 +594,13 @@ async fn images_that_are_not_the_kit_asked_for_are_refused() {
     // A pinned reference exported as another image.
     let daemon = serving(permissive(), shell_export()).start();
     let error = refused(&daemon, "docker.io/sbx/shell:latest@sha256:0bad", &output).await;
+    // The digest the export holds, that of the shell kit the audit recorded.
+    let exported = format!(
+        "was exported as {}",
+        captured_shell().0["v3Digest"].as_str().unwrap()
+    );
     assert!(
-        matches!(error, Error::Forge(ref m) if m.contains("was exported as sha256:a43a")),
+        matches!(error, Error::Forge(ref m) if m.contains(&exported)),
         "{error}"
     );
     let pull = daemon.request("POST", "/docker/images/create");
