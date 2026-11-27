@@ -1,6 +1,6 @@
 ---
 name: sbx-measure
-description: Measure what the sbx CLI sends to the sandboxd socket for a feature — a flag of `sbx run` or `sbx create`, a field, a route — with an audit suite, then code it in docker-sandbox from the measured bodies. Use when the library must learn something the CLI does.
+description: Measure what the sbx CLI sends to the sandboxd socket for a feature — a flag of `sbx run` or `sbx create`, a field, a route — with an audit suite, then code it from the measured bodies, in docker-sandbox or, for a kit artifact or descriptor, in docker-sandbox-kit. Use when the library must learn something the CLI does.
 argument-hint: the CLI feature, e.g. "sbx create --mount"
 disable-model-invocation: true
 ---

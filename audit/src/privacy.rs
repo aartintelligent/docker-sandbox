@@ -19,8 +19,8 @@
 //! Replacements are stable (`/home/user`, `user`, `host`, `user@example.com`,
 //! …) so that two snapshots of the same `sbx` version compare cleanly.
 //!
-//! The check also covers the files `cargo package` publishes for the library
-//! ([`published_files`]). There, the public contact the maintainer declares in
+//! The check also covers the files `cargo package` publishes for the crates of
+//! the workspace ([`published_files`]). There, the public contact the maintainer declares in
 //! the root manifest (`authors`, `repository`, `homepage`, and the Codecov page
 //! of a GitHub repository, which the coverage badge links to) is the one
 //! personal data allowed ([`declared_contacts`]): it is published on purpose.

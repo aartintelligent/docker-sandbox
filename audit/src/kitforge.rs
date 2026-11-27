@@ -23,10 +23,10 @@
 //! fields to find the ones the daemon requires, and `--compare` prints how the
 //! forged artifacts differ from the ones the CLI wrote for the same kits.
 //!
-//! With `--library`, the package is forged by the `KitForge` of the library
-//! instead, and every artifact compared: the scenarios of the `kits` suite
-//! that do so are how an upgrade of `sbx` shows a change of the contract the
-//! library follows.
+//! With `--library`, the package is forged by the `KitForge` of
+//! `docker-sandbox-kit` instead, and every artifact compared: the scenarios of
+//! the `kits` suite that do so are how an upgrade of `sbx` shows a change of
+//! the contract the crate follows.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -121,7 +121,7 @@ struct SourceImage {
 }
 
 /// Writes the package of the mixin of `opts.kit` on its base kit with the
-/// `KitForge` of the library, through the daemon socket `socket`, then
+/// `KitForge` of `docker-sandbox-kit`, through the daemon socket `socket`, then
 /// compares each of its artifacts when asked.
 pub(crate) async fn run_library(opts: &ForgeOpts<'_>, socket: &Path) -> Result<()> {
     let client = Client::builder()
@@ -145,7 +145,7 @@ pub(crate) async fn run_library(opts: &ForgeOpts<'_>, socket: &Path) -> Result<(
         .forge(opts.out)
         .await?;
     println!(
-        "[kit-forge] package forged by the library: {}",
+        "[kit-forge] package forged by docker-sandbox-kit: {}",
         package.kit_refs().join(", ")
     );
     if let Some(other) = opts.compare {

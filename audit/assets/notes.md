@@ -198,7 +198,8 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   of the descriptor. It also leaves out an optional capability of a type it
   does not support, with the message "unsupported capability type
   com.docker.sandbox/dockerd@1" (`dockerd@1` of opencode), as it leaves out
-  `agent-context@1`. The `KitForge` of the library writes that order.
+  `agent-context@1`. The `KitForge` of `docker-sandbox-kit` writes that order
+  (`RESOLVED` in `docker-sandbox-kit/src/forge/artifact.rs`).
 - **A withheld credential stays withheld** (`assets/kits/audit-mixin-cred-echo`,
   a credential of a service no secret can be named after, injected into a
   header of the public echo service; `create-wc` … `probe-wc-after`): a

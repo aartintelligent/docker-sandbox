@@ -648,7 +648,7 @@
         "--compare",
         "{work}/kit-package-json"
       ],
-      "note": "the same package forged by the KitForge of the library, compared field by field with the one the CLI compiled: at each sbx version, a change of the contract shows here"
+      "note": "the same package forged by the KitForge of docker-sandbox-kit, compared field by field with the one the CLI compiled: at each sbx version, a change of the contract shows here"
     },
     {
       "name": "kit-forge-json-b",
@@ -1160,7 +1160,7 @@
         "--compare",
         "{work}/kit-package-json"
       ],
-      "note": "a package forged by the KitForge of the library with nothing from the CLI, the shell kit rebuilt from its image, compared field by field with the one the CLI compiled for the same kits"
+      "note": "a package forged by the KitForge of docker-sandbox-kit with nothing from the CLI, the shell kit rebuilt from its image, compared field by field with the one the CLI compiled for the same kits"
     },
     {
       "name": "load-forged-base",

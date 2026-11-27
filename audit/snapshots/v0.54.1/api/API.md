@@ -96,6 +96,146 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
 - **Source directories are not needed for a replay**: the daemon resolves each
   mixin by its `sbx-kit-src:spec-<hash>` image, not by the `v3Reference` path
   (tested with two mixins, one of whose directories had been deleted).
+- **Network rules of a mixin** (`assets/kits/audit-mixin-net`, a
+  `network-policy@1` with `runtime.allow` and `runtime.deny`): the CLI copies
+  them into the `caps.network` of the artifact and sends no policy request; the
+  **daemon** creates them at `POST /sandbox`, as a policy of its own (`SOURCE
+  kit` in `sbx policy ls`) holding an allow rule `kit:<sandbox>` (provenance
+  `provisioned`) and a deny rule `kit:<sandbox>:deny`, both scoped to the
+  sandbox and not editable, and removes them with the sandbox. The kit lock of
+  the sandbox records them as `networkRuntimeAllow`, `networkRuntimeDeny` and
+  their HTTP forms (`ANY <host>/**`). A package replayed through the socket alone
+  gets the same rules (`create-x-from-package`, `policy-ls-x`).
+- **Install-phase network rules in a mixin** (`install.allow`) are accepted on
+  this daemon and recorded in the kit lock as `networkInstallAllow`; the CLI
+  puts no `caps` in the artifact, the daemon reads the descriptor itself. The
+  binary refuses them on another backend ("accepts only from the workload
+  Kit").
+- **Credentials of a mixin** (`assets/kits/audit-mixin-cred`, a
+  `credential@1` with `apiKey.inject`): the CLI refuses a credential whose
+  inject domain is not in the runtime allow list of the kit ("inject domain …
+  is not in the network policy's runtime allow list"). A service `sbx` does not
+  know is accepted. Without a binding in the bindings file of the host
+  (`~/.config/sbx/credentials.yaml`), the credential is not injected: the CLI
+  says so and creates the sandbox, even for a credential not marked
+  `optional` (warnings only). A creation replayed through the socket answers
+  `"withheld": ["<service>"]` in its `result`. The kit lock records
+  `credentialsRuntime`. The artifact carries `credentials` and
+  `optionalCredentials`; `kit inspect` shows the descriptor as the CLI reads
+  it (`permissions.network`, `credentials`).
+- **MCP from a mixin**: no dedicated capability is needed. Install and startup
+  commands given `env: [MCP_GATEWAY_URL, MCP_SENTINEL_TOKEN_NAME]` get the
+  gateway of the sandbox (`http://mcp-gateway.docker.internal/mcp`) and its
+  sentinel token name (`assets/kits/audit-mixin-mcp`). Startup commands run on
+  `POST /sandbox/{name}/start`: a sandbox created through the socket runs them
+  once it is started, as `Sandbox::ensure_running` does.
+- **Adding permissions to an existing sandbox**: `sbx kit add` asks to approve
+  the permissions a mixin adds ("this change requests permissions beyond what
+  this sandbox was granted", refused with `--no-input`). The daemon asks for
+  nothing: `POST /sandbox/{name}/swap-container` with the network mixin applies
+  its allow and deny rules (`swap-y-net`). The approval is the CLI's alone. A
+  swap that would change the credentials of the sandbox is refused with `409`
+  ("binding-gated credential set, which the running proxy cannot pick up live;
+  remove and recreate the sandbox instead", `swap-y-caps`).
+- **A mixin forged without the CLI** (`audit kit-forge`, mixins
+  `assets/kits/audit-mixin-json*`, the base kit artifact taken from a package
+  the CLI compiled): the daemon accepts a source image and a kit artifact
+  written from the kit directory alone. The forged artifact is the one the CLI
+  writes but for the name of the source image and its digest. The daemon does
+  not check that name (`sbx-kit-src:spec-<hash>` with a hash of our own), the
+  `built-by` annotation, nor the form of `kit.yaml` in the layer (the source
+  text as is). What it needs, measured by leaving fields out
+  (`create-f…-forged`): `manifest` (with `template`, the source image), `v3`
+  (the descriptor, from which it derives the permissions and the network
+  rules: `caps` is not needed) and `commands` (the install commands it runs).
+  `v3Effective`, `v3Selection`, `v3Digest`, `v3Reference`, `kitUsage` and
+  `caps` can be left out. **Without `commands` the sandbox is created and no
+  install command runs, without any error.** Startup commands run on `POST
+  /sandbox/{name}/start`, as for a compiled package.
+- **A base kit rebuilt without the CLI** (`audit kit-forge --base-image
+  docker.io/sbx/shell:latest`): the image is pulled and exported through the
+  socket (`GET /docker/images/export`, an OCI image layout); its image index
+  carries the descriptor as JSON in the `vnd.docker.sandbox.kit.descriptor`
+  annotation (equal to the `v3` the CLI sends), and its configuration the
+  entrypoint and command (`manifest.binary`, `runOptions`, `v3Entrypoint`).
+  The artifact rebuilt from them is equal, field by field, to the one the CLI
+  writes, and a sandbox created from it and a forged mixin, with nothing from
+  the CLI, works as one from a compiled package (install command, network
+  rule, agent context in `/home/agent/AGENTS.md`). The daemon needs
+  `manifest`, `v3` and `v3Effective` of a base kit: without `v3Effective` it
+  composes the raw descriptor and refuses the creation with `400
+  invalid_input` ("agent-context: selected @1 and @2 requests cannot
+  compose"), the selection the CLI makes being missing. `v3Selection`,
+  `agentContext`, the digests, references and publication fields can be left
+  out.
+- **The claude kit rebuilt without the CLI** (`kit-forge --base-image
+  docker.io/sbx/claude:latest --base-arg model=… --base-arg
+  reasoningEffort=…`): beyond the fields of the shell kit, its artifact holds
+  `commands` (install commands wrapped, startup commands kept as the lists
+  the kit writes), `caps`, `credentials` and `optionalCredentials` (the
+  declaration of `credential@1`: service, description, `apiKey` named `""`
+  when unnamed, `oauth`; no value), `skillsRequests` (mode `readonly`),
+  `args` (the declarations without their variable, build arguments left
+  out), `v3ArgValues` and `environment.variables`; the creation request gets
+  `kit_args`. The values are checked against the declared values or pattern
+  and substituted for `${{ kit.args.<name> }}` everywhere but in `v3`.
+  Compared with the packages the CLI compiled for the same image digests,
+  with and without arguments, every field is equal but the order of the
+  capabilities in `v3Effective`, which the CLI sorts (see below); the daemon
+  accepts ours. A sandbox created from it gets `CLAUDE_MODEL` and
+  `CLAUDE_REASONING_EFFORT`, the `model` and `effortLevel` its install
+  commands write to `~/.claude/settings.json`, its agent context in
+  `/home/agent/.claude/CLAUDE.md`, and the network rule of the mixin. The
+  creation answers `"withheld": ["anthropic"]`, because of that order only
+  (next item). The suite never runs the CLI on the
+  claude kit: `exec`, `run`, `cp`, `kit add` and `port publish` push the
+  stored credentials of the user before acting (`policy ls` and `rm` do not).
+- **The order of `v3Effective` decides the credential of a published kit**
+  (measured on 2026-11-27 through the socket, with sandboxes of the claude kit
+  the library forged and the agent never started): the claude kit the CLI
+  compiled, created without a bindings file, answers `"withheld": []`, and an
+  agent run in it uses the credential stored for `anthropic` (a Claude
+  subscription, its OAuth tokens kept by the proxy, refreshed at
+  `platform.claude.com`). The same kit forged for the same image digest,
+  with or without kit arguments, answers `"withheld": ["anthropic"]`. The only
+  difference is the order of the capabilities of `v3Effective`, and it is the
+  cause: the forged package in the order of the CLI answers `[]`, the
+  compiled one in the order of the descriptor `["anthropic"]`. The CLI sorts
+  them by type, stable for one type (the seven credentials of opencode keep
+  their order): `network-policy@1`, `sbx@1`, `credential@1`,
+  `agent-skills@1`, `acp@1`, `agent-sessions@1`,
+  `agent-interactive-sessions@1`, `lifecycle@1`, `agent-context` (packages of
+  shell, claude, copilot, opencode and mixins); `v3Selection` keeps the order
+  of the descriptor. It also leaves out an optional capability of a type it
+  does not support, with the message "unsupported capability type
+  com.docker.sandbox/dockerd@1" (`dockerd@1` of opencode), as it leaves out
+  `agent-context@1`. The `KitForge` of `docker-sandbox-kit` writes that order
+  (`RESOLVED` in `docker-sandbox-kit/src/forge/artifact.rs`).
+- **A withheld credential stays withheld** (`assets/kits/audit-mixin-cred-echo`,
+  a credential of a service no secret can be named after, injected into a
+  header of the public echo service; `create-wc` … `probe-wc-after`): a
+  sandbox created through the socket without a bindings file answers
+  `"withheld": ["audit-withheld-probe"]`; a dummy value then pushed for that
+  service (`credential_values` and `credential_sources`, as
+  `Sandbox::push_service_secret` sends them) is accepted
+  (`"credential_source_updates_applied": true`), shows in the
+  `credential_sources` of the sandbox, but the answer lists the service as
+  withheld again and the echo service receives no such header. A credential a
+  mixin declares for its own service is injected only when the bindings file
+  the daemon reads (`bindings_path`) authorizes it; pushing a value is not
+  enough. Custom
+  secrets, which target hosts rather than declared services, do not depend on
+  it (see "Secrets").
+- **The credential of an agent through the socket alone** (`create-ag` …
+  `probe-ag-removed`, the claude kit rebuilt without the CLI, its own
+  credential withheld by the order above): the variable the agent reads its key from
+  (`ANTHROPIC_API_KEY`) is set to a placeholder at creation (`environment`),
+  and a dummy custom secret for that placeholder is pushed for a host (the
+  echo service, standing for the API). A request carrying the placeholder in
+  `x-api-key` reaches the host with the value instead (its digest checked),
+  the placeholder before the push and after the removal; a search of the
+  files of the sandbox as root finds no value. A program gives an agent its
+  key this way, with no bindings file and no CLI.
 - **Tool**: `audit kit-compile <dir>… [--base shell] [--kit-arg k=v]` writes
   `target/audit/kits/<name>/` (`kit.json`, `create-body.json` with
   `"name": "{{name}}"`, `images/NN.oci.tar`), cleans the daemon up, then verifies
