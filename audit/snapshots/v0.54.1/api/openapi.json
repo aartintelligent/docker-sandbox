@@ -19,6 +19,68 @@
         ],
         "type": "object"
       },
+      "Event_policy_network_allowed": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "data": {
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "host": {
+                "type": "string"
+              },
+              "last_seen": {
+                "type": "string"
+              },
+              "proxy_type": {
+                "type": "string"
+              },
+              "rule": {
+                "type": "string"
+              },
+              "since": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "count",
+              "host",
+              "last_seen",
+              "proxy_type",
+              "rule",
+              "since"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "sandbox_name": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "data",
+          "id",
+          "sandbox_name",
+          "timestamp",
+          "type"
+        ],
+        "type": "object"
+      },
       "Event_policy_network_blocked": {
         "properties": {
           "action": {
@@ -80,7 +142,6 @@
           "data",
           "id",
           "sandbox_name",
-          "seq",
           "timestamp",
           "type"
         ],
@@ -150,7 +211,6 @@
         },
         "required": [
           "action",
-          "created_at",
           "id",
           "sandbox_id",
           "sandbox_name",
@@ -344,22 +404,22 @@
             "content": {
               "application/json": {
                 "example": {
-                  "daemon_uptime_seconds": 255.240717267,
+                  "daemon_uptime_seconds": 228909.448733761,
                   "daemon_version": "v0.54.1",
                   "docker": {
                     "containers": [
                       {
-                        "created": "2026-11-25T00:23:30Z",
-                        "id": "2083b8c1fe6674886e4254f13a277cee647826d5a3b1e0d1952b6894243988c6",
+                        "created": "2026-11-27T15:54:24Z",
+                        "id": "99a72749cf035893a5a80bbd9074fd70072e0e06c485d6f10a74906989907062",
                         "name": "audit-w",
                         "tracked": true
                       }
                     ],
                     "networks": [
                       {
-                        "created": "2026-11-25T00:23:30.081065784Z",
+                        "created": "2026-11-27T15:54:24.59567501Z",
                         "driver": "gvisor",
-                        "id": "6867e80f849cb82db952437fe49cc30acd4ea6c219e21d7ec2d9e2e4bee8d725",
+                        "id": "2e0f77262e6e5e33b2fbab60f11c2f2d7c64373fdf5a10c4bf848b2d5161b14e",
                         "name": "audit-w",
                         "sandbox_managed": true
                       }
@@ -389,11 +449,11 @@
                       "agent_name": "shell",
                       "custom_secrets": [],
                       "has_proxy_state": true,
-                      "id": "962e37d6-94e0-46b3-9b9d-a5d0e22ec414",
-                      "image": "sandbox-kit-assembled:fe5b2d2d76ca72cb",
-                      "image_digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                      "id": "0e69f8f3-1852-4383-af79-5410d0980a56",
+                      "image": "sandbox-kit-assembled:821cf15df4202c4f",
+                      "image_digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                       "kits": [
-                        "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6"
+                        "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
                       ],
                       "mcp_gateway_present": true,
                       "name": "audit-w",
@@ -425,8 +485,8 @@
                     "custom_secrets": [],
                     "oauth_token_managers": [
                       {
-                        "expired": true,
-                        "expires_at": "2026-11-24T19:11:01Z",
+                        "expired": false,
+                        "expires_at": "2026-11-27T21:49:42Z",
                         "has_access_token": true,
                         "has_client_id": false,
                         "has_client_secret": false,
@@ -810,11 +870,11 @@
               "application/json": {
                 "example": {
                   "disk": {
-                    "free_bytes": 530554732544,
+                    "free_bytes": 288569204736,
                     "total_bytes": 982240026624
                   },
                   "info": {
-                    "CapturedAt": "2026-11-25T00:20:51.517982483Z",
+                    "CapturedAt": "2026-11-27T15:47:56.400584406Z",
                     "ContainerdConfig": {
                       "DisabledPlugins": [
                         "io.containerd.server.v1.grpc",
@@ -983,15 +1043,15 @@
                     },
                     "GoRuntime": "go1.27.4",
                     "Goroutines": [
-                      "goroutine 230460 [running]:\ngithub.com/docker/docker-next/pkg/diag.captureGoroutines(0xb3cf628)\n\tgithub.com/docker/docker-next@v0.81.0/pkg/diag/goroutines.go:43 +0x75\ngithub.com/docker/docker-next/pkg…",
-                      "goroutine 1 [chan receive, 1 minutes, locked to thread]:\ngithub.com/docker/sandboxes/sandboxd.Run({0xb38e768, 0xbfc3460}, {{0x24ffe004e410, 0x4d}, {0x504180b, 0x4}, {0x0, 0x0}, {0x0, 0x0}, ...})\n\tgith…",
-                      "goroutine 72 [syscall, 1 minutes]:\nos/signal.signal_recv()\n\truntime/sigqueue.go:152 +0x98\nos/signal.loop()\n\tos/signal/signal_unix.go:23 +0x13\ncreated by os/signal.Notify.func2.1 in goroutine 1\n\tos/sig…",
-                      "… +107 more items"
+                      "goroutine 2600965 [running]:\ngithub.com/docker/docker-next/pkg/diag.captureGoroutines(0xb3cf628)\n\tgithub.com/docker/docker-next@v0.81.0/pkg/diag/goroutines.go:43 +0x75\ngithub.com/docker/docker-next/pk…",
+                      "goroutine 1 [chan receive, 3808 minutes, locked to thread]:\ngithub.com/docker/sandboxes/sandboxd.Run({0xb38e768, 0xbfc3460}, {{0x24ffe004e410, 0x4d}, {0x504180b, 0x4}, {0x0, 0x0}, {0x0, 0x0}, ...})\n\tg…",
+                      "goroutine 72 [syscall, 3808 minutes]:\nos/signal.signal_recv()\n\truntime/sigqueue.go:152 +0x98\nos/signal.loop()\n\tos/signal/signal_unix.go:23 +0x13\ncreated by os/signal.Notify.func2.1 in goroutine 1\n\tos/…",
+                      "… +149 more items"
                     ],
                     "Host": {
                       "Arch": "amd64",
                       "Memory": {
-                        "AvailableBytes": 114867724288,
+                        "AvailableBytes": 115671166976,
                         "TotalBytes": 132431224832
                       },
                       "NumCPU": 20,
@@ -1013,43 +1073,43 @@
                               "CPUIntervalNS": null,
                               "CPUPercent": null,
                               "Errors": "{… 0 fields}",
-                              "RSSBytes": 216973312,
-                              "SampledAt": "2026-11-25T01:20:51.266648352+01:00",
+                              "RSSBytes": 220729344,
+                              "SampledAt": "2026-11-27T16:47:56.149589199+01:00",
                               "StartedAtUnixMS": 1795565957390,
-                              "SystemCPUSeconds": 17.15,
-                              "UserCPUSeconds": 71.66
+                              "SystemCPUSeconds": 700.24,
+                              "UserCPUSeconds": 1582.98
                             },
                             {
-                              "CPUIntervalNS": 251121752,
-                              "CPUPercent": 2.8294750657844258e-12,
+                              "CPUIntervalNS": 250711303,
+                              "CPUPercent": 9.069143382148672e-11,
                               "Errors": "{… 0 fields}",
-                              "RSSBytes": 216973312,
-                              "SampledAt": "2026-11-25T01:20:51.517770052+01:00",
+                              "RSSBytes": 220729344,
+                              "SampledAt": "2026-11-27T16:47:56.400300452+01:00",
                               "StartedAtUnixMS": 1795565957390,
-                              "SystemCPUSeconds": 17.15,
-                              "UserCPUSeconds": 71.66
+                              "SystemCPUSeconds": 700.24,
+                              "UserCPUSeconds": 1582.98
                             }
                           ],
                           "Shim": false,
                           "TaskID": ""
                         }
                       ],
-                      "NumGoroutine": 110,
+                      "NumGoroutine": 152,
                       "Self": {
                         "PID": 2955251,
-                        "RSSBytes": 216973312
+                        "RSSBytes": 220729344
                       },
                       "Shims": {
                         "Count": 0,
                         "TotalRSSBytes": 0
                       },
-                      "UptimeSec": 93
+                      "UptimeSec": 228518
                     },
                     "SchemaVersion": 1,
                     "State": {
                       "Images": {
-                        "Count": 8,
-                        "TotalBytes": 128362
+                        "Count": 12,
+                        "TotalBytes": 230899
                       },
                       "Sandboxes": {
                         "Running": 0,
@@ -1767,27 +1827,27 @@
                   "images": [
                     {
                       "containers": 0,
-                      "created_at": "2026-11-24T16:40:49.758090207Z",
-                      "id": "sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245",
+                      "created_at": "2026-11-27T02:24:32.503373223Z",
+                      "id": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
                       "names": [
-                        "docker.io/library/sandbox-kit-assembled:abcb8e131d141d15",
-                        "docker.io/sbx/claude@sha256:fa91ca160b08a18250b6b1dc574c1d7e9bcbebb5db69113f53e9987a59c67245"
+                        "docker.io/library/sandbox-kit-assembled:a17f21961034ae91",
+                        "docker.io/sbx/claude@sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783"
                       ],
-                      "shared_size": 26359,
-                      "size": 1553662206,
-                      "unique_size": 1553635847
+                      "shared_size": 0,
+                      "size": 1578855587,
+                      "unique_size": 1578855587
                     },
                     {
                       "containers": 0,
-                      "created_at": "2026-11-24T18:05:17.985405567Z",
-                      "id": "sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d",
+                      "created_at": "2026-11-27T02:45:21.374703202Z",
+                      "id": "sha256:ce985e32b6a93628c6b67c866e1b2d55513ba4c7ee6e29de805aabe088109c5c",
                       "names": [
-                        "docker.io/library/sandbox-kit-assembled:c1400a176754093d",
-                        "docker.io/sbx/shell@sha256:6bde3df80ffa311aca75e2df71cfe06afb6bbfd9397a078c7f813fdb2b17388d"
+                        "docker.io/library/sandbox-kit-assembled:b8ac0e203ed3c470",
+                        "docker.io/sbx/claude:latest"
                       ],
-                      "shared_size": 11445,
-                      "size": 1022536530,
-                      "unique_size": 1022525085
+                      "shared_size": 0,
+                      "size": 1584057165,
+                      "unique_size": 1584057165
                     },
                     {
                       "containers": 0,
@@ -1800,14 +1860,14 @@
                       "size": 1553528920,
                       "unique_size": 1553502561
                     },
-                    "… +1 more items"
+                    "… +5 more items"
                   ],
                   "summaries": [
                     {
                       "active": 0,
-                      "reclaimable": 5152156484,
-                      "size": 5152156484,
-                      "total_count": 4,
+                      "reclaimable": 10979221619,
+                      "size": 10979221619,
+                      "total_count": 8,
                       "type": "Images"
                     },
                     {
@@ -1994,8 +2054,17 @@
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
+          "create-cq-cred-required",
+          "create-cr-cred",
           "create-e",
+          "create-if-install-fail",
           "create-k-skills-readwrite",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
+          "create-np",
+          "create-nq",
           "create-p-plain",
           "create-p-profile-unknown",
           "create-r",
@@ -2004,6 +2073,7 @@
           "create-w",
           "create-w-workspaces",
           "create-with-mixin",
+          "create-y-plain",
           "daemon-status",
           "df",
           "diagnose",
@@ -2025,10 +2095,26 @@
           "inspect-w",
           "inspect-w-json",
           "kit-add",
+          "kit-add-cred-y",
+          "kit-add-net-y",
           "kit-builder-status",
           "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net",
+          "kit-forge-agent",
+          "kit-forge-base",
+          "kit-forge-base-eff",
+          "kit-forge-base-min",
+          "kit-forge-base-sel",
+          "kit-forge-claude",
+          "kit-forge-library",
+          "kit-forge-library-shell",
+          "kit-inspect-cred",
           "kit-inspect-shell",
           "kit-validate",
+          "kit-validate-net",
           "loglevel-set-same",
           "ls",
           "ls-json",
@@ -2052,7 +2138,22 @@
           "policy-log",
           "policy-ls",
           "policy-ls-after",
+          "policy-ls-after-rm",
+          "policy-ls-ck",
+          "policy-ls-f",
+          "policy-ls-fe",
+          "policy-ls-ff",
+          "policy-ls-g",
+          "policy-ls-i",
+          "policy-ls-j",
+          "policy-ls-n",
+          "policy-ls-network-after",
+          "policy-ls-nk",
+          "policy-ls-np",
           "policy-ls-s",
+          "policy-ls-x",
+          "policy-ls-y",
+          "policy-ls-y-swapped",
           "policy-profile-ls",
           "policy-refresh",
           "policy-rm-global",
@@ -2063,18 +2164,29 @@
           "port-publish-multi",
           "port-unpublish",
           "port-unpublish-multi",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
           "prune-dry",
           "rm-a",
           "rm-ab",
+          "rm-ag",
           "rm-aw",
           "rm-b",
           "rm-c",
           "rm-e",
+          "rm-forged-base-sandboxes",
+          "rm-forged-claude",
+          "rm-forged-sandboxes",
           "rm-k",
+          "rm-kit-capability-sandboxes",
           "rm-kit-sandboxes",
+          "rm-network-sandboxes",
           "rm-r",
           "rm-s",
           "rm-w",
+          "rm-wc",
           "run-a",
           "run-r-command-args",
           "run-r-env-workdir",
@@ -2095,10 +2207,11 @@
           "template-rm-2",
           "template-save",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 406
+        "x-sample-count": 592
       }
     },
     "/daemon/info": {
@@ -2495,8 +2608,17 @@
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
+          "create-cq-cred-required",
+          "create-cr-cred",
           "create-e",
+          "create-if-install-fail",
           "create-k-skills-readwrite",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
+          "create-np",
+          "create-nq",
           "create-p-plain",
           "create-p-profile-unknown",
           "create-r",
@@ -2505,6 +2627,7 @@
           "create-w",
           "create-w-workspaces",
           "create-with-mixin",
+          "create-y-plain",
           "daemon-loglevel",
           "daemon-status",
           "df",
@@ -2528,10 +2651,18 @@
           "inspect-w",
           "inspect-w-json",
           "kit-add",
+          "kit-add-cred-y",
+          "kit-add-net-y",
           "kit-builder-status",
           "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net",
+          "kit-inspect-cred",
           "kit-inspect-shell",
           "kit-validate",
+          "kit-validate-net",
           "loglevel-set-same",
           "ls",
           "ls-json",
@@ -2557,7 +2688,22 @@
           "policy-log",
           "policy-ls",
           "policy-ls-after",
+          "policy-ls-after-rm",
+          "policy-ls-ck",
+          "policy-ls-f",
+          "policy-ls-fe",
+          "policy-ls-ff",
+          "policy-ls-g",
+          "policy-ls-i",
+          "policy-ls-j",
+          "policy-ls-n",
+          "policy-ls-network-after",
+          "policy-ls-nk",
+          "policy-ls-np",
           "policy-ls-s",
+          "policy-ls-x",
+          "policy-ls-y",
+          "policy-ls-y-swapped",
           "policy-profile-ls",
           "policy-refresh",
           "policy-rm-global",
@@ -2568,18 +2714,29 @@
           "port-publish-multi",
           "port-unpublish",
           "port-unpublish-multi",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
           "prune-dry",
           "rm-a",
           "rm-ab",
+          "rm-ag",
           "rm-aw",
           "rm-b",
           "rm-c",
           "rm-e",
+          "rm-forged-base-sandboxes",
+          "rm-forged-claude",
+          "rm-forged-sandboxes",
           "rm-k",
+          "rm-kit-capability-sandboxes",
           "rm-kit-sandboxes",
+          "rm-network-sandboxes",
           "rm-r",
           "rm-s",
           "rm-w",
+          "rm-wc",
           "run-a",
           "run-r-command-args",
           "run-r-env-workdir",
@@ -2606,11 +2763,12 @@
           "template-rm-2",
           "template-save",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin",
           "version"
         ],
         "x-observed": true,
-        "x-sample-count": 157
+        "x-sample-count": 220
       }
     },
     "/daemon/settings/{key}": {
@@ -2689,12 +2847,25 @@
                 "schema": {
                   "properties": {
                     "default": {
-                      "type": [
-                        "boolean",
-                        "string"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "string"
+                        }
                       ]
                     },
                     "description": {
+                      "type": "string"
+                    },
+                    "env_var": {
                       "type": "string"
                     },
                     "key": {
@@ -2707,9 +2878,20 @@
                       "type": "string"
                     },
                     "value": {
-                      "type": [
-                        "boolean",
-                        "string"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "string",
+                          "x-redacted-in-capture": true
+                        }
                       ]
                     }
                   },
@@ -2754,12 +2936,14 @@
         ],
         "x-cli-scenarios": [
           "create-c-clone",
+          "kit-forge-library",
+          "kit-forge-library-shell",
           "setting-get-unknown",
           "settings-get",
           "settings-unset"
         ],
         "x-observed": true,
-        "x-sample-count": 5
+        "x-sample-count": 10
       },
       "post": {
         "operationId": "post_daemon_settings_key",
@@ -2907,30 +3091,31 @@
                   {
                     "agent": "shell",
                     "created_at": "2026-11-19T17:01:03Z",
-                    "digest": "sha256:86c259982cf8a5064329905f1923a4934cc0f23c5a8113dff8ad6980dc4a49d9",
-                    "id": "sha256:86c259982cf8a5064329905f1923a4934cc0f23c5a8113dff8ad6980dc4a49d9",
+                    "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "id": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                     "repository": "docker.io/library/sandbox-kit-assembled",
-                    "size": 229782507,
-                    "tag": "431da9a5fb8d6af9"
+                    "size": 229929015,
+                    "tag": "821cf15df4202c4f"
                   },
                   {
                     "agent": "shell",
-                    "created_at": "2026-11-19T17:01:03Z",
-                    "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
-                    "id": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                    "created_at": "2026-11-27T15:48:40Z",
+                    "digest": "sha256:58c7d2aac263ea884a985ada79bc73e77605460bd5ad09d22d21434297935dfd",
+                    "id": "sha256:58c7d2aac263ea884a985ada79bc73e77605460bd5ad09d22d21434297935dfd",
                     "repository": "docker.io/library/sandbox-kit-assembled",
-                    "size": 229877895,
-                    "tag": "431da9a5fb8d6af9-kit-0"
+                    "size": 230301823,
+                    "tag": "88da6bcc400b5455"
                   },
                   {
-                    "created_at": "2026-11-25T00:22:26Z",
-                    "digest": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
-                    "id": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
+                    "agent": "claude",
+                    "created_at": "2026-11-24T05:25:46Z",
+                    "digest": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
+                    "id": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
                     "repository": "docker.io/library/sandbox-kit-assembled",
-                    "size": 6077,
-                    "tag": "431da9a5fb8d6af9-kit-1"
+                    "size": 389469081,
+                    "tag": "a17f21961034ae91"
                   },
-                  "… +12 more items"
+                  "… +16 more items"
                 ],
                 "schema": {
                   "items": {
@@ -2978,11 +3163,15 @@
         ],
         "x-cli-scenarios": [
           "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net",
           "template-ls",
           "template-ls-all"
         ],
         "x-observed": true,
-        "x-sample-count": 7
+        "x-sample-count": 27
       }
     },
     "/docker/images/create": {
@@ -2999,7 +3188,7 @@
             }
           },
           {
-            "example": "docker.io/sbx/shell:latest",
+            "example": "docker.io/sbx/claude:latest",
             "in": "query",
             "name": "fromImage",
             "required": false,
@@ -3014,21 +3203,21 @@
               "application/x-ndjson": {
                 "example": [
                   {
-                    "id": "a43a179b1c6b",
+                    "id": "12acfa76ac88",
                     "progressDetail": {
                       "hidecounts": true
                     },
-                    "status": "Download complete"
+                    "status": "Already exists"
                   },
                   {
-                    "id": "bf317653bfc4",
+                    "id": "e53759f691d2",
                     "progressDetail": {
                       "hidecounts": true
                     },
-                    "status": "Download complete"
+                    "status": "Already exists"
                   },
                   {
-                    "id": "d927af8e888b",
+                    "id": "67c1d5a2503e",
                     "progressDetail": {
                       "hidecounts": true
                     },
@@ -3075,10 +3264,22 @@
         "x-cli-scenarios": [
           "create-a",
           "image-pull",
-          "image-pull-unknown"
+          "image-pull-unknown",
+          "kit-forge-agent",
+          "kit-forge-base",
+          "kit-forge-base-eff",
+          "kit-forge-base-min",
+          "kit-forge-base-sel",
+          "kit-forge-claude",
+          "kit-forge-library-shell"
         ],
         "x-observed": true,
-        "x-sample-count": 3
+        "x-request-headers": {
+          "Accept": [
+            "application/x-ndjson"
+          ]
+        },
+        "x-sample-count": 10
       }
     },
     "/docker/images/export": {
@@ -3134,10 +3335,22 @@
         ],
         "x-cli-scenarios": [
           "image-export-unknown",
+          "kit-forge-agent",
+          "kit-forge-base",
+          "kit-forge-base-eff",
+          "kit-forge-base-min",
+          "kit-forge-base-sel",
+          "kit-forge-claude",
+          "kit-forge-library-shell",
           "template-save"
         ],
         "x-observed": true,
-        "x-sample-count": 2
+        "x-request-headers": {
+          "Accept": [
+            "application/x-tar"
+          ]
+        },
+        "x-sample-count": 9
       }
     },
     "/docker/images/inspect": {
@@ -3171,7 +3384,7 @@
                     "exec \"$@\"",
                     "… +1 more items"
                   ],
-                  "id": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                  "id": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                   "user": "1000"
                 },
                 "schema": {
@@ -3219,7 +3432,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "message": "no image \"docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6\""
+                  "message": "no image \"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\""
                 },
                 "schema": {
                   "properties": {
@@ -3246,8 +3459,17 @@
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
+          "create-cq-cred-required",
+          "create-cr-cred",
           "create-e",
+          "create-if-install-fail",
           "create-k-skills-readwrite",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
+          "create-np",
+          "create-nq",
           "create-p-plain",
           "create-p-profile-unknown",
           "create-r",
@@ -3256,12 +3478,17 @@
           "create-w",
           "create-w-workspaces",
           "create-with-mixin",
+          "create-y-plain",
           "env-create",
           "image-inspect-unknown",
-          "kit-compile"
+          "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net"
         ],
         "x-observed": true,
-        "x-sample-count": 41
+        "x-sample-count": 65
       }
     },
     "/docker/images/load": {
@@ -3326,12 +3553,45 @@
           "docker"
         ],
         "x-cli-scenarios": [
+          "create-cq-cred-required",
+          "create-cr-cred",
+          "create-if-install-fail",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
           "create-with-mixin",
           "image-load-invalid",
           "kit-add",
+          "kit-add-cred-y",
+          "kit-add-net-y",
           "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net",
+          "kit-inspect-cred",
           "kit-validate",
+          "kit-validate-net",
+          "load-caps-source-0",
+          "load-caps-source-1",
+          "load-caps-source-2",
+          "load-cred-echo-source",
+          "load-forged-agent",
+          "load-forged-base",
+          "load-forged-base-eff",
+          "load-forged-base-min",
+          "load-forged-base-sel",
+          "load-forged-claude",
+          "load-forged-json",
+          "load-forged-json-b",
+          "load-forged-json-c",
+          "load-forged-json-d",
+          "load-forged-json-e",
+          "load-forged-json-f",
           "load-kit-source",
+          "load-net-source",
+          "load-ref-source",
           "template-load"
         ],
         "x-observed": true,
@@ -3340,7 +3600,7 @@
             "application/octet-stream"
           ]
         },
-        "x-sample-count": 7
+        "x-sample-count": 45
       }
     },
     "/docker/images/local-metadata": {
@@ -3348,7 +3608,7 @@
         "operationId": "get_docker_images_local_metadata",
         "parameters": [
           {
-            "example": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c",
+            "example": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c032",
             "in": "query",
             "name": "name",
             "required": false,
@@ -3388,8 +3648,17 @@
           "create-a-plain",
           "create-b-static-mcp",
           "create-c-clone",
+          "create-cq-cred-required",
+          "create-cr-cred",
           "create-e",
+          "create-if-install-fail",
           "create-k-skills-readwrite",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
+          "create-np",
+          "create-nq",
           "create-p-plain",
           "create-p-profile-unknown",
           "create-r",
@@ -3398,12 +3667,17 @@
           "create-w",
           "create-w-workspaces",
           "create-with-mixin",
+          "create-y-plain",
           "env-create",
           "image-local-metadata-unknown",
-          "kit-compile"
+          "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net"
         ],
         "x-observed": true,
-        "x-sample-count": 20
+        "x-sample-count": 34
       }
     },
     "/docker/images/remove": {
@@ -3425,7 +3699,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "message": "removed image \"audit-snap:v1\""
+                  "message": "removed image \"docker.io/library/sandbox-kit-assembled:d1e1c32b46271063-template\""
                 },
                 "schema": {
                   "properties": {
@@ -3469,11 +3743,14 @@
         ],
         "x-cli-scenarios": [
           "image-remove-unknown",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
           "template-rm",
           "template-rm-2"
         ],
         "x-observed": true,
-        "x-sample-count": 3
+        "x-sample-count": 35
       }
     },
     "/events": {
@@ -3486,29 +3763,49 @@
               "application/x-ndjson": {
                 "example": [
                   {
-                    "action": "complete",
-                    "id": "12fa4042-1b43-4007-9d5f-79799ac09b14",
-                    "timestamp": "2026-11-25T01:19:54.189260663+01:00",
-                    "type": "sync"
+                    "action": "allowed",
+                    "data": {
+                      "count": 2,
+                      "host": "audit-net-path.example.invalid:80",
+                      "last_seen": "2026-11-27T16:44:57.042960256+01:00",
+                      "proxy_type": "forward",
+                      "rule": "<dial failed>",
+                      "since": "2026-11-27T16:44:54.694642836+01:00"
+                    },
+                    "id": "f0f7bdd0-a756-414c-a995-7ec58e81d567",
+                    "sandbox_name": "audit-np",
+                    "timestamp": "2026-11-27T16:47:03.132155962+01:00",
+                    "type": "policy.network"
                   },
                   {
-                    "action": "created",
-                    "id": "156d8132-860d-4717-b94f-9843fb1be417",
-                    "sandbox_id": "cb003c10-564d-4575-b6f9-4413dae4b698",
-                    "sandbox_name": "audit-a",
-                    "seq": 1,
-                    "timestamp": "2026-11-25T01:20:15.095852513+01:00",
-                    "type": "sandbox.lifecycle"
+                    "action": "allowed",
+                    "data": {
+                      "count": 2,
+                      "host": "audit-net-scheme.example.invalid:80",
+                      "last_seen": "2026-11-27T16:44:57.033515619+01:00",
+                      "proxy_type": "forward",
+                      "rule": "<dial failed>",
+                      "since": "2026-11-27T16:44:54.683582037+01:00"
+                    },
+                    "id": "d8ced441-e934-44fe-9d45-d04f1d8ace9f",
+                    "sandbox_name": "audit-np",
+                    "timestamp": "2026-11-27T16:47:03.132194837+01:00",
+                    "type": "policy.network"
                   },
                   {
-                    "action": "started",
-                    "created_at": "2026-11-25T01:20:15+01:00",
-                    "id": "4f9817d9-b9c8-427f-9a37-f134336e7142",
-                    "sandbox_id": "cb003c10-564d-4575-b6f9-4413dae4b698",
-                    "sandbox_name": "audit-a",
-                    "seq": 2,
-                    "timestamp": "2026-11-25T01:20:16.566087531+01:00",
-                    "type": "sandbox.lifecycle"
+                    "action": "allowed",
+                    "data": {
+                      "count": 1,
+                      "host": "audit-net-port.example.invalid:80",
+                      "last_seen": "2026-11-27T16:44:54.668688997+01:00",
+                      "proxy_type": "forward",
+                      "rule": "<dial failed>",
+                      "since": "2026-11-27T16:44:54.668688997+01:00"
+                    },
+                    "id": "48fc2fbb-b6cc-4926-9ef0-8e013fb5e703",
+                    "sandbox_name": "audit-np",
+                    "timestamp": "2026-11-27T16:47:03.132204547+01:00",
+                    "type": "policy.network"
                   }
                 ],
                 "schema": {
@@ -3615,6 +3912,9 @@
         ],
         "x-event-item": {
           "oneOf": [
+            {
+              "$ref": "#/components/schemas/Event_policy_network_allowed"
+            },
             {
               "$ref": "#/components/schemas/Event_policy_network_blocked"
             },
@@ -4121,6 +4421,7 @@
         "x-cli-scenarios": [
           "check-empty",
           "check-invalid-type",
+          "check-np-plain-global",
           "policy-check",
           "policy-check-http"
         ],
@@ -4130,7 +4431,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 4
+        "x-sample-count": 5
       }
     },
     "/policy/network/log": {
@@ -4141,17 +4442,150 @@
             "content": {
               "application/json": {
                 "example": {
-                  "allowed_hosts": [],
-                  "blocked_hosts": []
+                  "allowed_hosts": [
+                    {
+                      "count_since": 2,
+                      "host": "audit-net-path.example.invalid:80",
+                      "last_seen": "2026-11-27T16:44:57.042960256+01:00",
+                      "proxy_type": "forward",
+                      "rule": "<dial failed>",
+                      "since": "2026-11-27T16:44:54.694642836+01:00",
+                      "vm_name": "audit-np"
+                    },
+                    {
+                      "count_since": 2,
+                      "host": "audit-net-scheme.example.invalid:80",
+                      "last_seen": "2026-11-27T16:44:57.033515619+01:00",
+                      "proxy_type": "forward",
+                      "rule": "<dial failed>",
+                      "since": "2026-11-27T16:44:54.683582037+01:00",
+                      "vm_name": "audit-np"
+                    },
+                    {
+                      "count_since": 1,
+                      "host": "audit-net-port.example.invalid:80",
+                      "last_seen": "2026-11-27T16:44:54.668688997+01:00",
+                      "proxy_type": "forward",
+                      "rule": "<dial failed>",
+                      "since": "2026-11-27T16:44:54.668688997+01:00",
+                      "vm_name": "audit-np"
+                    },
+                    "… +97 more items"
+                  ],
+                  "blocked_hosts": [
+                    {
+                      "count_since": 1,
+                      "host": "audit-net-other.example.invalid:80",
+                      "last_seen": "2026-11-27T16:45:12.923146373+01:00",
+                      "proxy_type": "forward",
+                      "reason": "Denied by local rule",
+                      "rule": "denied: rule \"kit:audit-nk:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-net-other.example.invalid:80)",
+                      "since": "2026-11-27T16:45:12.923146373+01:00",
+                      "vm_name": "audit-nk"
+                    },
+                    {
+                      "count_since": 1,
+                      "host": "audit-net-extra.example.invalid:80",
+                      "last_seen": "2026-11-27T16:45:12.91732005+01:00",
+                      "proxy_type": "forward",
+                      "reason": "Denied by local rule",
+                      "rule": "denied: rule \"kit:audit-nk:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-net-extra.example.invalid:80)",
+                      "since": "2026-11-27T16:45:12.91732005+01:00",
+                      "vm_name": "audit-nk"
+                    },
+                    {
+                      "count_since": 1,
+                      "host": "audit-net-allowed.example.invalid:80",
+                      "last_seen": "2026-11-27T16:45:12.908057978+01:00",
+                      "proxy_type": "forward",
+                      "reason": "Denied by local rule",
+                      "rule": "denied: rule \"kit:audit-nk:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-net-allowed.example.invalid:80)",
+                      "since": "2026-11-27T16:45:12.908057978+01:00",
+                      "vm_name": "audit-nk"
+                    },
+                    "… +42 more items"
+                  ]
                 },
                 "schema": {
                   "properties": {
                     "allowed_hosts": {
-                      "items": {},
+                      "items": {
+                        "properties": {
+                          "count_since": {
+                            "type": "integer"
+                          },
+                          "host": {
+                            "type": "string"
+                          },
+                          "last_seen": {
+                            "type": "string"
+                          },
+                          "proxy_type": {
+                            "type": "string"
+                          },
+                          "rule": {
+                            "type": "string"
+                          },
+                          "since": {
+                            "type": "string"
+                          },
+                          "vm_name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "count_since",
+                          "host",
+                          "last_seen",
+                          "proxy_type",
+                          "rule",
+                          "since",
+                          "vm_name"
+                        ],
+                        "type": "object"
+                      },
                       "type": "array"
                     },
                     "blocked_hosts": {
-                      "items": {},
+                      "items": {
+                        "properties": {
+                          "count_since": {
+                            "type": "integer"
+                          },
+                          "host": {
+                            "type": "string"
+                          },
+                          "last_seen": {
+                            "type": "string"
+                          },
+                          "proxy_type": {
+                            "type": "string"
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "rule": {
+                            "type": "string"
+                          },
+                          "since": {
+                            "type": "string"
+                          },
+                          "vm_name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "count_since",
+                          "host",
+                          "last_seen",
+                          "proxy_type",
+                          "reason",
+                          "rule",
+                          "since",
+                          "vm_name"
+                        ],
+                        "type": "object"
+                      },
                       "type": "array"
                     }
                   },
@@ -4378,6 +4812,9 @@
                             "properties": {
                               "created_via": {
                                 "type": "string"
+                              },
+                              "source": {
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -4446,11 +4883,26 @@
           "policy-inspect",
           "policy-ls",
           "policy-ls-after",
+          "policy-ls-after-rm",
+          "policy-ls-ck",
+          "policy-ls-f",
+          "policy-ls-fe",
+          "policy-ls-ff",
+          "policy-ls-g",
+          "policy-ls-i",
+          "policy-ls-j",
+          "policy-ls-n",
+          "policy-ls-network-after",
+          "policy-ls-nk",
+          "policy-ls-np",
           "policy-ls-s",
+          "policy-ls-x",
+          "policy-ls-y",
+          "policy-ls-y-swapped",
           "policy-profile-ls"
         ],
         "x-observed": true,
-        "x-sample-count": 7
+        "x-sample-count": 22
       },
       "post": {
         "operationId": "post_policy_network_rules",
@@ -4540,7 +4992,7 @@
                             "udp"
                           ],
                           "resource": "audit-deny.example.com",
-                          "rule_id": "9d2ef6ea-029f-4828-969a-7768a148dc98"
+                          "rule_id": "96816e00-3166-49fa-9fa5-64103258334c"
                         }
                       ],
                       "resources": [
@@ -4641,7 +5093,11 @@
           "policy"
         ],
         "x-cli-scenarios": [
+          "allow-nq-host",
+          "allow-nq-http",
           "create-s-options",
+          "deny-np-forms",
+          "deny-nq-all",
           "policy-allow-global",
           "policy-allow-sbx",
           "policy-allow-sbx-http",
@@ -4661,7 +5117,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 13
+        "x-sample-count": 17
       }
     },
     "/policy/network/setup": {
@@ -4701,8 +5157,17 @@
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
+          "create-cq-cred-required",
+          "create-cr-cred",
           "create-e",
+          "create-if-install-fail",
           "create-k-skills-readwrite",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
+          "create-np",
+          "create-nq",
           "create-p-plain",
           "create-p-profile-unknown",
           "create-r",
@@ -4711,6 +5176,7 @@
           "create-w",
           "create-w-workspaces",
           "create-with-mixin",
+          "create-y-plain",
           "diagnose",
           "diagnose-with-sandbox",
           "exec-a",
@@ -4723,21 +5189,45 @@
           "exec-tty-sized",
           "exec-w-mounts",
           "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net",
           "mcp-ls",
           "policy-inspect",
           "policy-ls",
           "policy-ls-after",
+          "policy-ls-after-rm",
+          "policy-ls-ck",
+          "policy-ls-f",
+          "policy-ls-fe",
+          "policy-ls-ff",
+          "policy-ls-g",
+          "policy-ls-i",
+          "policy-ls-j",
+          "policy-ls-n",
+          "policy-ls-network-after",
+          "policy-ls-nk",
+          "policy-ls-np",
           "policy-ls-s",
+          "policy-ls-x",
+          "policy-ls-y",
+          "policy-ls-y-swapped",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
           "run-a",
           "run-r-command-args",
           "run-r-env-workdir",
           "run-r-flag-args",
           "run-r-tty",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 45
+        "x-sample-count": 79
       },
       "post": {
         "operationId": "post_policy_network_setup",
@@ -4914,7 +5404,7 @@
                   {
                     "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of it…",
                     "kitHubPublication": {
-                      "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                      "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                       "repository": "sbx/shell"
                     },
                     "kitUsage": {
@@ -4939,7 +5429,7 @@
                       ],
                       "schemaVersion": "3",
                       "sourceURL": "https://github.com/docker-hardened-images/definitions",
-                      "template": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6"
+                      "template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
                     },
                     "storageSource": "oci://docker.io/sbx/shell:latest",
                     "v3": {
@@ -4981,7 +5471,7 @@
                       "sourceUrl": "https://github.com/docker-hardened-images/definitions",
                       "version": "1.1.0"
                     },
-                    "v3Digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                    "v3Digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                     "v3Effective": {
                       "author": "Docker, Inc. https://docker.com",
                       "capabilities": [
@@ -5019,7 +5509,7 @@
                       "exec \"$@\"",
                       "… +1 more items"
                     ],
-                    "v3Reference": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                    "v3Reference": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                     "v3Selection": {
                       "capabilities": [
                         {
@@ -5101,7 +5591,7 @@
                   }
                 ],
                 "kits": [
-                  "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6"
+                  "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
                 ],
                 "name": "audit-w",
                 "pull_policy": "missing",
@@ -5151,11 +5641,104 @@
                     },
                     "type": "object"
                   },
+                  "kit_args": {
+                    "properties": {
+                      "model": {
+                        "type": "string"
+                      },
+                      "reasoningEffort": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "x-cli-always-sends": [
+                      "model",
+                      "reasoningEffort"
+                    ]
+                  },
                   "kit_artifacts": {
                     "items": {
                       "properties": {
                         "agentContext": {
                           "type": "string"
+                        },
+                        "args": {
+                          "properties": {
+                            "model": {
+                              "properties": {
+                                "default": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "pattern": {
+                                  "type": "string"
+                                }
+                              },
+                              "type": "object",
+                              "x-cli-always-sends": [
+                                "default",
+                                "description",
+                                "pattern"
+                              ]
+                            },
+                            "reasoningEffort": {
+                              "properties": {
+                                "default": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "enum": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                }
+                              },
+                              "type": "object",
+                              "x-cli-always-sends": [
+                                "default",
+                                "description",
+                                "enum"
+                              ]
+                            }
+                          },
+                          "type": "object",
+                          "x-cli-always-sends": [
+                            "model",
+                            "reasoningEffort"
+                          ]
+                        },
+                        "caps": {
+                          "properties": {
+                            "network": {
+                              "properties": {
+                                "allow": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "deny": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                }
+                              },
+                              "type": "object",
+                              "x-cli-always-sends": [
+                                "allow"
+                              ]
+                            }
+                          },
+                          "type": "object",
+                          "x-cli-always-sends": [
+                            "network"
+                          ]
                         },
                         "commands": {
                           "properties": {
@@ -5180,12 +5763,197 @@
                                 ]
                               },
                               "type": "array"
+                            },
+                            "startup": {
+                              "items": {
+                                "properties": {
+                                  "background": {
+                                    "type": "boolean"
+                                  },
+                                  "command": {
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "user": {
+                                    "type": "string"
+                                  }
+                                },
+                                "type": "object",
+                                "x-cli-always-sends": [
+                                  "command",
+                                  "description",
+                                  "user"
+                                ]
+                              },
+                              "type": "array"
                             }
                           },
                           "type": "object",
                           "x-cli-always-sends": [
                             "install"
                           ]
+                        },
+                        "credentials": {
+                          "items": {
+                            "properties": {
+                              "apiKey": {
+                                "properties": {
+                                  "inject": {
+                                    "items": {
+                                      "properties": {
+                                        "domain": {
+                                          "type": "string"
+                                        },
+                                        "format": {
+                                          "type": "string"
+                                        },
+                                        "header": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "type": "object",
+                                      "x-cli-always-sends": [
+                                        "domain",
+                                        "format",
+                                        "header"
+                                      ]
+                                    },
+                                    "type": "array"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "type": "object",
+                                "x-cli-always-sends": [
+                                  "inject",
+                                  "name"
+                                ]
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "oauth": {
+                                "properties": {
+                                  "credentialFile": {
+                                    "properties": {
+                                      "path": {
+                                        "type": "string"
+                                      },
+                                      "structure": {
+                                        "properties": {
+                                          "claudeAiOauth": {
+                                            "properties": {
+                                              "accessToken": {
+                                                "type": "string",
+                                                "x-redacted-in-capture": true
+                                              },
+                                              "expiresAt": {
+                                                "type": "string"
+                                              },
+                                              "refreshToken": {
+                                                "type": "string",
+                                                "x-redacted-in-capture": true
+                                              },
+                                              "scopes": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "accessToken",
+                                              "expiresAt",
+                                              "refreshToken",
+                                              "scopes"
+                                            ]
+                                          },
+                                          "primaryApiKey": {
+                                            "type": "string",
+                                            "x-redacted-in-capture": true
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "claudeAiOauth",
+                                          "primaryApiKey"
+                                        ]
+                                      }
+                                    },
+                                    "type": "object",
+                                    "x-cli-always-sends": [
+                                      "path",
+                                      "structure"
+                                    ]
+                                  },
+                                  "sentinels": {
+                                    "properties": {
+                                      "accessToken": {
+                                        "type": "string",
+                                        "x-redacted-in-capture": true
+                                      },
+                                      "refreshToken": {
+                                        "type": "string",
+                                        "x-redacted-in-capture": true
+                                      }
+                                    },
+                                    "type": "object",
+                                    "x-cli-always-sends": [
+                                      "accessToken",
+                                      "refreshToken"
+                                    ]
+                                  },
+                                  "tokenEndpoint": {
+                                    "properties": {
+                                      "host": {
+                                        "type": "string"
+                                      },
+                                      "path": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "type": "object",
+                                    "x-cli-always-sends": [
+                                      "host",
+                                      "path"
+                                    ]
+                                  }
+                                },
+                                "type": "object",
+                                "x-cli-always-sends": [
+                                  "credentialFile",
+                                  "sentinels",
+                                  "tokenEndpoint"
+                                ]
+                              },
+                              "required": {
+                                "type": "boolean"
+                              },
+                              "service": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "x-cli-always-sends": [
+                              "apiKey",
+                              "description",
+                              "service"
+                            ]
+                          },
+                          "type": "array"
+                        },
+                        "environment": {
+                          "additionalProperties": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          },
+                          "type": "object"
                         },
                         "kitHubPublication": {
                           "properties": {
@@ -5269,11 +6037,121 @@
                             "template"
                           ]
                         },
+                        "optionalCredentials": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "skillsRequests": {
+                          "items": {
+                            "properties": {
+                              "mode": {
+                                "type": "string"
+                              },
+                              "optional": {
+                                "type": "boolean"
+                              },
+                              "path": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "x-cli-always-sends": [
+                              "mode",
+                              "optional",
+                              "path"
+                            ]
+                          },
+                          "type": "array"
+                        },
                         "storageSource": {
                           "type": "string"
                         },
                         "v3": {
                           "properties": {
+                            "args": {
+                              "properties": {
+                                "model": {
+                                  "properties": {
+                                    "default": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "env": {
+                                      "type": "string"
+                                    },
+                                    "pattern": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "type": "object",
+                                  "x-cli-always-sends": [
+                                    "default",
+                                    "description",
+                                    "env",
+                                    "pattern"
+                                  ]
+                                },
+                                "reasoningEffort": {
+                                  "properties": {
+                                    "default": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "enum": {
+                                      "items": {
+                                        "type": "string"
+                                      },
+                                      "type": "array"
+                                    },
+                                    "env": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "type": "object",
+                                  "x-cli-always-sends": [
+                                    "default",
+                                    "description",
+                                    "enum",
+                                    "env"
+                                  ]
+                                },
+                                "version": {
+                                  "properties": {
+                                    "buildArg": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "pattern": {
+                                      "type": "string"
+                                    },
+                                    "required": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "type": "object",
+                                  "x-cli-always-sends": [
+                                    "buildArg",
+                                    "description",
+                                    "pattern",
+                                    "required"
+                                  ]
+                                }
+                              },
+                              "type": "object",
+                              "x-cli-always-sends": [
+                                "model",
+                                "reasoningEffort",
+                                "version"
+                              ]
+                            },
                             "author": {
                               "type": "string"
                             },
@@ -5282,20 +6160,320 @@
                                 "properties": {
                                   "config": {
                                     "properties": {
+                                      "apiKey": {
+                                        "properties": {
+                                          "inject": {
+                                            "items": {
+                                              "properties": {
+                                                "domain": {
+                                                  "type": "string"
+                                                },
+                                                "format": {
+                                                  "type": "string"
+                                                },
+                                                "header": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "domain",
+                                                "format",
+                                                "header"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "inject"
+                                        ]
+                                      },
                                       "content": {
+                                        "type": "string"
+                                      },
+                                      "continue": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "directory": {
                                         "type": "string"
                                       },
                                       "filename": {
                                         "type": "string"
                                       },
                                       "install": {
+                                        "anyOf": [
+                                          {
+                                            "items": {
+                                              "properties": {
+                                                "command": {
+                                                  "type": "string"
+                                                },
+                                                "description": {
+                                                  "type": "string"
+                                                },
+                                                "user": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "command",
+                                                "description",
+                                                "user"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          },
+                                          {
+                                            "properties": {
+                                              "allow": {
+                                                "items": {
+                                                  "type": "string"
+                                                },
+                                                "type": "array"
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "allow"
+                                            ]
+                                          },
+                                          {
+                                            "items": {
+                                              "properties": {
+                                                "command": {
+                                                  "type": "string"
+                                                },
+                                                "description": {
+                                                  "type": "string"
+                                                },
+                                                "env": {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                },
+                                                "user": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "command",
+                                                "description",
+                                                "env",
+                                                "user"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          },
+                                          {
+                                            "items": {
+                                              "properties": {
+                                                "command": {
+                                                  "type": "string"
+                                                },
+                                                "description": {
+                                                  "type": "string"
+                                                },
+                                                "env": {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                },
+                                                "user": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "command",
+                                                "description",
+                                                "user"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          }
+                                        ]
+                                      },
+                                      "list": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "oauth": {
+                                        "properties": {
+                                          "credentialFile": {
+                                            "properties": {
+                                              "path": {
+                                                "type": "string"
+                                              },
+                                              "structure": {
+                                                "properties": {
+                                                  "claudeAiOauth": {
+                                                    "properties": {
+                                                      "accessToken": {
+                                                        "type": "string",
+                                                        "x-redacted-in-capture": true
+                                                      },
+                                                      "expiresAt": {
+                                                        "type": "string"
+                                                      },
+                                                      "refreshToken": {
+                                                        "type": "string",
+                                                        "x-redacted-in-capture": true
+                                                      },
+                                                      "scopes": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "type": "object",
+                                                    "x-cli-always-sends": [
+                                                      "accessToken",
+                                                      "expiresAt",
+                                                      "refreshToken",
+                                                      "scopes"
+                                                    ]
+                                                  },
+                                                  "primaryApiKey": {
+                                                    "type": "string",
+                                                    "x-redacted-in-capture": true
+                                                  }
+                                                },
+                                                "type": "object",
+                                                "x-cli-always-sends": [
+                                                  "claudeAiOauth",
+                                                  "primaryApiKey"
+                                                ]
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "path",
+                                              "structure"
+                                            ]
+                                          },
+                                          "sentinels": {
+                                            "properties": {
+                                              "accessToken": {
+                                                "type": "string",
+                                                "x-redacted-in-capture": true
+                                              },
+                                              "refreshToken": {
+                                                "type": "string",
+                                                "x-redacted-in-capture": true
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "accessToken",
+                                              "refreshToken"
+                                            ]
+                                          },
+                                          "tokenEndpoint": {
+                                            "properties": {
+                                              "host": {
+                                                "type": "string"
+                                              },
+                                              "path": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "host",
+                                              "path"
+                                            ]
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "credentialFile",
+                                          "sentinels",
+                                          "tokenEndpoint"
+                                        ]
+                                      },
+                                      "path": {
+                                        "type": "string"
+                                      },
+                                      "phase": {
+                                        "type": "string"
+                                      },
+                                      "prompt": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "resume": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "runtime": {
+                                        "properties": {
+                                          "allow": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          },
+                                          "deny": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "allow"
+                                        ]
+                                      },
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "sessionPicker": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "startup": {
                                         "items": {
                                           "properties": {
+                                            "background": {
+                                              "type": "boolean"
+                                            },
                                             "command": {
-                                              "type": "string"
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                }
+                                              ]
                                             },
                                             "description": {
                                               "type": "string"
+                                            },
+                                            "env": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
                                             },
                                             "user": {
                                               "type": "string"
@@ -5313,6 +6491,12 @@
                                     },
                                     "type": "object",
                                     "x-cli-always-sends": []
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
                                   },
                                   "optional": {
                                     "type": "boolean"
@@ -5369,11 +6553,108 @@
                             "version"
                           ]
                         },
+                        "v3ArgValues": {
+                          "properties": {
+                            "model": {
+                              "type": "string"
+                            },
+                            "reasoningEffort": {
+                              "type": "string"
+                            }
+                          },
+                          "type": "object",
+                          "x-cli-always-sends": [
+                            "model",
+                            "reasoningEffort"
+                          ]
+                        },
                         "v3Digest": {
                           "type": "string"
                         },
                         "v3Effective": {
                           "properties": {
+                            "args": {
+                              "properties": {
+                                "model": {
+                                  "properties": {
+                                    "default": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "env": {
+                                      "type": "string"
+                                    },
+                                    "pattern": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "type": "object",
+                                  "x-cli-always-sends": [
+                                    "default",
+                                    "description",
+                                    "env",
+                                    "pattern"
+                                  ]
+                                },
+                                "reasoningEffort": {
+                                  "properties": {
+                                    "default": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "enum": {
+                                      "items": {
+                                        "type": "string"
+                                      },
+                                      "type": "array"
+                                    },
+                                    "env": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "type": "object",
+                                  "x-cli-always-sends": [
+                                    "default",
+                                    "description",
+                                    "enum",
+                                    "env"
+                                  ]
+                                },
+                                "version": {
+                                  "properties": {
+                                    "buildArg": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "pattern": {
+                                      "type": "string"
+                                    },
+                                    "required": {
+                                      "type": "boolean"
+                                    }
+                                  },
+                                  "type": "object",
+                                  "x-cli-always-sends": [
+                                    "buildArg",
+                                    "description",
+                                    "pattern",
+                                    "required"
+                                  ]
+                                }
+                              },
+                              "type": "object",
+                              "x-cli-always-sends": [
+                                "model",
+                                "reasoningEffort",
+                                "version"
+                              ]
+                            },
                             "author": {
                               "type": "string"
                             },
@@ -5382,15 +6663,312 @@
                                 "properties": {
                                   "config": {
                                     "properties": {
+                                      "apiKey": {
+                                        "properties": {
+                                          "inject": {
+                                            "items": {
+                                              "properties": {
+                                                "domain": {
+                                                  "type": "string"
+                                                },
+                                                "format": {
+                                                  "type": "string"
+                                                },
+                                                "header": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "domain",
+                                                "format",
+                                                "header"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "inject",
+                                          "name"
+                                        ]
+                                      },
                                       "content": {
+                                        "type": "string"
+                                      },
+                                      "continue": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "directory": {
                                         "type": "string"
                                       },
                                       "filename": {
                                         "type": "string"
                                       },
                                       "install": {
+                                        "anyOf": [
+                                          {
+                                            "items": {
+                                              "properties": {
+                                                "command": {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                },
+                                                "description": {
+                                                  "type": "string"
+                                                },
+                                                "user": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "command",
+                                                "description",
+                                                "user"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          },
+                                          {
+                                            "properties": {
+                                              "allow": {
+                                                "items": {
+                                                  "type": "string"
+                                                },
+                                                "type": "array"
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "allow"
+                                            ]
+                                          },
+                                          {
+                                            "items": {
+                                              "properties": {
+                                                "command": {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                },
+                                                "description": {
+                                                  "type": "string"
+                                                },
+                                                "env": {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                },
+                                                "user": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "command",
+                                                "description",
+                                                "env",
+                                                "user"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          },
+                                          {
+                                            "items": {
+                                              "properties": {
+                                                "command": {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                },
+                                                "description": {
+                                                  "type": "string"
+                                                },
+                                                "env": {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                },
+                                                "user": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "command",
+                                                "description",
+                                                "user"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          }
+                                        ]
+                                      },
+                                      "list": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "oauth": {
+                                        "properties": {
+                                          "credentialFile": {
+                                            "properties": {
+                                              "path": {
+                                                "type": "string"
+                                              },
+                                              "structure": {
+                                                "properties": {
+                                                  "claudeAiOauth": {
+                                                    "properties": {
+                                                      "accessToken": {
+                                                        "type": "string",
+                                                        "x-redacted-in-capture": true
+                                                      },
+                                                      "expiresAt": {
+                                                        "type": "string"
+                                                      },
+                                                      "refreshToken": {
+                                                        "type": "string",
+                                                        "x-redacted-in-capture": true
+                                                      },
+                                                      "scopes": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "type": "object",
+                                                    "x-cli-always-sends": [
+                                                      "accessToken",
+                                                      "expiresAt",
+                                                      "refreshToken",
+                                                      "scopes"
+                                                    ]
+                                                  },
+                                                  "primaryApiKey": {
+                                                    "type": "string",
+                                                    "x-redacted-in-capture": true
+                                                  }
+                                                },
+                                                "type": "object",
+                                                "x-cli-always-sends": [
+                                                  "claudeAiOauth",
+                                                  "primaryApiKey"
+                                                ]
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "path",
+                                              "structure"
+                                            ]
+                                          },
+                                          "sentinels": {
+                                            "properties": {
+                                              "accessToken": {
+                                                "type": "string",
+                                                "x-redacted-in-capture": true
+                                              },
+                                              "refreshToken": {
+                                                "type": "string",
+                                                "x-redacted-in-capture": true
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "accessToken",
+                                              "refreshToken"
+                                            ]
+                                          },
+                                          "tokenEndpoint": {
+                                            "properties": {
+                                              "host": {
+                                                "type": "string"
+                                              },
+                                              "path": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "host",
+                                              "path"
+                                            ]
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "credentialFile",
+                                          "sentinels",
+                                          "tokenEndpoint"
+                                        ]
+                                      },
+                                      "path": {
+                                        "type": "string"
+                                      },
+                                      "phase": {
+                                        "type": "string"
+                                      },
+                                      "prompt": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "resume": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "runtime": {
+                                        "properties": {
+                                          "allow": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          },
+                                          "deny": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "allow"
+                                        ]
+                                      },
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "sessionPicker": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "startup": {
                                         "items": {
                                           "properties": {
+                                            "background": {
+                                              "type": "boolean"
+                                            },
                                             "command": {
                                               "items": {
                                                 "type": "string"
@@ -5399,6 +6977,12 @@
                                             },
                                             "description": {
                                               "type": "string"
+                                            },
+                                            "env": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
                                             },
                                             "user": {
                                               "type": "string"
@@ -5416,6 +7000,12 @@
                                     },
                                     "type": "object",
                                     "x-cli-always-sends": []
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
                                   },
                                   "optional": {
                                     "type": "boolean"
@@ -5488,20 +7078,320 @@
                                 "properties": {
                                   "config": {
                                     "properties": {
+                                      "apiKey": {
+                                        "properties": {
+                                          "inject": {
+                                            "items": {
+                                              "properties": {
+                                                "domain": {
+                                                  "type": "string"
+                                                },
+                                                "format": {
+                                                  "type": "string"
+                                                },
+                                                "header": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "domain",
+                                                "format",
+                                                "header"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "inject"
+                                        ]
+                                      },
                                       "content": {
+                                        "type": "string"
+                                      },
+                                      "continue": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "directory": {
                                         "type": "string"
                                       },
                                       "filename": {
                                         "type": "string"
                                       },
                                       "install": {
+                                        "anyOf": [
+                                          {
+                                            "items": {
+                                              "properties": {
+                                                "command": {
+                                                  "type": "string"
+                                                },
+                                                "description": {
+                                                  "type": "string"
+                                                },
+                                                "user": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "command",
+                                                "description",
+                                                "user"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          },
+                                          {
+                                            "properties": {
+                                              "allow": {
+                                                "items": {
+                                                  "type": "string"
+                                                },
+                                                "type": "array"
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "allow"
+                                            ]
+                                          },
+                                          {
+                                            "items": {
+                                              "properties": {
+                                                "command": {
+                                                  "type": "string"
+                                                },
+                                                "description": {
+                                                  "type": "string"
+                                                },
+                                                "env": {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                },
+                                                "user": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "command",
+                                                "description",
+                                                "env",
+                                                "user"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          },
+                                          {
+                                            "items": {
+                                              "properties": {
+                                                "command": {
+                                                  "type": "string"
+                                                },
+                                                "description": {
+                                                  "type": "string"
+                                                },
+                                                "env": {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                },
+                                                "user": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "command",
+                                                "description",
+                                                "user"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          }
+                                        ]
+                                      },
+                                      "list": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "oauth": {
+                                        "properties": {
+                                          "credentialFile": {
+                                            "properties": {
+                                              "path": {
+                                                "type": "string"
+                                              },
+                                              "structure": {
+                                                "properties": {
+                                                  "claudeAiOauth": {
+                                                    "properties": {
+                                                      "accessToken": {
+                                                        "type": "string",
+                                                        "x-redacted-in-capture": true
+                                                      },
+                                                      "expiresAt": {
+                                                        "type": "string"
+                                                      },
+                                                      "refreshToken": {
+                                                        "type": "string",
+                                                        "x-redacted-in-capture": true
+                                                      },
+                                                      "scopes": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "type": "object",
+                                                    "x-cli-always-sends": [
+                                                      "accessToken",
+                                                      "expiresAt",
+                                                      "refreshToken",
+                                                      "scopes"
+                                                    ]
+                                                  },
+                                                  "primaryApiKey": {
+                                                    "type": "string",
+                                                    "x-redacted-in-capture": true
+                                                  }
+                                                },
+                                                "type": "object",
+                                                "x-cli-always-sends": [
+                                                  "claudeAiOauth",
+                                                  "primaryApiKey"
+                                                ]
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "path",
+                                              "structure"
+                                            ]
+                                          },
+                                          "sentinels": {
+                                            "properties": {
+                                              "accessToken": {
+                                                "type": "string",
+                                                "x-redacted-in-capture": true
+                                              },
+                                              "refreshToken": {
+                                                "type": "string",
+                                                "x-redacted-in-capture": true
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "accessToken",
+                                              "refreshToken"
+                                            ]
+                                          },
+                                          "tokenEndpoint": {
+                                            "properties": {
+                                              "host": {
+                                                "type": "string"
+                                              },
+                                              "path": {
+                                                "type": "string"
+                                              }
+                                            },
+                                            "type": "object",
+                                            "x-cli-always-sends": [
+                                              "host",
+                                              "path"
+                                            ]
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "credentialFile",
+                                          "sentinels",
+                                          "tokenEndpoint"
+                                        ]
+                                      },
+                                      "path": {
+                                        "type": "string"
+                                      },
+                                      "phase": {
+                                        "type": "string"
+                                      },
+                                      "prompt": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "resume": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "runtime": {
+                                        "properties": {
+                                          "allow": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          },
+                                          "deny": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "allow"
+                                        ]
+                                      },
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "sessionPicker": {
+                                        "items": {
+                                          "type": "string"
+                                        },
+                                        "type": "array"
+                                      },
+                                      "startup": {
                                         "items": {
                                           "properties": {
+                                            "background": {
+                                              "type": "boolean"
+                                            },
                                             "command": {
-                                              "type": "string"
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "items": {
+                                                    "type": "string"
+                                                  },
+                                                  "type": "array"
+                                                }
+                                              ]
                                             },
                                             "description": {
                                               "type": "string"
+                                            },
+                                            "env": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
                                             },
                                             "user": {
                                               "type": "string"
@@ -5519,6 +7409,12 @@
                                     },
                                     "type": "object",
                                     "x-cli-always-sends": []
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
                                   },
                                   "optional": {
                                     "type": "boolean"
@@ -5590,6 +7486,9 @@
                                       "type": "string"
                                     },
                                     "type": "array"
+                                  },
+                                  "name": {
+                                    "type": "string"
                                   },
                                   "path": {
                                     "type": "string"
@@ -5713,13 +7612,8 @@
                       },
                       "type": "object",
                       "x-cli-always-sends": [
-                        "kitUsage",
                         "manifest",
-                        "v3",
-                        "v3Digest",
-                        "v3Effective",
-                        "v3Reference",
-                        "v3Selection"
+                        "v3"
                       ]
                     },
                     "type": "array"
@@ -5824,16 +7718,16 @@
                   {
                     "result": {
                       "agent": "shell",
-                      "id": "a3a14bbf-80f8-4e63-a695-515d75521b26",
+                      "id": "d253886d-f32c-4ce8-9e39-4d475403253c",
                       "mcp": {
-                        "port": 38067,
+                        "port": 41573,
                         "state": "ready",
                         "static": false,
                         "url": "http://mcp-gateway.docker.internal/mcp"
                       },
-                      "name": "audit-c",
+                      "name": "audit-k",
                       "status": "running",
-                      "workspace": "/tmp/docker-sandbox-audit-work/repo"
+                      "workspace": ""
                     }
                   }
                 ],
@@ -5975,9 +7869,9 @@
               "application/json": {
                 "example": {
                   "agent": "shell",
-                  "id": "76aebb1b-3e0f-493b-8f26-ed38856070f3",
+                  "id": "40a18359-9754-42e3-985b-a42a9a862347",
                   "mcp": {
-                    "port": 41845,
+                    "port": 33521,
                     "state": "ready",
                     "static": false,
                     "url": "http://mcp-gateway.docker.internal/mcp"
@@ -6023,6 +7917,12 @@
                     "status": {
                       "type": "string"
                     },
+                    "withheld": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
                     "workspace": {
                       "type": "string"
                     }
@@ -6049,6 +7949,9 @@
                 },
                 "schema": {
                   "properties": {
+                    "code": {
+                      "type": "string"
+                    },
                     "message": {
                       "type": "string"
                     }
@@ -6069,12 +7972,34 @@
         "x-cli-scenarios": [
           "create-a",
           "create-a-plain",
+          "create-ag",
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
+          "create-ck-forged",
+          "create-cq-cred-required",
+          "create-cr-cred",
           "create-e",
+          "create-f-forged",
+          "create-fb-forged",
+          "create-fc-forged",
+          "create-fd-forged",
+          "create-fe-forged",
+          "create-ff-forged",
           "create-from-kit-cache",
+          "create-g-forged",
+          "create-gr-ref",
+          "create-h-forged",
+          "create-i-forged",
+          "create-if-install-fail",
+          "create-j-forged",
           "create-k-skills-readwrite",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
+          "create-np",
+          "create-nq",
           "create-p-plain",
           "create-p-profile-unknown",
           "create-r",
@@ -6082,9 +8007,16 @@
           "create-s-static-mcp",
           "create-w",
           "create-w-workspaces",
+          "create-wc",
           "create-with-mixin",
+          "create-x-from-package",
+          "create-y-plain",
           "env-create",
-          "kit-compile"
+          "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net"
         ],
         "x-observed": true,
         "x-request-headers": {
@@ -6095,7 +8027,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 22,
+        "x-sample-count": 55,
         "x-streaming": "Response never completed during capture (long-lived stream or hijacked connection)"
       }
     },
@@ -6112,7 +8044,7 @@
             }
           },
           {
-            "example": "05546c17-855d-41e0-9c9d-7a1471e367d8",
+            "example": "02707201-4599-4a1f-b5c7-cc1a5be6f7de",
             "in": "query",
             "name": "expected_id",
             "required": false,
@@ -6207,21 +8139,32 @@
           "delete-wrong-id",
           "env-rm",
           "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net",
           "rm-a",
           "rm-ab",
+          "rm-ag",
           "rm-aw",
           "rm-b",
           "rm-c",
           "rm-e",
+          "rm-forged-base-sandboxes",
+          "rm-forged-claude",
+          "rm-forged-sandboxes",
           "rm-k",
+          "rm-kit-capability-sandboxes",
           "rm-kit-sandboxes",
+          "rm-network-sandboxes",
           "rm-r",
           "rm-s",
           "rm-w",
+          "rm-wc",
           "sandbox-delete-unknown"
         ],
         "x-observed": true,
-        "x-sample-count": 23
+        "x-sample-count": 54
       },
       "get": {
         "operationId": "get_sandbox_name",
@@ -6255,7 +8198,7 @@
                     }
                   ],
                   "agent": "shell",
-                  "created_at": "2026-11-25T01:23:30+01:00",
+                  "created_at": "2026-11-27T16:54:24+01:00",
                   "effective_working_dir": "/tmp/docker-sandbox-audit-work/fixtures/mountdir",
                   "host_mounts": [
                     {
@@ -6275,18 +8218,18 @@
                     },
                     "… +1 more items"
                   ],
-                  "id": "962e37d6-94e0-46b3-9b9d-a5d0e22ec414",
+                  "id": "0e69f8f3-1852-4383-af79-5410d0980a56",
                   "labels": {
                     "com.docker.container.etc-hosts": "disabled",
                     "com.docker.container.fuse": "true",
                     "com.docker.sandbox.agent": "shell",
                     "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
                     "com.docker.sandbox.createdVersion": "v0.54.1",
-                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:fe5b2d2d76ca72cb",
-                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
-                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6\",\"digest\":\"sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c37…",
+                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:821cf15df4202c4f",
+                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\",\"digest\":\"sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a…",
                     "com.docker.sandbox.kit-workspace-dir": "false",
-                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6\"]",
+                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\"]",
                     "com.docker.sandbox.mount-snapshot": "v1:f689acaba707cb874499c2b0fd10ce3ccca81eb61a964828a05772cd1ba5adc5",
                     "com.docker.sandbox.name": "audit-w",
                     "com.docker.sandbox.skillsReserved": "true",
@@ -6298,7 +8241,7 @@
                     "com.docker.sdk.lang": "go",
                     "docker/sandbox": "true"
                   },
-                  "last_used_at": "2026-11-25T00:23:30.187984704Z",
+                  "last_used_at": "2026-11-27T15:54:24.708136496Z",
                   "name": "audit-w",
                   "runtime_mounts": [],
                   "status": "running",
@@ -6338,6 +8281,21 @@
                     },
                     "credential_sources": {
                       "properties": {
+                        "audit-withheld-probe": {
+                          "properties": {
+                            "source": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "type"
+                          ],
+                          "type": "object"
+                        },
                         "github": {
                           "properties": {
                             "source": {
@@ -6354,9 +8312,7 @@
                           "type": "object"
                         }
                       },
-                      "required": [
-                        "github"
-                      ],
+                      "required": [],
                       "type": "object"
                     },
                     "effective_working_dir": {
@@ -6508,8 +8464,17 @@
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
+          "create-cq-cred-required",
+          "create-cr-cred",
           "create-e",
+          "create-if-install-fail",
           "create-k-skills-readwrite",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
+          "create-np",
+          "create-nq",
           "create-p-plain",
           "create-p-profile-unknown",
           "create-r",
@@ -6518,6 +8483,7 @@
           "create-w",
           "create-w-workspaces",
           "create-with-mixin",
+          "create-y-plain",
           "env-create",
           "env-plan",
           "env-rm",
@@ -6532,31 +8498,68 @@
           "exec-w-mounts",
           "inspect-a",
           "inspect-c",
+          "inspect-cr",
           "inspect-e-after-agent",
           "inspect-e-after-ssh",
+          "inspect-f",
+          "inspect-g",
+          "inspect-if-after",
           "inspect-p",
           "inspect-raw",
           "inspect-s",
           "inspect-w",
           "inspect-w-json",
+          "inspect-wc",
           "inspect-with-ports",
+          "inspect-x",
+          "inspect-y-swapped",
           "kit-add",
+          "kit-add-cred-y",
+          "kit-add-net-y",
           "kit-builder-status",
           "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net",
+          "policy-ls-ck",
+          "policy-ls-f",
+          "policy-ls-fe",
+          "policy-ls-ff",
+          "policy-ls-g",
+          "policy-ls-i",
+          "policy-ls-j",
+          "policy-ls-n",
+          "policy-ls-nk",
+          "policy-ls-np",
           "policy-ls-s",
+          "policy-ls-x",
+          "policy-ls-y",
+          "policy-ls-y-swapped",
           "port-publish",
           "port-publish-multi",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
           "rm-a",
           "rm-ab",
+          "rm-ag",
           "rm-aw",
           "rm-b",
           "rm-c",
           "rm-e",
+          "rm-forged-base-sandboxes",
+          "rm-forged-claude",
+          "rm-forged-sandboxes",
           "rm-k",
+          "rm-kit-capability-sandboxes",
           "rm-kit-sandboxes",
+          "rm-network-sandboxes",
           "rm-r",
           "rm-s",
           "rm-w",
+          "rm-wc",
           "run-a",
           "run-r-command-args",
           "run-r-env-workdir",
@@ -6570,10 +8573,11 @@
           "stop-e",
           "template-save",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 141
+        "x-sample-count": 239
       }
     },
     "/sandbox/{name}/agent/session": {
@@ -6664,7 +8668,7 @@
             "description": "Switching Protocols (raw stream after the upgrade)",
             "headers": {
               "Sandboxes-Exec-Id": {
-                "example": "14e7080ac22edaf640c87fcb209f77c037b41386d217429f62bf26f9960c11e7",
+                "example": "4b8dee358645ae767469690f851cf21410eeb51e676b555844c4e6d812709d97",
                 "schema": {
                   "type": "string"
                 }
@@ -6720,6 +8724,21 @@
                 "properties": {
                   "credential_sources": {
                     "properties": {
+                      "audit-withheld-probe": {
+                        "properties": {
+                          "source": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "x-cli-always-sends": [
+                          "source",
+                          "type"
+                        ]
+                      },
                       "github": {
                         "properties": {
                           "source": {
@@ -6737,9 +8756,7 @@
                       }
                     },
                     "type": "object",
-                    "x-cli-always-sends": [
-                      "github"
-                    ]
+                    "x-cli-always-sends": []
                   },
                   "credential_values": {
                     "items": {
@@ -6822,6 +8839,12 @@
                     },
                     "message": {
                       "type": "string"
+                    },
+                    "withheld": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
                     }
                   },
                   "required": [
@@ -6861,7 +8884,15 @@
         "x-cli-scenarios": [
           "cp-from-a",
           "cp-to-a",
+          "credentials-ag-empty",
+          "credentials-ck",
+          "credentials-f",
+          "credentials-g",
+          "credentials-i",
+          "credentials-j",
           "credentials-unknown",
+          "credentials-wc-empty",
+          "credentials-x",
           "exec-a",
           "exec-a-mark",
           "exec-a-opts",
@@ -6874,6 +8905,13 @@
           "kit-add",
           "port-publish",
           "port-publish-multi",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
+          "push-ag-custom-secret",
+          "push-wc-credential",
+          "remove-ag-custom-secret",
           "run-a",
           "run-r-command-args",
           "run-r-env-workdir",
@@ -6883,6 +8921,7 @@
           "secret-rm-sbx",
           "secret-set-sbx",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin"
         ],
         "x-observed": true,
@@ -6891,7 +8930,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 26
+        "x-sample-count": 42
       }
     },
     "/sandbox/{name}/debug/vm": {
@@ -7247,7 +9286,25 @@
           "exec-stopped",
           "exec-unknown-sandbox",
           "mounts-verify",
-          "verify-kits-add"
+          "probe-ag-after",
+          "probe-ag-before",
+          "probe-ag-removed",
+          "probe-wc-after",
+          "probe-wc-before",
+          "search-ag-value",
+          "verify-ck-forged",
+          "verify-f-forged",
+          "verify-fb-forged",
+          "verify-fc-forged",
+          "verify-fd-forged",
+          "verify-fe-forged",
+          "verify-ff-forged",
+          "verify-g-forged",
+          "verify-gr-ref",
+          "verify-i-forged",
+          "verify-j-forged",
+          "verify-kits-add",
+          "verify-x-mcp"
         ],
         "x-observed": true,
         "x-request-headers": {
@@ -7255,7 +9312,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 11
+        "x-sample-count": 29
       }
     },
     "/sandbox/{name}/exec/attach": {
@@ -7337,7 +9394,7 @@
             "description": "Switching Protocols (raw stream after the upgrade)",
             "headers": {
               "Sandboxes-Exec-Id": {
-                "example": "1ed8e0fe8192043e9b9bb270b3b6b734807833b8a966bfc59856cb97a3f85e3c",
+                "example": "58f244c33db27dfc014086649be3c09c8fb4986ccb281d84b435db79e00a747c",
                 "schema": {
                   "type": "string"
                 }
@@ -7381,7 +9438,12 @@
           "exec-tty",
           "exec-tty-sized",
           "exec-w-mounts",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin"
         ],
         "x-observed": true,
@@ -7396,7 +9458,7 @@
             "tcp"
           ]
         },
-        "x-sample-count": 13
+        "x-sample-count": 18
       }
     },
     "/sandbox/{name}/exec/{exec_id}": {
@@ -7426,7 +9488,7 @@
               "application/json": {
                 "example": {
                   "exit_code": 0,
-                  "id": "1ed8e0fe8192043e9b9bb270b3b6b734807833b8a966bfc59856cb97a3f85e3c",
+                  "id": "58f244c33db27dfc014086649be3c09c8fb4986ccb281d84b435db79e00a747c",
                   "running": false
                 },
                 "schema": {
@@ -7489,16 +9551,21 @@
           "exec-tty",
           "exec-tty-sized",
           "exec-w-mounts",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
           "run-a",
           "run-r-command-args",
           "run-r-env-workdir",
           "run-r-flag-args",
           "run-r-tty",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 18
+        "x-sample-count": 23
       }
     },
     "/sandbox/{name}/exec/{exec_id}/resize": {
@@ -7588,7 +9655,7 @@
               "application/json": {
                 "example": {
                   "code": "exec_not_running",
-                  "message": "exec \"56675364a8456b4eb6e54cf45601ab7c94567586048b939c374d2d0ef230a3e7\" is no longer running"
+                  "message": "exec \"6ac96fea959f02c14cfc04ec6b8935324f2d563e6ae2a7e9fd907b3843640d0b\" is no longer running"
                 },
                 "schema": {
                   "properties": {
@@ -8406,7 +10473,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "port": 36325,
+                  "port": 39025,
                   "state": "ready",
                   "static": false,
                   "url": "http://mcp-gateway.docker.internal/mcp"
@@ -8486,6 +10553,10 @@
           "inspect-w-json",
           "loaded-gateway",
           "mcp-gateway-unknown-sandbox",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
           "run-a",
           "run-r-command-args",
           "run-r-env-workdir",
@@ -8493,10 +10564,11 @@
           "run-r-tty",
           "static-gateway",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 24
+        "x-sample-count": 29
       }
     },
     "/sandbox/{name}/mcp/gateway/servers": {
@@ -9397,7 +11469,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "image_id": "sha256:5251e696feab778ead7cc5f6bc7bd8063faedd0ba045128bf0042f4047481969",
+                  "image_id": "sha256:58c7d2aac263ea884a985ada79bc73e77605460bd5ad09d22d21434297935dfd",
                   "tag": "docker.io/library/audit-snap:v1"
                 },
                 "schema": {
@@ -9509,8 +11581,16 @@
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
+          "create-cq-cred-required",
+          "create-cr-cred",
           "create-e",
           "create-k-skills-readwrite",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
+          "create-np",
+          "create-nq",
           "create-p-plain",
           "create-r",
           "create-s-options",
@@ -9518,6 +11598,7 @@
           "create-w",
           "create-w-workspaces",
           "create-with-mixin",
+          "create-y-plain",
           "env-create",
           "exec-a",
           "exec-a-mark",
@@ -9529,21 +11610,47 @@
           "exec-tty-sized",
           "exec-w-mounts",
           "kit-add",
+          "kit-add-cred-y",
+          "kit-add-net-y",
           "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
           "run-a",
           "run-r-command-args",
           "run-r-env-workdir",
           "run-r-flag-args",
           "run-r-tty",
           "session-hold",
+          "session-hold-ag",
+          "session-hold-ck",
           "session-hold-e",
+          "session-hold-f",
+          "session-hold-fb",
+          "session-hold-fc",
+          "session-hold-fd",
+          "session-hold-fe",
+          "session-hold-ff",
+          "session-hold-g",
+          "session-hold-gr",
+          "session-hold-i",
+          "session-hold-j",
           "session-hold-p",
+          "session-hold-wc",
+          "session-hold-x",
+          "session-hold-y",
           "session-unknown",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 43,
+        "x-sample-count": 78,
         "x-streaming": "Response never completed during capture (long-lived stream or hijacked connection)"
       }
     },
@@ -9674,7 +11781,7 @@
                     }
                   ],
                   "agent": "shell",
-                  "created_at": "2026-11-25T01:23:30+01:00",
+                  "created_at": "2026-11-27T16:54:24+01:00",
                   "effective_working_dir": "/tmp/docker-sandbox-audit-work/fixtures/mountdir",
                   "host_mounts": [
                     {
@@ -9694,18 +11801,18 @@
                     },
                     "… +1 more items"
                   ],
-                  "id": "962e37d6-94e0-46b3-9b9d-a5d0e22ec414",
+                  "id": "0e69f8f3-1852-4383-af79-5410d0980a56",
                   "labels": {
                     "com.docker.container.etc-hosts": "disabled",
                     "com.docker.container.fuse": "true",
                     "com.docker.sandbox.agent": "shell",
                     "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
                     "com.docker.sandbox.createdVersion": "v0.54.1",
-                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:fe5b2d2d76ca72cb",
-                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
-                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6\",\"digest\":\"sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c37…",
+                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:821cf15df4202c4f",
+                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\",\"digest\":\"sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a…",
                     "com.docker.sandbox.kit-workspace-dir": "false",
-                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6\"]",
+                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\"]",
                     "com.docker.sandbox.mount-snapshot": "v1:f689acaba707cb874499c2b0fd10ce3ccca81eb61a964828a05772cd1ba5adc5",
                     "com.docker.sandbox.name": "audit-w",
                     "com.docker.sandbox.skillsReserved": "true",
@@ -9717,7 +11824,7 @@
                     "com.docker.sdk.lang": "go",
                     "docker/sandbox": "true"
                   },
-                  "last_used_at": "2026-11-25T00:23:32.881676308Z",
+                  "last_used_at": "2026-11-27T15:54:27.09298841Z",
                   "name": "audit-w",
                   "runtime_mounts": [],
                   "status": "running",
@@ -9904,8 +12011,16 @@
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
+          "create-cq-cred-required",
+          "create-cr-cred",
           "create-e",
           "create-k-skills-readwrite",
+          "create-m-mcp",
+          "create-n-net",
+          "create-ni-net-install",
+          "create-nk",
+          "create-np",
+          "create-nq",
           "create-p-plain",
           "create-r",
           "create-s-options",
@@ -9913,6 +12028,7 @@
           "create-w",
           "create-w-workspaces",
           "create-with-mixin",
+          "create-y-plain",
           "env-create",
           "exec-a",
           "exec-a-mark",
@@ -9925,17 +12041,34 @@
           "exec-w-mounts",
           "kit-add",
           "kit-compile",
+          "kit-compile-caps",
+          "kit-compile-cred-echo",
+          "kit-compile-json",
+          "kit-compile-net",
           "port-publish",
           "port-publish-multi",
+          "probe-nk",
+          "probe-np-default",
+          "probe-np-forms",
+          "probe-nq",
           "run-a",
           "run-r-command-args",
           "run-r-env-workdir",
           "run-r-flag-args",
           "run-r-tty",
           "sandbox-start-unknown",
+          "start-ag",
+          "start-ck",
           "start-e",
+          "start-f",
+          "start-g",
+          "start-i",
+          "start-j",
           "start-raw",
+          "start-wc",
+          "start-x",
           "verify-kit-add",
+          "verify-m-mcp",
           "verify-mixin"
         ],
         "x-observed": true,
@@ -9944,7 +12077,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 44
+        "x-sample-count": 70
       }
     },
     "/sandbox/{name}/stop": {
@@ -9979,21 +12112,21 @@
               "application/json": {
                 "example": {
                   "agent": "shell",
-                  "created_at": "2026-11-25T01:21:01+01:00",
+                  "created_at": "2026-11-27T16:48:06+01:00",
                   "effective_working_dir": "/home/agent/workspace",
                   "host_mounts": [],
-                  "id": "22b8c6b5-48a8-44a2-9f1c-e594c6ff1938",
+                  "id": "b54bd14c-f495-4b97-9afc-29b6ceef1de2",
                   "labels": {
                     "com.docker.container.etc-hosts": "disabled",
                     "com.docker.container.fuse": "true",
                     "com.docker.sandbox.agent": "shell",
                     "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
                     "com.docker.sandbox.createdVersion": "v0.54.1",
-                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:fe5b2d2d76ca72cb",
-                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
-                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6\",\"digest\":\"sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c37…",
+                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:821cf15df4202c4f",
+                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\",\"digest\":\"sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a…",
                     "com.docker.sandbox.kit-workspace-dir": "false",
-                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6\"]",
+                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\"]",
                     "com.docker.sandbox.mount-snapshot": "v1:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                     "com.docker.sandbox.name": "audit-a",
                     "com.docker.sandbox.skillsReserved": "true",
@@ -10005,7 +12138,7 @@
                     "com.docker.sdk.lang": "go",
                     "docker/sandbox": "true"
                   },
-                  "last_used_at": "2026-11-25T00:21:26.401670892Z",
+                  "last_used_at": "2026-11-27T15:48:33.070372843Z",
                   "name": "audit-a",
                   "runtime_mounts": [],
                   "status": "stopped",
@@ -10151,12 +12284,12 @@
           "content": {
             "application/json": {
               "example": {
-                "docker_name_override": "audit-a-swap-4b34ef84",
+                "docker_name_override": "audit-a-swap-a5ee1b83",
                 "kit_artifacts": [
                   {
                     "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of it…",
                     "kitHubPublication": {
-                      "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                      "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                       "repository": "sbx/shell"
                     },
                     "kitUsage": {
@@ -10181,9 +12314,9 @@
                       ],
                       "schemaVersion": "3",
                       "sourceURL": "https://github.com/docker-hardened-images/definitions",
-                      "template": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6"
+                      "template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
                     },
-                    "storageSource": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                    "storageSource": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                     "v3": {
                       "author": "Docker, Inc. https://docker.com",
                       "capabilities": [
@@ -10223,7 +12356,7 @@
                       "sourceUrl": "https://github.com/docker-hardened-images/definitions",
                       "version": "1.1.0"
                     },
-                    "v3Digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                    "v3Digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                     "v3Effective": {
                       "author": "Docker, Inc. https://docker.com",
                       "capabilities": [
@@ -10261,12 +12394,12 @@
                       "exec \"$@\"",
                       "… +1 more items"
                     ],
-                    "v3Reference": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                    "v3Reference": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                     "v3Selection": {
                       "capabilities": [
                         {
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                             "path": "capabilities[0]"
                           },
                           "type": "com.docker.sandbox/sbx@1"
@@ -10278,7 +12411,7 @@
                           },
                           "optional": true,
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                             "path": "capabilities[2]"
                           },
                           "type": "com.docker.sandbox/agent-context@2"
@@ -10297,7 +12430,7 @@
                           ],
                           "path": "capabilities[0]",
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                             "path": "capabilities[0]"
                           }
                         },
@@ -10313,7 +12446,7 @@
                           ],
                           "path": "capabilities[2]",
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                             "path": "capabilities[2]"
                           }
                         }
@@ -10334,7 +12467,7 @@
                             "capabilities[1]"
                           ],
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                             "path": "capabilities[1]"
                           }
                         }
@@ -10436,20 +12569,54 @@
                   }
                 ],
                 "kit_refs": [
-                  "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+                  "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
                   "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3"
                 ]
               },
               "schema": {
                 "properties": {
+                  "agent": {
+                    "type": "string"
+                  },
                   "docker_name_override": {
                     "type": "string"
+                  },
+                  "enable_virtiofs_cache": {
+                    "type": "boolean"
                   },
                   "kit_artifacts": {
                     "items": {
                       "properties": {
                         "agentContext": {
                           "type": "string"
+                        },
+                        "caps": {
+                          "properties": {
+                            "network": {
+                              "properties": {
+                                "allow": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                },
+                                "deny": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                }
+                              },
+                              "type": "object",
+                              "x-cli-always-sends": [
+                                "allow"
+                              ]
+                            }
+                          },
+                          "type": "object",
+                          "x-cli-always-sends": [
+                            "network"
+                          ]
                         },
                         "commands": {
                           "properties": {
@@ -10474,12 +12641,90 @@
                                 ]
                               },
                               "type": "array"
+                            },
+                            "startup": {
+                              "items": {
+                                "properties": {
+                                  "command": {
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "type": "array"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "user": {
+                                    "type": "string"
+                                  }
+                                },
+                                "type": "object",
+                                "x-cli-always-sends": [
+                                  "command",
+                                  "description",
+                                  "user"
+                                ]
+                              },
+                              "type": "array"
                             }
                           },
                           "type": "object",
                           "x-cli-always-sends": [
                             "install"
                           ]
+                        },
+                        "credentials": {
+                          "items": {
+                            "properties": {
+                              "apiKey": {
+                                "properties": {
+                                  "inject": {
+                                    "items": {
+                                      "properties": {
+                                        "domain": {
+                                          "type": "string"
+                                        },
+                                        "format": {
+                                          "type": "string"
+                                        },
+                                        "header": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "type": "object",
+                                      "x-cli-always-sends": [
+                                        "domain",
+                                        "format",
+                                        "header"
+                                      ]
+                                    },
+                                    "type": "array"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "type": "object",
+                                "x-cli-always-sends": [
+                                  "inject",
+                                  "name"
+                                ]
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "service": {
+                                "type": "string"
+                              }
+                            },
+                            "type": "object",
+                            "x-cli-always-sends": [
+                              "apiKey",
+                              "description",
+                              "service"
+                            ]
+                          },
+                          "type": "array"
                         },
                         "kitHubPublication": {
                           "properties": {
@@ -10563,6 +12808,12 @@
                             "template"
                           ]
                         },
+                        "optionalCredentials": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
                         "storageSource": {
                           "type": "string"
                         },
@@ -10576,6 +12827,36 @@
                                 "properties": {
                                   "config": {
                                     "properties": {
+                                      "apiKey": {
+                                        "properties": {
+                                          "inject": {
+                                            "items": {
+                                              "properties": {
+                                                "domain": {
+                                                  "type": "string"
+                                                },
+                                                "format": {
+                                                  "type": "string"
+                                                },
+                                                "header": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "domain",
+                                                "format",
+                                                "header"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "inject"
+                                        ]
+                                      },
                                       "content": {
                                         "type": "string"
                                       },
@@ -10591,6 +12872,12 @@
                                             "description": {
                                               "type": "string"
                                             },
+                                            "env": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
+                                            },
                                             "user": {
                                               "type": "string"
                                             }
@@ -10603,10 +12890,71 @@
                                           ]
                                         },
                                         "type": "array"
+                                      },
+                                      "phase": {
+                                        "type": "string"
+                                      },
+                                      "runtime": {
+                                        "properties": {
+                                          "allow": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          },
+                                          "deny": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "allow"
+                                        ]
+                                      },
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "startup": {
+                                        "items": {
+                                          "properties": {
+                                            "command": {
+                                              "type": "string"
+                                            },
+                                            "description": {
+                                              "type": "string"
+                                            },
+                                            "env": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
+                                            },
+                                            "user": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object",
+                                          "x-cli-always-sends": [
+                                            "command",
+                                            "description",
+                                            "env",
+                                            "user"
+                                          ]
+                                        },
+                                        "type": "array"
                                       }
                                     },
                                     "type": "object",
                                     "x-cli-always-sends": []
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
                                   },
                                   "optional": {
                                     "type": "boolean"
@@ -10676,6 +13024,40 @@
                                 "properties": {
                                   "config": {
                                     "properties": {
+                                      "apiKey": {
+                                        "properties": {
+                                          "inject": {
+                                            "items": {
+                                              "properties": {
+                                                "domain": {
+                                                  "type": "string"
+                                                },
+                                                "format": {
+                                                  "type": "string"
+                                                },
+                                                "header": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "domain",
+                                                "format",
+                                                "header"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "inject",
+                                          "name"
+                                        ]
+                                      },
                                       "content": {
                                         "type": "string"
                                       },
@@ -10694,6 +13076,12 @@
                                             "description": {
                                               "type": "string"
                                             },
+                                            "env": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
+                                            },
                                             "user": {
                                               "type": "string"
                                             }
@@ -10706,10 +13094,74 @@
                                           ]
                                         },
                                         "type": "array"
+                                      },
+                                      "phase": {
+                                        "type": "string"
+                                      },
+                                      "runtime": {
+                                        "properties": {
+                                          "allow": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          },
+                                          "deny": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "allow"
+                                        ]
+                                      },
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "startup": {
+                                        "items": {
+                                          "properties": {
+                                            "command": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
+                                            },
+                                            "description": {
+                                              "type": "string"
+                                            },
+                                            "env": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
+                                            },
+                                            "user": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object",
+                                          "x-cli-always-sends": [
+                                            "command",
+                                            "description",
+                                            "env",
+                                            "user"
+                                          ]
+                                        },
+                                        "type": "array"
                                       }
                                     },
                                     "type": "object",
                                     "x-cli-always-sends": []
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
                                   },
                                   "optional": {
                                     "type": "boolean"
@@ -10782,6 +13234,36 @@
                                 "properties": {
                                   "config": {
                                     "properties": {
+                                      "apiKey": {
+                                        "properties": {
+                                          "inject": {
+                                            "items": {
+                                              "properties": {
+                                                "domain": {
+                                                  "type": "string"
+                                                },
+                                                "format": {
+                                                  "type": "string"
+                                                },
+                                                "header": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "type": "object",
+                                              "x-cli-always-sends": [
+                                                "domain",
+                                                "format",
+                                                "header"
+                                              ]
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "inject"
+                                        ]
+                                      },
                                       "content": {
                                         "type": "string"
                                       },
@@ -10797,6 +13279,12 @@
                                             "description": {
                                               "type": "string"
                                             },
+                                            "env": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
+                                            },
                                             "user": {
                                               "type": "string"
                                             }
@@ -10809,10 +13297,71 @@
                                           ]
                                         },
                                         "type": "array"
+                                      },
+                                      "phase": {
+                                        "type": "string"
+                                      },
+                                      "runtime": {
+                                        "properties": {
+                                          "allow": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          },
+                                          "deny": {
+                                            "items": {
+                                              "type": "string"
+                                            },
+                                            "type": "array"
+                                          }
+                                        },
+                                        "type": "object",
+                                        "x-cli-always-sends": [
+                                          "allow"
+                                        ]
+                                      },
+                                      "service": {
+                                        "type": "string"
+                                      },
+                                      "startup": {
+                                        "items": {
+                                          "properties": {
+                                            "command": {
+                                              "type": "string"
+                                            },
+                                            "description": {
+                                              "type": "string"
+                                            },
+                                            "env": {
+                                              "items": {
+                                                "type": "string"
+                                              },
+                                              "type": "array"
+                                            },
+                                            "user": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "type": "object",
+                                          "x-cli-always-sends": [
+                                            "command",
+                                            "description",
+                                            "env",
+                                            "user"
+                                          ]
+                                        },
+                                        "type": "array"
                                       }
                                     },
                                     "type": "object",
                                     "x-cli-always-sends": []
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
                                   },
                                   "optional": {
                                     "type": "boolean"
@@ -10884,6 +13433,9 @@
                                       "type": "string"
                                     },
                                     "type": "array"
+                                  },
+                                  "name": {
+                                    "type": "string"
                                   },
                                   "path": {
                                     "type": "string"
@@ -11023,6 +13575,9 @@
                       "type": "string"
                     },
                     "type": "array"
+                  },
+                  "pull_policy": {
+                    "type": "string"
                   }
                 },
                 "type": "object",
@@ -11037,9 +13592,9 @@
             "content": {
               "application/json": {
                 "example": {
-                  "committed_image_id": "sha256:a112ace240858f94d5774e1ee865bbda5f39999c842b23ccdf00725f02235807",
-                  "container_id": "e6171664681459e164ef028d5ce5f6dcc21f1547f98399b62a6b893eb56ee2d0",
-                  "docker_name": "audit-a-swap-4b34ef84"
+                  "committed_image_id": "sha256:1778eb1e38019e231d453216be821c99bec820cffe421f95544e090e10619f20",
+                  "container_id": "b749f9a5c68582d88a35fee79354dcbad0fd7508d6184fb46a189eaef7087c68",
+                  "docker_name": "audit-a-swap-a5ee1b83"
                 },
                 "schema": {
                   "properties": {
@@ -11089,6 +13644,32 @@
               }
             },
             "description": "Bad Request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "unclassified",
+                  "message": "kit add would change sandbox \"audit-y\"'s binding-gated credential set, which the running proxy cannot pick up live; remove and recreate the sandbox instead"
+                },
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Conflict"
           }
         },
         "tags": [
@@ -11096,7 +13677,9 @@
         ],
         "x-cli-scenarios": [
           "kit-add",
-          "swap-container-empty"
+          "swap-container-empty",
+          "swap-y-caps",
+          "swap-y-net"
         ],
         "x-observed": true,
         "x-request-headers": {
@@ -11104,7 +13687,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 2
+        "x-sample-count": 4
       }
     },
     "/sandbox/{name}/working-directory": {

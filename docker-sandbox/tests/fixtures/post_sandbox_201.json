@@ -7,7 +7,7 @@
       {
         "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of its own: outbound access, including the apt sources\n(deb.debian.org, dhi.io), is whatever the sandbox policy and\ncomposed kits allow. Install more with apt where that permits;\ncomposed kits list their own capabilities below.\n",
         "kitHubPublication": {
-          "digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+          "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
           "repository": "sbx/shell"
         },
         "kitUsage": {
@@ -33,7 +33,7 @@
           ],
           "schemaVersion": "3",
           "sourceURL": "https://github.com/docker-hardened-images/definitions",
-          "template": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6"
+          "template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
         },
         "storageSource": "oci://docker.io/sbx/shell:latest",
         "v3": {
@@ -70,8 +70,8 @@
             "curl@8.14.1",
             "docker-buildx@0.39.1",
             "docker-compose@5.8.0",
-            "docker-engine@29.10.0",
-            "docker@29.10.0",
+            "docker-engine@29.10.1",
+            "docker@29.10.1",
             "git@2.47.3",
             "gpg@2.4.7",
             "jq@1.8.2",
@@ -81,7 +81,7 @@
             "ripgrep@14.1.1",
             "ssh@10.0",
             "unzip@6.0",
-            "uv@0.13.9",
+            "uv@0.13.10",
             "wget@1.25.0",
             "deb/adduser@3.152",
             "deb/apt@3.0.4",
@@ -103,13 +103,13 @@
             "deb/diffutils@3.10",
             "deb/dirmngr@2.4.7",
             "deb/docker-buildx-plugin@0.39.1",
-            "deb/docker-ce-cli@29.10.0",
-            "deb/docker-ce@29.10.0",
+            "deb/docker-ce-cli@29.10.1",
+            "deb/docker-ce@29.10.1",
             "deb/docker-compose-plugin@5.8.0",
             "deb/dpkg@1.22.22",
             "deb/findutils@4.10.0",
             "deb/gcc-14-base@14.2.0",
-            "deb/gh@2.105.0",
+            "deb/gh@2.106.0",
             "deb/git@2.47.3",
             "deb/gnu-which@2.21",
             "deb/gnupg-l10n@2.4.7",
@@ -285,7 +285,7 @@
             "deb/tzdata@2026",
             "deb/unzip@6.0",
             "deb/util-linux@2.41.5",
-            "deb/uv@0.13.9",
+            "deb/uv@0.13.10",
             "deb/vim-common@9.1.1230",
             "deb/vim-runtime@9.1.1230",
             "deb/vim@9.1.1230",
@@ -296,7 +296,7 @@
           "sourceUrl": "https://github.com/docker-hardened-images/definitions",
           "version": "1.1.0"
         },
-        "v3Digest": "sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+        "v3Digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
         "v3Effective": {
           "author": "Docker, Inc. https://docker.com",
           "capabilities": [
@@ -323,8 +323,8 @@
             "curl@8.14.1",
             "docker-buildx@0.39.1",
             "docker-compose@5.8.0",
-            "docker-engine@29.10.0",
-            "docker@29.10.0",
+            "docker-engine@29.10.1",
+            "docker@29.10.1",
             "git@2.47.3",
             "gpg@2.4.7",
             "jq@1.8.2",
@@ -334,7 +334,7 @@
             "ripgrep@14.1.1",
             "ssh@10.0",
             "unzip@6.0",
-            "uv@0.13.9",
+            "uv@0.13.10",
             "wget@1.25.0",
             "deb/adduser@3.152",
             "deb/apt@3.0.4",
@@ -356,13 +356,13 @@
             "deb/diffutils@3.10",
             "deb/dirmngr@2.4.7",
             "deb/docker-buildx-plugin@0.39.1",
-            "deb/docker-ce-cli@29.10.0",
-            "deb/docker-ce@29.10.0",
+            "deb/docker-ce-cli@29.10.1",
+            "deb/docker-ce@29.10.1",
             "deb/docker-compose-plugin@5.8.0",
             "deb/dpkg@1.22.22",
             "deb/findutils@4.10.0",
             "deb/gcc-14-base@14.2.0",
-            "deb/gh@2.105.0",
+            "deb/gh@2.106.0",
             "deb/git@2.47.3",
             "deb/gnu-which@2.21",
             "deb/gnupg-l10n@2.4.7",
@@ -538,7 +538,7 @@
             "deb/tzdata@2026",
             "deb/unzip@6.0",
             "deb/util-linux@2.41.5",
-            "deb/uv@0.13.9",
+            "deb/uv@0.13.10",
             "deb/vim-common@9.1.1230",
             "deb/vim-runtime@9.1.1230",
             "deb/vim@9.1.1230",
@@ -555,7 +555,7 @@
           "exec \"$@\"",
           "bash"
         ],
-        "v3Reference": "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+        "v3Reference": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
         "v3Selection": {
           "capabilities": [
             {
@@ -767,7 +767,7 @@
       }
     ],
     "kits": [
-      "docker.io/sbx/shell@sha256:a43a179b1c6b5100b59db6edc15b4a348f71e7d957f8d6f35368c3750525c9c6",
+      "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
       "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3"
     ],
     "name": "audit-r",
@@ -775,9 +775,9 @@
   },
   "response": {
     "agent": "shell",
-    "id": "76aebb1b-3e0f-493b-8f26-ed38856070f3",
+    "id": "40a18359-9754-42e3-985b-a42a9a862347",
     "mcp": {
-      "port": 41845,
+      "port": 33521,
       "state": "ready",
       "static": false,
       "url": "http://mcp-gateway.docker.internal/mcp"

@@ -1990,6 +1990,31 @@
         "-f"
       ],
       "note": "sbx rm pushes no credential"
+    },
+    {
+      "name": "create-if-install-fail",
+      "category": "kit-capabilities",
+      "mutates": true,
+      "expect_error": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-if",
+        "--kit",
+        "{kits}/audit-mixin-install-fail",
+        "shell"
+      ],
+      "note": "an install command that exits with code 3: what the creation stream reports"
+    },
+    {
+      "name": "inspect-if-after",
+      "category": "kit-capabilities",
+      "expect_error": true,
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-if"
+      },
+      "note": "whether the sandbox of a failed installation is left behind"
     }
   ]
 }

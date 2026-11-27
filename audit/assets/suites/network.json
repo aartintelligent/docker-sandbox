@@ -1,0 +1,250 @@
+{
+  "name": "network",
+  "description": "The network policy as the proxy of a sandbox applies it: the forms of a host a rule accepts and the ones it applies, deny against allow for the rules of a sandbox and for those of its kits, the rules of two mixins composed, and the check of the policy against the rules of a sandbox. Dummy hosts under example.invalid only: none resolves, so that nothing leaves the machine and a 403 is the answer of the policy.",
+  "scenarios": [
+    {
+      "name": "create-np",
+      "category": "network",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-np",
+        "shell"
+      ]
+    },
+    {
+      "name": "probe-np-default",
+      "category": "network",
+      "args": [
+        "exec",
+        "audit-np",
+        "--",
+        "sh",
+        "-c",
+        "for h in audit-net-plain.example.invalid a.audit-net-wild.example.invalid audit-net-port.example.invalid audit-net-scheme.example.invalid audit-net-path.example.invalid; do printf '%s %s\\n' \"$h\" \"$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \"http://$h/path/x\")\"; done"
+      ],
+      "note": "every dummy host is allowed by default-allow-all: the proxy answers with its own error for a host that does not resolve, never 403"
+    },
+    {
+      "name": "deny-np-forms",
+      "category": "network",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/rules",
+        "body": {
+          "actions": [
+            {
+              "action": "deny",
+              "resources": [
+                "audit-net-plain.example.invalid",
+                "*.audit-net-wild.example.invalid",
+                "audit-net-port.example.invalid:80",
+                "https://audit-net-scheme.example.invalid",
+                "audit-net-path.example.invalid/path"
+              ],
+              "sandbox_id": "audit-np",
+              "protocols": [
+                "tcp",
+                "udp"
+              ]
+            }
+          ]
+        }
+      },
+      "note": "one deny rule per form a host can be written in: plain, wildcard, with a port, with a scheme, with a path"
+    },
+    {
+      "name": "policy-ls-np",
+      "category": "network",
+      "args": [
+        "policy",
+        "ls",
+        "audit-np"
+      ],
+      "note": "the resources as the daemon stored them"
+    },
+    {
+      "name": "probe-np-forms",
+      "category": "network",
+      "args": [
+        "exec",
+        "audit-np",
+        "--",
+        "sh",
+        "-c",
+        "for h in audit-net-plain.example.invalid a.audit-net-wild.example.invalid audit-net-port.example.invalid audit-net-scheme.example.invalid audit-net-path.example.invalid; do printf '%s %s\\n' \"$h\" \"$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \"http://$h/path/x\")\"; done"
+      ],
+      "note": "403 where a deny rule applies: the forms that do not apply are accepted all the same"
+    },
+    {
+      "name": "check-np-plain-global",
+      "category": "network",
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/check",
+        "body": {
+          "type": "network",
+          "target": "audit-net-plain.example.invalid"
+        }
+      },
+      "note": "the check of the policy, for a host a rule of audit-np denies"
+    },
+    {
+      "name": "create-nq",
+      "category": "network",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-nq",
+        "shell"
+      ]
+    },
+    {
+      "name": "deny-nq-all",
+      "category": "network",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/rules",
+        "body": {
+          "actions": [
+            {
+              "action": "deny",
+              "resources": [
+                "**"
+              ],
+              "sandbox_id": "audit-nq",
+              "protocols": [
+                "tcp",
+                "udp"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "allow-nq-host",
+      "category": "network",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/rules",
+        "body": {
+          "actions": [
+            {
+              "action": "allow",
+              "resources": [
+                "audit-net-allowed.example.invalid"
+              ],
+              "sandbox_id": "audit-nq",
+              "protocols": [
+                "tcp"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "allow-nq-http",
+      "category": "network",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/policy/network/rules",
+        "body": {
+          "actions": [
+            {
+              "action": "http-allow",
+              "resources": [
+                "audit-net-allowed.example.invalid"
+              ],
+              "sandbox_id": "audit-nq",
+              "methods": [
+                "GET"
+              ],
+              "path": "/**"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "probe-nq",
+      "category": "network",
+      "args": [
+        "exec",
+        "audit-nq",
+        "--",
+        "sh",
+        "-c",
+        "for h in audit-net-allowed.example.invalid audit-net-other.example.invalid; do printf '%s %s\\n' \"$h\" \"$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \"http://$h/path/x\")\"; done"
+      ],
+      "note": "whether an allow rule, by host or by HTTP request, reopens a host for a sandbox whose rules deny **"
+    },
+    {
+      "name": "create-nk",
+      "category": "network",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-nk",
+        "--kit",
+        "{kits}/audit-mixin-net-lock",
+        "--kit",
+        "{kits}/audit-mixin-net-extra",
+        "shell"
+      ],
+      "note": "two mixins: one denies ** and allows a host, the other allows another host"
+    },
+    {
+      "name": "policy-ls-nk",
+      "category": "network",
+      "args": [
+        "policy",
+        "ls",
+        "audit-nk"
+      ],
+      "note": "how the rules of the two mixins are composed"
+    },
+    {
+      "name": "probe-nk",
+      "category": "network",
+      "args": [
+        "exec",
+        "audit-nk",
+        "--",
+        "sh",
+        "-c",
+        "for h in audit-net-allowed.example.invalid audit-net-extra.example.invalid audit-net-other.example.invalid; do printf '%s %s\\n' \"$h\" \"$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \"http://$h/path/x\")\"; done"
+      ],
+      "note": "whether the allow rules of the kits reopen their hosts under the deny of **"
+    },
+    {
+      "name": "rm-network-sandboxes",
+      "category": "network",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-np",
+        "audit-nq",
+        "audit-nk",
+        "-f"
+      ]
+    },
+    {
+      "name": "policy-ls-network-after",
+      "category": "network",
+      "args": [
+        "policy",
+        "ls"
+      ],
+      "note": "whether the rules go with their sandboxes"
+    }
+  ]
+}

@@ -118,6 +118,11 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   sentinel token name (`assets/kits/audit-mixin-mcp`). Startup commands run on
   `POST /sandbox/{name}/start`: a sandbox created through the socket runs them
   once it is started, as `Sandbox::ensure_running` does.
+- **An install command that fails** (`assets/kits/audit-mixin-install-fail`,
+  `exit 3`; `create-if-install-fail`): the creation fails with `failed to
+  apply kit to sandbox`, which names neither the command nor its exit code, and
+  the sandbox is gone (`inspect-if-after`, `404`). A program creating through
+  the socket gets the same failure in the creation stream.
 - **Adding permissions to an existing sandbox**: `sbx kit add` asks to approve
   the permissions a mixin adds ("this change requests permissions beyond what
   this sandbox was granted", refused with `--no-input`). The daemon asks for
@@ -375,6 +380,39 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   of a sandbox-scoped rule needs its `sandbox_id`: without it the daemon only
   looks in the global policy (`rule … exists in sandbox …, not in the global
   policy`, measured by the live tests of the library).
+
+### Network policy (`network` suite)
+
+Measured from inside shell sandboxes, with dummy hosts under `example.invalid`
+that never resolve: nothing leaves the machine, a `403` is the answer of the
+policy, and the proxy answers `502` for a host the policy lets through.
+
+- **Default.** The global policy allows every host (`default-allow-all`, `**`,
+  in `local-policy`), behind a fallback that denies what no rule decides
+  (`default-deny-all`). A sandbox without rules reaches every host.
+- **Forms of a host.** A rule accepts any string. A deny rule applies to a plain
+  host, to a wildcard (`*.domain`) and to `host:port` (`probe-np-forms`). A
+  host written with a scheme (`https://host`) or a path (`host/path`) is
+  stored, listed and answered `200` like the others, but **never applies**: the
+  host stays reachable.
+- **Deny wins.** For a sandbox whose rules deny `**`, an allow rule of the same
+  sandbox does not reopen a host, nor does an HTTP allow rule (`http-allow`,
+  `GET /**`): every request is answered `403` (`probe-nq`). The same holds for
+  the rules of its kits: a mixin that denies `**` and allows a host, composed
+  with another that allows a second host, leaves both answered `403`
+  (`probe-nk`). The rules of the two mixins are composed into one allow and one
+  deny rule of the sandbox (`policy-ls-nk`), and go with it.
+- **No lockdown of a sandbox.** It follows that, as long as the global policy
+  allows every host, a sandbox cannot be limited to a list of hosts: its deny
+  rules restrict, its allow rules add nothing. They only matter under a
+  global policy that does not allow everything, which the audit does not
+  change (the global setup is never called).
+- **The check ignores the rules of a sandbox.** `POST /policy/network/check`
+  answers `allowed` by `default-allow-all` for a host a rule of a sandbox
+  denies (`check-np-plain-global`): it evaluates the global policy. What a
+  sandbox reaches is only known from inside it.
+- An `http-allow` change without a `path` is refused in its result (`path must
+  not be empty for "http-allow"`), measured by a program through the socket.
 
 ### Error answers (`errors` suite)
 

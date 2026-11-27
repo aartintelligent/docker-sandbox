@@ -1,0 +1,12 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: Audit mixin network extra
+description: Test mixin of the docker-sbx audit, allows another dummy host at run time, composed with the network lock.
+version: "0.1.0"
+capabilities:
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      runtime:
+        allow:
+          - audit-net-extra.example.invalid

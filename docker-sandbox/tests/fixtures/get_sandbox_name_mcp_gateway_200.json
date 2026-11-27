@@ -2,7 +2,7 @@
   "method": "GET",
   "request": null,
   "response": {
-    "port": 36325,
+    "port": 39025,
     "state": "ready",
     "static": false,
     "url": "http://mcp-gateway.docker.internal/mcp"
