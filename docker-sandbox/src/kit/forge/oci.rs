@@ -8,11 +8,14 @@
 //! that the same descriptor always gives the same archive. The daemon checks
 //! neither the hash of the name nor the form of `kit.yaml`.
 
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
-use serde_json::{Value, json};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use super::descriptor::{Capability, KitDescriptor};
+use super::{Producer, to_json};
 use crate::error::{Error, Result};
 
 /// Directory of the descriptor inside the layer.
@@ -23,6 +26,21 @@ const REPOSITORY: &str = "sbx-kit-src";
 
 /// Content of the `oci-layout` file that marks an OCI image layout.
 const LAYOUT_MARKER: &[u8] = br#"{"imageLayoutVersion":"1.0.0"}"#;
+
+/// Media type of an image index.
+const INDEX_TYPE: &str = "application/vnd.oci.image.index.v1+json";
+
+/// Media type of an image manifest.
+const MANIFEST_TYPE: &str = "application/vnd.oci.image.manifest.v1+json";
+
+/// Media type of an image configuration.
+const CONFIG_TYPE: &str = "application/vnd.oci.image.config.v1+json";
+
+/// Media type of an uncompressed layer.
+const LAYER_TYPE: &str = "application/vnd.oci.image.layer.v1.tar";
+
+/// Annotation of the image holding its kit descriptor, as JSON.
+pub(super) const DESCRIPTOR_ANNOTATION: &str = "vnd.docker.sandbox.kit.descriptor";
 
 /// Operation named by the errors of this module.
 const OPERATION: &str = "kit source image";
@@ -37,59 +55,149 @@ pub(super) struct SourceImage {
     pub(super) manifest_digest: String,
 }
 
+/// An OCI image index: the `index.json` of a layout, or the index a
+/// published kit resolves to, whose annotations hold its descriptor.
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct ImageIndex {
+    /// Version of the format, `2`.
+    #[serde(default)]
+    pub(super) schema_version: u32,
+    /// Media type of the index.
+    #[serde(default)]
+    pub(super) media_type: String,
+    /// The images it lists.
+    #[serde(default)]
+    pub(super) manifests: Vec<OciDescriptor>,
+    /// Annotations, by key.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub(super) annotations: BTreeMap<String, String>,
+}
+
+/// A reference to a blob of a layout: its media type, digest and size.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct OciDescriptor {
+    /// Media type of the blob.
+    #[serde(default)]
+    pub(super) media_type: String,
+    /// Digest of the blob, `sha256:…`.
+    pub(super) digest: String,
+    /// Size of the blob, in bytes.
+    #[serde(default)]
+    pub(super) size: u64,
+    /// Annotations, by key.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub(super) annotations: BTreeMap<String, String>,
+}
+
+/// An OCI image manifest.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImageManifest {
+    /// Version of the format, `2`.
+    schema_version: u32,
+    /// Media type of the manifest.
+    media_type: &'static str,
+    /// The configuration of the image.
+    config: OciDescriptor,
+    /// The layers of the image.
+    layers: Vec<OciDescriptor>,
+    /// Annotations, by key.
+    annotations: BTreeMap<String, String>,
+}
+
+/// An OCI image configuration.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub(super) struct ImageConfig {
+    /// Architecture the image runs on, e.g. `amd64`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    architecture: String,
+    /// System the image runs on, `linux`.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    os: String,
+    /// How a container of the image starts.
+    #[serde(default)]
+    pub(super) config: ContainerConfig,
+    /// The layers, by the digest of their uncompressed content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rootfs: Option<RootFs>,
+}
+
+/// How a container of an image starts.
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub(super) struct ContainerConfig {
+    /// Program and arguments every command is given to.
+    #[serde(
+        rename = "Entrypoint",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub(super) entrypoint: Option<Vec<String>>,
+    /// Default command.
+    #[serde(rename = "Cmd", default, skip_serializing_if = "Option::is_none")]
+    pub(super) cmd: Option<Vec<String>>,
+}
+
+/// The layers of an image, by the digest of their uncompressed content.
+#[derive(Debug, Serialize, Deserialize)]
+struct RootFs {
+    /// Always `layers`.
+    #[serde(rename = "type")]
+    kind: String,
+    /// Digests of the layers.
+    diff_ids: Vec<String>,
+}
+
 /// The source image of the mixin `descriptor`, whose `kit.yaml` holds `spec`.
 ///
 /// # Errors
 ///
 /// Returns [`Error::Archive`] if the archive cannot be written.
-pub(super) fn source_image(spec: &str, descriptor: &Value) -> Result<SourceImage> {
+pub(super) fn source_image(spec: &str, descriptor: &KitDescriptor) -> Result<SourceImage> {
     let layer = layer(spec)?;
     let layer_digest = digest(&layer);
-    let config = serde_json::to_vec(&json!({
-        "architecture": architecture(std::env::consts::ARCH),
-        "os": "linux",
-        "config": {},
-        "rootfs": { "type": "layers", "diff_ids": [layer_digest] },
-    }))
-    .map_err(archive_error)?;
+    let config = json_bytes(&ImageConfig {
+        architecture: architecture(std::env::consts::ARCH).to_owned(),
+        os: "linux".to_owned(),
+        config: ContainerConfig::default(),
+        rootfs: Some(RootFs {
+            kind: "layers".to_owned(),
+            diff_ids: vec![layer_digest.clone()],
+        }),
+    });
     let config_digest = digest(&config);
 
-    let encoded = descriptor.to_string();
-    let manifest = serde_json::to_vec(&json!({
-        "schemaVersion": 2,
-        "mediaType": "application/vnd.oci.image.manifest.v1+json",
-        "config": {
-            "mediaType": "application/vnd.oci.image.config.v1+json",
-            "digest": config_digest,
-            "size": config.len(),
-        },
-        "layers": [{
-            "mediaType": "application/vnd.oci.image.layer.v1.tar",
-            "digest": layer_digest,
-            "size": layer.len(),
-        }],
-        "annotations": annotations(descriptor, &encoded),
-    }))
-    .map_err(archive_error)?;
+    let encoded = descriptor.to_json().to_string();
+    let manifest = json_bytes(&ImageManifest {
+        schema_version: 2,
+        media_type: MANIFEST_TYPE,
+        config: blob(CONFIG_TYPE, &config_digest, &config),
+        layers: vec![blob(LAYER_TYPE, &layer_digest, &layer)],
+        annotations: annotations(descriptor, &encoded),
+    });
     let manifest_digest = digest(&manifest);
 
     let hash = digest(encoded.as_bytes());
     let short = hash.get(7..19).unwrap_or_default();
     let reference = format!("{REPOSITORY}:spec-{short}");
-    let index = serde_json::to_vec(&json!({
-        "schemaVersion": 2,
-        "mediaType": "application/vnd.oci.image.index.v1+json",
-        "manifests": [{
-            "mediaType": "application/vnd.oci.image.manifest.v1+json",
-            "digest": manifest_digest,
-            "size": manifest.len(),
-            "annotations": {
-                "io.containerd.image.name": format!("docker.io/library/{reference}"),
-                "org.opencontainers.image.ref.name": reference,
-            },
-        }],
-    }))
-    .map_err(archive_error)?;
+    let mut listed = blob(MANIFEST_TYPE, &manifest_digest, &manifest);
+    listed.annotations = BTreeMap::from([
+        (
+            "io.containerd.image.name".to_owned(),
+            format!("docker.io/library/{reference}"),
+        ),
+        (
+            "org.opencontainers.image.ref.name".to_owned(),
+            reference.clone(),
+        ),
+    ]);
+    let index = json_bytes(&ImageIndex {
+        schema_version: 2,
+        media_type: INDEX_TYPE.to_owned(),
+        manifests: vec![listed],
+        annotations: BTreeMap::new(),
+    });
 
     // The blobs in digest order, then the index and the layout marker, as
     // the CLI writes them.
@@ -113,6 +221,21 @@ pub(super) fn source_image(spec: &str, descriptor: &Value) -> Result<SourceImage
     })
 }
 
+/// The reference to the blob `bytes` of `media_type` and digest `digest`.
+fn blob(media_type: &str, digest: &str, bytes: &[u8]) -> OciDescriptor {
+    OciDescriptor {
+        media_type: media_type.to_owned(),
+        digest: digest.to_owned(),
+        size: bytes.len() as u64,
+        annotations: BTreeMap::new(),
+    }
+}
+
+/// `value` as compact JSON bytes.
+fn json_bytes(value: &impl Serialize) -> Vec<u8> {
+    to_json(value).to_string().into_bytes()
+}
+
 /// The layer of a source image: the directories of [`KIT_DIR`], then
 /// `kit.yaml` holding `spec`.
 fn layer(spec: &str) -> Result<Vec<u8>> {
@@ -129,27 +252,33 @@ fn layer(spec: &str) -> Result<Vec<u8>> {
     layer.into_inner().map_err(archive_error)
 }
 
-/// The annotations of the manifest: the OCI title, description and version,
-/// and the descriptor `encoded` as JSON with its capability types.
-fn annotations(descriptor: &Value, encoded: &str) -> Value {
-    let types: Vec<&str> = descriptor
-        .get("capabilities")
-        .and_then(Value::as_array)
+/// The annotations of the manifest: the OCI title, description and version
+/// the descriptor gives, and the descriptor `encoded` as JSON with its
+/// capability types.
+fn annotations(descriptor: &KitDescriptor, encoded: &str) -> BTreeMap<String, String> {
+    let spec = descriptor.spec();
+    let types: Vec<&str> = spec.capabilities.iter().map(Capability::kind).collect();
+    let built_by = to_json(&Producer::this_crate()).to_string();
+    let mut annotations = BTreeMap::from([
+        ("vnd.docker.sandbox.kit.built-by", built_by),
+        ("vnd.docker.sandbox.kit.capabilities", types.join(",")),
+        (DESCRIPTOR_ANNOTATION, encoded.to_owned()),
+        ("vnd.docker.sandbox.kit.schema-version", "3".to_owned()),
+    ]);
+    let described = [
+        ("org.opencontainers.image.title", &spec.display_name),
+        ("org.opencontainers.image.description", &spec.description),
+        ("org.opencontainers.image.version", &spec.version),
+    ];
+    for (key, value) in described {
+        if let Some(value) = value {
+            annotations.insert(key, value.clone());
+        }
+    }
+    annotations
         .into_iter()
-        .flatten()
-        .filter_map(|c| c.get("type").and_then(Value::as_str))
-        .collect();
-    let text = |key: &str| descriptor.get(key).cloned().unwrap_or(Value::Null);
-    let built_by = json!({ "name": "docker-sandbox", "version": env!("CARGO_PKG_VERSION") });
-    json!({
-        "org.opencontainers.image.description": text("description"),
-        "org.opencontainers.image.title": text("displayName"),
-        "org.opencontainers.image.version": text("version"),
-        "vnd.docker.sandbox.kit.built-by": built_by.to_string(),
-        "vnd.docker.sandbox.kit.capabilities": types.join(","),
-        "vnd.docker.sandbox.kit.descriptor": encoded,
-        "vnd.docker.sandbox.kit.schema-version": "3",
-    })
+        .map(|(key, value)| (key.to_owned(), value))
+        .collect()
 }
 
 /// Appends a regular file owned by root and dated 1970 to `builder`.
@@ -205,9 +334,11 @@ fn archive_error(error: impl std::fmt::Display) -> Error {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
     use std::io::Read;
 
+    use serde_json::{Value, json};
+
+    use super::super::descriptor::LifecycleStep;
     use super::*;
 
     /// The files of the archive `bytes`, by path.
@@ -234,8 +365,7 @@ mod tests {
 
     #[test]
     fn the_image_is_a_consistent_oci_layout_holding_the_spec() {
-        let descriptor = json!({ "schemaVersion": "3", "kind": "mixin", "displayName": "Test",
-            "capabilities": [{ "type": "com.docker.sandbox/lifecycle@1" }] });
+        let descriptor = KitDescriptor::mixin("Test").with_install(LifecycleStep::new("true"));
         let image = source_image("# syntax\n{}\n", &descriptor).unwrap();
         let files = files(&image.archive);
         let index: Value = serde_json::from_slice(&files["index.json"]).unwrap();
@@ -265,7 +395,33 @@ mod tests {
         );
         assert_eq!(
             annotations["vnd.docker.sandbox.kit.descriptor"],
-            descriptor.to_string()
+            descriptor.to_json().to_string()
+        );
+        assert!(
+            annotations
+                .get("org.opencontainers.image.description")
+                .is_none()
+        );
+        let built_by: Value = serde_json::from_str(
+            annotations["vnd.docker.sandbox.kit.built-by"]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(built_by["name"], "docker-sandbox");
+        let config_path = format!(
+            "blobs/sha256/{}",
+            manifest["config"]["digest"]
+                .as_str()
+                .unwrap()
+                .trim_start_matches("sha256:")
+        );
+        let config: Value = serde_json::from_slice(&files[&config_path]).unwrap();
+        assert_eq!(config["os"], "linux");
+        assert_eq!(config["config"], json!({}));
+        assert_eq!(
+            config["rootfs"]["diff_ids"][0],
+            manifest["layers"][0]["digest"]
         );
         let layer = &files[&format!(
             "blobs/sha256/{}",

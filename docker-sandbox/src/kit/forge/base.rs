@@ -11,20 +11,27 @@
 //! capability selection from its descriptor, and its arguments
 //! ([`super::args`]).
 //!
-//! The selection knows one rule: `agent-context@1` is left out when the kit
-//! also declares `agent-context@2`, the only conflict published kits hold.
+//! The descriptor of a published kit is forwarded as it is, with capabilities
+//! this crate does not know; the artifact is derived from typed views of the
+//! parts it needs. The selection knows one rule: `agent-context@1` is left out
+//! when the kit also declares `agent-context@2`, the only conflict published
+//! kits hold.
 
 use std::collections::BTreeMap;
 
-use serde_json::{Map, Value, json};
+use serde::Deserialize;
+use serde::de::DeserializeOwned;
+use serde_json::{Value, json};
 
-use super::artifact::{capabilities, commands, effective, is, network};
+use super::artifact::{
+    BaseManifest, Credential, Environment, HubPublication, KitArtifact, KitUsage, Manifest,
+    ManifestKind, SkillsRequest, capabilities, caps, commands, effective, is, selection,
+};
+use super::descriptor::{LIFECYCLE, LifecycleConfig, NETWORK, NetworkConfig, SchemaVersion};
+use super::oci::{DESCRIPTOR_ANNOTATION, ImageConfig, ImageIndex};
 use super::{args, export};
 use crate::client::Client;
 use crate::error::{Error, Result};
-
-/// Annotation of the image index that holds the descriptor as JSON.
-const DESCRIPTOR_ANNOTATION: &str = "vnd.docker.sandbox.kit.descriptor";
 
 /// Registry of references that name none, as Docker normalizes them.
 const DEFAULT_REGISTRY: &str = "docker.io";
@@ -125,7 +132,7 @@ pub(super) struct BaseKit {
     /// Name of the kit, the `agent` of the creation request, e.g. `shell`.
     pub(super) name: String,
     /// The kit artifact.
-    pub(super) artifact: Value,
+    pub(super) artifact: KitArtifact,
 }
 
 /// What the export of a kit image tells about it.
@@ -141,6 +148,91 @@ struct ImageFacts {
     cmd: Vec<String>,
 }
 
+/// An entry of the `manifest.json` of an export, in the Docker save format.
+#[derive(Debug, Deserialize)]
+struct SavedImage {
+    /// Path of the configuration of the image in the export.
+    #[serde(rename = "Config")]
+    config: String,
+}
+
+/// The fields of a published descriptor the artifact of its kit is derived
+/// from.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Published {
+    /// Version of the descriptor format, `3`.
+    #[serde(default)]
+    schema_version: Option<String>,
+    /// Kind of kit, `workload` for a base kit.
+    #[serde(default)]
+    kind: Option<String>,
+    /// Name shown for the kit.
+    #[serde(default)]
+    display_name: Option<String>,
+    /// What the kit is for.
+    #[serde(default)]
+    description: Option<String>,
+    /// Where the kit is defined.
+    #[serde(default)]
+    source_url: Option<String>,
+    /// Licenses of the kit, kept as written.
+    #[serde(default)]
+    licenses: Option<Value>,
+}
+
+/// The fields of a capability of a published kit the artifact is derived
+/// from.
+#[derive(Debug, Deserialize)]
+struct CapabilityView {
+    /// Type of the capability, e.g. `com.docker.sandbox/credential@1`.
+    #[serde(rename = "type", default)]
+    kind: String,
+    /// Whether the kit works without it.
+    #[serde(default)]
+    optional: bool,
+    /// What it does.
+    #[serde(default)]
+    description: Option<String>,
+    /// Its configuration, read according to its type.
+    #[serde(default)]
+    config: Value,
+}
+
+/// The configuration of an `agent-context` capability.
+#[derive(Debug, Default, Deserialize)]
+struct ContextConfig {
+    /// Content of the context file.
+    #[serde(default)]
+    content: Option<String>,
+    /// Name of the context file, e.g. `AGENTS.md`.
+    #[serde(default)]
+    filename: Option<String>,
+}
+
+/// The configuration of a `credential@1` capability.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CredentialConfig {
+    /// Service of the credential.
+    #[serde(default)]
+    service: Option<String>,
+    /// How an API key is injected.
+    #[serde(default)]
+    api_key: Option<Value>,
+    /// How an OAuth token is obtained.
+    #[serde(default)]
+    oauth: Option<Value>,
+}
+
+/// The configuration of an `agent-skills@1` capability.
+#[derive(Debug, Default, Deserialize)]
+struct SkillsConfig {
+    /// Directory of the skills inside the sandbox.
+    #[serde(default)]
+    path: Option<String>,
+}
+
 /// Pulls the image of `reference`, exports it and rebuilds its kit artifact
 /// with the argument values `args`.
 ///
@@ -148,8 +240,9 @@ struct ImageFacts {
 ///
 /// Returns the errors of the pull and export requests; [`Error::Archive`]
 /// when the export is not a tar archive; [`Error::InvalidKit`] when the image
-/// is not a v3 workload kit or refuses the arguments; [`Error::Forge`] when a
-/// pinned reference exports another digest.
+/// is not a v3 workload kit, holds parts this crate cannot read, or refuses
+/// the arguments; [`Error::Forge`] when a pinned reference exports another
+/// digest.
 pub(super) async fn rebuild(
     client: &Client,
     reference: &Reference,
@@ -170,62 +263,78 @@ pub(super) async fn rebuild(
     base_kit(reference, &facts, args)
 }
 
+/// An [`Error::InvalidKit`] for `kit`.
+fn invalid(kit: &str, message: String) -> Error {
+    Error::InvalidKit {
+        kit: kit.to_owned(),
+        message,
+    }
+}
+
+/// `value`, a part `what` of the kit `kit`, read as `T`.
+fn read<T: DeserializeOwned>(kit: &str, what: &str, value: &Value) -> Result<T> {
+    serde_json::from_value(value.clone())
+        .map_err(|error| invalid(kit, format!("{what} is not one this crate reads: {error}")))
+}
+
+/// The file `path` of the export `files` of the image of `kit`, read as `T`.
+fn export_file<T: DeserializeOwned>(
+    kit: &str,
+    files: &BTreeMap<String, Vec<u8>>,
+    path: &str,
+) -> Result<T> {
+    let bytes = files
+        .get(path)
+        .ok_or_else(|| invalid(kit, format!("the export of the image holds no {path}")))?;
+    serde_json::from_slice(bytes).map_err(|error| {
+        invalid(
+            kit,
+            format!("{path} of the image is not one this crate reads: {error}"),
+        )
+    })
+}
+
 /// The digest, descriptor, entrypoint and command of the image of `kit`,
 /// from the small files of its export.
 fn facts(kit: &str, files: &BTreeMap<String, Vec<u8>>) -> Result<ImageFacts> {
-    let invalid = |message: String| Error::InvalidKit {
-        kit: kit.to_owned(),
-        message,
-    };
-    let json_file = |path: &str| -> Result<Value> {
-        let bytes = files
-            .get(path)
-            .ok_or_else(|| invalid(format!("the export of the image holds no {path}")))?;
-        serde_json::from_slice(bytes)
-            .map_err(|error| invalid(format!("{path} of the image is not JSON: {error}")))
-    };
-    let blob = |digest: &str| format!("blobs/sha256/{}", digest.trim_start_matches("sha256:"));
-
-    let digest = json_file("index.json")?
-        .pointer("/manifests/0/digest")
-        .and_then(Value::as_str)
-        .ok_or_else(|| invalid("the index of the image names no image".to_owned()))?
-        .to_owned();
-    let top = json_file(&blob(&digest))?;
-    let encoded = top
-        .get("annotations")
-        .and_then(|annotations| annotations.get(DESCRIPTOR_ANNOTATION))
-        .and_then(Value::as_str)
-        .ok_or_else(|| {
-            invalid("the image is not a kit: it carries no kit descriptor".to_owned())
-        })?;
-    let descriptor: Value = serde_json::from_str(encoded).map_err(|error| {
-        invalid(format!(
-            "the kit descriptor of the image is not JSON: {error}"
-        ))
+    let index: ImageIndex = export_file(kit, files, "index.json")?;
+    let digest = index
+        .manifests
+        .into_iter()
+        .next()
+        .map(|manifest| manifest.digest)
+        .ok_or_else(|| invalid(kit, "the index of the image names no image".to_owned()))?;
+    let blob = format!("blobs/sha256/{}", digest.trim_start_matches("sha256:"));
+    let top: ImageIndex = export_file(kit, files, &blob)?;
+    let encoded = top.annotations.get(DESCRIPTOR_ANNOTATION).ok_or_else(|| {
+        invalid(
+            kit,
+            "the image is not a kit: it carries no kit descriptor".to_owned(),
+        )
     })?;
-
-    let config_path = json_file("manifest.json")?
-        .pointer("/0/Config")
-        .and_then(Value::as_str)
-        .ok_or_else(|| invalid("the export of the image names no configuration".to_owned()))?
-        .to_owned();
-    let config = json_file(&config_path)?;
-    let strings = |pointer: &str| -> Vec<String> {
-        config
-            .pointer(pointer)
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-            .map(str::to_owned)
-            .collect()
-    };
+    let descriptor: Value = serde_json::from_str(encoded).map_err(|error| {
+        invalid(
+            kit,
+            format!("the kit descriptor of the image is not JSON: {error}"),
+        )
+    })?;
+    let saved: Vec<SavedImage> = export_file(kit, files, "manifest.json")?;
+    let config_path = saved
+        .into_iter()
+        .next()
+        .map(|image| image.config)
+        .ok_or_else(|| {
+            invalid(
+                kit,
+                "the export of the image names no configuration".to_owned(),
+            )
+        })?;
+    let config: ImageConfig = export_file(kit, files, &config_path)?;
     Ok(ImageFacts {
         digest,
         descriptor,
-        entrypoint: strings("/config/Entrypoint"),
-        cmd: strings("/config/Cmd"),
+        entrypoint: config.config.entrypoint.unwrap_or_default(),
+        cmd: config.config.cmd.unwrap_or_default(),
     })
 }
 
@@ -237,88 +346,107 @@ fn base_kit(
     args: &BTreeMap<String, String>,
 ) -> Result<BaseKit> {
     let descriptor = &facts.descriptor;
-    let repository = reference.repository.as_str();
-    let invalid = |message: &str| Error::InvalidKit {
-        kit: repository.to_owned(),
-        message: message.to_owned(),
-    };
-    if descriptor.get("schemaVersion").and_then(Value::as_str) != Some("3") {
-        return Err(invalid("only v3 kits are rebuilt"));
+    let kit = reference.repository.as_str();
+    let published: Published = read(kit, "the descriptor", descriptor)?;
+    if published.schema_version.as_deref() != Some("3") {
+        return Err(invalid(kit, "only v3 kits are rebuilt".to_owned()));
     }
-    if descriptor.get("kind").and_then(Value::as_str) != Some("workload") {
-        return Err(invalid("a base kit is a workload kit"));
+    if published.kind.as_deref() != Some("workload") {
+        return Err(invalid(kit, "a base kit is a workload kit".to_owned()));
     }
     let name = reference.name().to_owned();
-    let pinned = format!("{repository}@{}", facts.digest);
-    let source = format!("{repository}:{}", reference.tag);
-    let resolved = args::resolve(repository, descriptor, args)?;
-    let substituted = args::substitute(repository, descriptor, &resolved.values)?;
+    let pinned = format!("{kit}@{}", facts.digest);
+    let source = format!("{kit}:{}", reference.tag);
+    let resolved = args::resolve(kit, descriptor, args)?;
+    let substituted = args::substitute(kit, descriptor, &resolved.values)?;
 
-    let listed: Vec<&Value> = capabilities(&substituted).collect();
-    let has_v2 = listed.iter().any(|c| is(c, CONTEXT_V2));
-    let rejected = |c: &Value| has_v2 && is(c, CONTEXT_V1);
-    let context = listed
+    let listed: Vec<Value> = capabilities(&substituted).cloned().collect();
+    let views: Vec<CapabilityView> = listed
         .iter()
-        .copied()
-        .find(|c| !rejected(c) && (is(c, CONTEXT_V1) || is(c, CONTEXT_V2)));
-    let mut kept = substituted.clone();
-    kept["capabilities"] = listed
+        .map(|capability| read(kit, "a capability", capability))
+        .collect::<Result<_>>()?;
+    let has_v2 = views.iter().any(|view| view.kind == CONTEXT_V2);
+    let rejection = |capability: &Value| {
+        (has_v2 && is(capability, CONTEXT_V1)).then(|| {
+            format!("{CONTEXT_V1} is not selected: this kit set uses {CONTEXT_V2}, and the two cannot compose")
+        })
+    };
+    let kept: Vec<(&Value, &CapabilityView)> = listed
         .iter()
-        .copied()
-        .filter(|c| !rejected(c))
-        .cloned()
+        .zip(&views)
+        .filter(|(capability, _)| rejection(capability).is_none())
+        .collect();
+    let mut selected = substituted.clone();
+    selected["capabilities"] = kept
+        .iter()
+        .map(|(capability, _)| (*capability).clone())
         .collect();
 
-    let mut artifact = Map::new();
-    artifact.insert(
-        "manifest".into(),
-        manifest(descriptor, &name, &pinned, facts, context),
-    );
-    artifact.insert("v3".into(), descriptor.clone());
-    artifact.insert("v3Effective".into(), with_key_names(effective(&kept)));
-    artifact.insert("v3Selection".into(), selection(&listed, &source, rejected));
-    artifact.insert("v3Digest".into(), json!(facts.digest));
-    artifact.insert("v3Reference".into(), json!(pinned));
-    artifact.insert("v3Entrypoint".into(), json!(facts.entrypoint));
-    artifact.insert("storageSource".into(), json!(format!("oci://{source}")));
-    artifact.insert(
-        "kitUsage".into(),
-        json!({ "kit_identifier": "unknown", "source_type": "hub" }),
-    );
-    if let Some(hub) = repository.strip_prefix("docker.io/") {
-        artifact.insert(
-            "kitHubPublication".into(),
-            json!({ "digest": facts.digest, "repository": hub }),
-        );
-    }
-    if let Some(licenses) = descriptor.get("licenses") {
-        artifact.insert("licenses".into(), licenses.clone());
-    }
-    if let Some(content) = context.and_then(|c| c.pointer("/config/content")) {
-        artifact.insert("agentContext".into(), content.clone());
-    }
-    if let Some(commands) = commands(&kept) {
-        artifact.insert("commands".into(), commands);
-    }
-    if let Some(network) = network(&kept) {
-        artifact.insert("caps".into(), json!({ "network": network }));
-    }
-    insert_declared_access(&mut artifact, &kept);
-    if !resolved.declared.is_empty() {
-        artifact.insert("args".into(), Value::Object(resolved.declared));
-        artifact.insert("v3ArgValues".into(), json!(resolved.values));
-    }
-    if !resolved.environment.is_empty() {
-        artifact.insert(
-            "environment".into(),
-            json!({ "variables": resolved.environment }),
-        );
-    }
+    let context: ContextConfig = match kept
+        .iter()
+        .find(|(_, view)| view.kind == CONTEXT_V1 || view.kind == CONTEXT_V2)
+    {
+        Some((_, view)) => config(kit, view)?,
+        None => ContextConfig::default(),
+    };
+    let lifecycles: Vec<LifecycleConfig> = of_kind(kit, &kept, LIFECYCLE)?;
+    let policies: Vec<NetworkConfig> = of_kind(kit, &kept, NETWORK)?;
+    let mut artifact = KitArtifact {
+        manifest: manifest(&published, &name, &pinned, facts, &context),
+        v3: descriptor.clone(),
+        v3_effective: with_key_names(effective(&selected)),
+        v3_selection: selection(&listed, &source, rejection),
+        v3_digest: facts.digest.clone(),
+        v3_reference: pinned.clone(),
+        v3_entrypoint: Some(facts.entrypoint.clone()),
+        storage_source: Some(format!("oci://{source}")),
+        kit_usage: KitUsage::published(),
+        kit_hub_publication: kit.strip_prefix("docker.io/").map(|hub| HubPublication {
+            digest: facts.digest.clone(),
+            repository: hub.to_owned(),
+        }),
+        licenses: published.licenses,
+        agent_context: context.content,
+        commands: commands(&lifecycles),
+        caps: caps(&policies),
+        args: resolved.declared,
+        v3_arg_values: resolved.values,
+        environment: Environment {
+            variables: resolved.environment,
+        },
+        ..KitArtifact::default()
+    };
+    insert_declared_access(&mut artifact, kit, &kept)?;
     Ok(BaseKit {
         reference: pinned,
         name,
-        artifact: Value::Object(artifact),
+        artifact,
     })
+}
+
+/// The configuration of the capability `view` of `kit`, read as `T`; the
+/// default of `T` when it has none.
+fn config<T: DeserializeOwned + Default>(kit: &str, view: &CapabilityView) -> Result<T> {
+    if view.config.is_null() {
+        return Ok(T::default());
+    }
+    read(
+        kit,
+        &format!("the configuration of {}", view.kind),
+        &view.config,
+    )
+}
+
+/// The configurations of the capabilities of `kept` of the type `kind`.
+fn of_kind<T: DeserializeOwned + Default>(
+    kit: &str,
+    kept: &[(&Value, &CapabilityView)],
+    kind: &str,
+) -> Result<Vec<T>> {
+    kept.iter()
+        .filter(|(_, view)| view.kind == kind)
+        .map(|(_, view)| config(kit, view))
+        .collect()
 }
 
 /// `effective` with the API keys of its capabilities named, `""` when the kit
@@ -328,90 +456,11 @@ fn with_key_names(mut effective: Value) -> Value {
         .get_mut("capabilities")
         .and_then(Value::as_array_mut);
     for capability in capabilities.into_iter().flatten() {
-        if let Some(api_key) = capability
-            .pointer_mut("/config/apiKey")
-            .and_then(Value::as_object_mut)
-        {
-            api_key.entry("name").or_insert_with(|| json!(""));
+        if let Some(api_key) = capability.pointer_mut("/config/apiKey") {
+            *api_key = with_name(api_key.take());
         }
     }
     effective
-}
-
-/// The `manifest` of a base kit artifact: the identity of the kit, the program
-/// of its agent and the options it starts with (the entrypoint and command of
-/// its image), and the file its selected agent `context` goes to.
-fn manifest(
-    descriptor: &Value,
-    name: &str,
-    pinned: &str,
-    facts: &ImageFacts,
-    context: Option<&Value>,
-) -> Value {
-    let text = |key: &str| descriptor.get(key).cloned().unwrap_or(Value::Null);
-    let mut manifest = json!({
-        "description": text("description"),
-        "displayName": text("displayName"),
-        "kind": "sandbox",
-        "name": name,
-        "schemaVersion": "3",
-        "sourceURL": text("sourceUrl"),
-        "template": pinned,
-    });
-    if let Some(binary) = facts.entrypoint.first() {
-        manifest["binary"] = json!(binary);
-        let run_options: Vec<&String> = facts.entrypoint.iter().skip(1).chain(&facts.cmd).collect();
-        manifest["runOptions"] = json!(run_options);
-    }
-    if let Some(filename) = context.and_then(|c| c.pointer("/config/filename")) {
-        manifest["aiFilename"] = filename.clone();
-    }
-    manifest
-}
-
-/// Inserts into `artifact` the credentials and the skills directory the
-/// selected capabilities of `kept` declare, as the CLI summarizes them:
-/// `credentials` and `optionalCredentials`, `skillsRequests`. A credential is
-/// a declaration only: no value goes into the package.
-fn insert_declared_access(artifact: &mut Map<String, Value>, kept: &Value) {
-    let mut credentials = Vec::new();
-    let mut optional_credentials = Vec::new();
-    let mut skills = Vec::new();
-    for capability in capabilities(kept) {
-        let optional = capability.get("optional") == Some(&Value::Bool(true));
-        if is(capability, CREDENTIAL) {
-            let config = capability.get("config").cloned().unwrap_or_default();
-            let mut credential = json!({ "service": config.get("service") });
-            if let Some(description) = capability.get("description") {
-                credential["description"] = description.clone();
-            }
-            if let Some(api_key) = config.get("apiKey") {
-                credential["apiKey"] = with_name(api_key.clone());
-            }
-            if let Some(oauth) = config.get("oauth") {
-                credential["oauth"] = oauth.clone();
-            }
-            if optional && let Some(service) = config.get("service") {
-                optional_credentials.push(service.clone());
-            }
-            credentials.push(credential);
-        } else if is(capability, SKILLS) {
-            skills.push(json!({
-                "mode": SKILLS_MODE,
-                "optional": optional,
-                "path": capability.pointer("/config/path"),
-            }));
-        }
-    }
-    for (key, list) in [
-        ("credentials", credentials),
-        ("optionalCredentials", optional_credentials),
-        ("skillsRequests", skills),
-    ] {
-        if !list.is_empty() {
-            artifact.insert(key.into(), Value::Array(list));
-        }
-    }
 }
 
 /// `api_key` named `""` when it names nothing.
@@ -422,46 +471,71 @@ fn with_name(mut api_key: Value) -> Value {
     api_key
 }
 
-/// The capability selection of a base kit: every capability accepted but the
-/// `rejected` ones, which the CLI reports as skipped.
-fn selection(listed: &[&Value], source: &str, rejected: impl Fn(&Value) -> bool) -> Value {
-    let mut selected_capabilities = Vec::new();
-    let mut selected = Vec::new();
-    let mut skipped = Vec::new();
-    for (index, capability) in listed.iter().enumerate() {
-        let path = format!("capabilities[{index}]");
-        let origin = json!({ "kit": source, "path": path });
-        let mut entry = json!({
-            "memberSources": [origin.clone()],
-            "members": [path],
-            "path": path,
-            "source": origin,
-        });
-        if let Some(name) = capability.get("name") {
-            entry["name"] = name.clone();
-        }
-        if rejected(capability) {
-            entry["decisions"] = json!([{
-                "accepted": false,
-                "message": format!(
-                    "{CONTEXT_V1} is not selected: this kit set uses {CONTEXT_V2}, and the two cannot compose"
-                ),
-            }]);
-            entry["rejected"] = json!([path]);
-            skipped.push(entry);
-        } else {
-            entry["decisions"] = json!([{ "accepted": true }]);
-            let mut with_source = (*capability).clone();
-            with_source["source"] = entry["source"].clone();
-            selected_capabilities.push(with_source);
-            selected.push(entry);
+/// The `manifest` of a base kit artifact: the identity of the kit, the program
+/// of its agent and the options it starts with (the entrypoint and command of
+/// its image), and the file its selected agent `context` goes to.
+fn manifest(
+    published: &Published,
+    name: &str,
+    pinned: &str,
+    facts: &ImageFacts,
+    context: &ContextConfig,
+) -> Manifest {
+    let (binary, run_options) = match facts.entrypoint.split_first() {
+        Some((binary, options)) => (
+            Some(binary.clone()),
+            Some(options.iter().chain(&facts.cmd).cloned().collect()),
+        ),
+        None => (None, None),
+    };
+    Manifest {
+        description: published.description.clone(),
+        display_name: published.display_name.clone(),
+        kind: ManifestKind::Sandbox,
+        name: name.to_owned(),
+        schema_version: SchemaVersion::V3,
+        template: pinned.to_owned(),
+        base: Some(BaseManifest {
+            source_url: published.source_url.clone(),
+            binary,
+            run_options,
+            ai_filename: context.filename.clone(),
+        }),
+    }
+}
+
+/// Fills `artifact` with the credentials and the skills directories the
+/// selected capabilities `kept` of `kit` declare, as the CLI summarizes them.
+/// A credential is a declaration only: no value goes into the package.
+fn insert_declared_access(
+    artifact: &mut KitArtifact,
+    kit: &str,
+    kept: &[(&Value, &CapabilityView)],
+) -> Result<()> {
+    for (_, view) in kept {
+        if view.kind == CREDENTIAL {
+            let config: CredentialConfig = config(kit, view)?;
+            if view.optional
+                && let Some(service) = &config.service
+            {
+                artifact.optional_credentials.push(service.clone());
+            }
+            artifact.credentials.push(Credential {
+                service: config.service,
+                description: view.description.clone(),
+                api_key: config.api_key.map(with_name),
+                oauth: config.oauth,
+            });
+        } else if view.kind == SKILLS {
+            let config: SkillsConfig = config(kit, view)?;
+            artifact.skills_requests.push(SkillsRequest {
+                mode: SKILLS_MODE,
+                optional: view.optional,
+                path: config.path,
+            });
         }
     }
-    let mut selection = json!({ "capabilities": selected_capabilities, "selected": selected });
-    if !skipped.is_empty() {
-        selection["skipped"] = Value::Array(skipped);
-    }
-    selection
+    Ok(())
 }
 
 #[cfg(test)]
@@ -576,7 +650,7 @@ mod tests {
         .unwrap();
         assert_eq!(kit.reference, "docker.io/sbx/shell@sha256:6bde");
         assert_eq!(kit.name, "shell");
-        let artifact = &kit.artifact;
+        let artifact = &kit.artifact.into_json();
         assert_eq!(artifact["manifest"]["binary"], "bash");
         assert_eq!(
             artifact["manifest"]["runOptions"],
@@ -611,7 +685,7 @@ mod tests {
         bare.entrypoint.clear();
         bare.descriptor["capabilities"] = json!([]);
         let kit = base_kit(&reference("ghcr.io/acme/tools"), &bare, &BTreeMap::new()).unwrap();
-        let artifact = &kit.artifact;
+        let artifact = &kit.artifact.into_json();
         assert!(artifact["manifest"].get("binary").is_none());
         assert!(artifact["manifest"].get("aiFilename").is_none());
         assert!(
@@ -628,7 +702,7 @@ mod tests {
             &given(&[("model", "small-1")]),
         )
         .unwrap();
-        let artifact = &kit.artifact;
+        let artifact = &kit.artifact.into_json();
         assert_eq!(artifact["v3ArgValues"], json!({ "model": "small-1" }));
         assert_eq!(
             artifact["environment"]["variables"],
@@ -671,7 +745,7 @@ mod tests {
             &BTreeMap::new(),
         )
         .unwrap();
-        let artifact = &kit.artifact;
+        let artifact = &kit.artifact.into_json();
         let credential = &artifact["credentials"][0];
         assert_eq!(credential["service"], "example");
         assert_eq!(credential["description"], "API access");
@@ -706,6 +780,46 @@ mod tests {
         facts.descriptor["schemaVersion"] = json!("2");
         let error = base_kit(&reference("sbx/shell"), &facts, &BTreeMap::new()).unwrap_err();
         assert!(error.to_string().contains("only v3 kits"), "{error}");
+    }
+
+    #[test]
+    fn capabilities_without_configuration_take_its_defaults() {
+        let mut facts = shell();
+        facts.descriptor["capabilities"] = json!([{ "type": CREDENTIAL }, { "type": SKILLS }]);
+        let kit = base_kit(&reference("sbx/shell"), &facts, &BTreeMap::new()).unwrap();
+        let artifact = kit.artifact.into_json();
+        assert_eq!(artifact["credentials"], json!([{ "service": null }]));
+        assert_eq!(
+            artifact["skillsRequests"],
+            json!([{ "mode": "readonly", "optional": false, "path": null }])
+        );
+        assert!(artifact.get("optionalCredentials").is_none());
+    }
+
+    #[test]
+    fn capabilities_this_crate_cannot_read_are_errors() {
+        let refusal = |capability: Value| {
+            let mut facts = shell();
+            facts.descriptor["capabilities"] = json!([capability]);
+            let error = base_kit(&reference("sbx/shell"), &facts, &BTreeMap::new()).unwrap_err();
+            assert!(matches!(error, Error::InvalidKit { .. }), "{error}");
+            error.to_string()
+        };
+        assert!(refusal(json!("sbx")).contains("a capability is not one this crate reads"));
+        let credential = json!({ "type": CREDENTIAL, "config": { "service": 3 } });
+        assert!(
+            refusal(credential)
+                .contains("the configuration of com.docker.sandbox/credential@1 is not one")
+        );
+        let mut facts = shell();
+        facts.descriptor = json!({ "schemaVersion": 3 });
+        let error = base_kit(&reference("sbx/shell"), &facts, &BTreeMap::new()).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("the descriptor is not one this crate reads"),
+            "{error}"
+        );
     }
 
     /// The small files of the export of an image whose index annotations are
@@ -763,7 +877,7 @@ mod tests {
         files.insert("index.json".to_owned(), b"{}".to_vec());
         assert!(refusal(&files).contains("names no image"));
         files.insert("index.json".to_owned(), b"[".to_vec());
-        assert!(refusal(&files).contains("index.json of the image is not JSON"));
+        assert!(refusal(&files).contains("index.json of the image is not one this crate reads"));
         assert!(refusal(&BTreeMap::new()).contains("holds no index.json"));
     }
 }

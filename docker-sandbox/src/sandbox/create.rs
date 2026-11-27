@@ -132,6 +132,36 @@ impl CreateRequest {
         Ok(request)
     }
 
+    /// A request for the sandbox `name` whose agent, the name of its base kit,
+    /// is `agent`, with the options the CLI gives a new sandbox: kit images
+    /// pulled when missing, the virtiofs cache on. Its kits are for the
+    /// caller to set.
+    #[cfg(feature = "kit-forge")]
+    pub(crate) fn for_agent(name: impl Into<String>, agent: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            agent: agent.into(),
+            kits: Vec::new(),
+            kit_artifacts: Vec::new(),
+            pull_policy: Some(PullPolicy::Missing),
+            template: None,
+            cpus: None,
+            memory: None,
+            workspace: None,
+            additional_workspaces: Vec::new(),
+            clone: false,
+            environment: BTreeMap::new(),
+            ports: Vec::new(),
+            skills: None,
+            profile: None,
+            mcp: None,
+            bindings_path: None,
+            ssh_agent_socket_path: None,
+            enable_virtiofs_cache: Some(true),
+            extra: Extra::new(),
+        }
+    }
+
     /// Bind-mounts the host directory `dir` as workspace, read-write, at the
     /// same path inside the sandbox: the agent changes the files of the host.
     /// Give its real absolute path, as `std::fs::canonicalize` returns it: a

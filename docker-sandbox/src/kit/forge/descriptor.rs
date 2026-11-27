@@ -7,43 +7,34 @@
 //! Anything else is refused rather than sent on, so that a forged kit never
 //! half succeeds in silence.
 //!
+//! The descriptor is a typed model read and written by serde. Its lifecycle
+//! steps and network rules are also how the configurations of published kits
+//! are read: there, fields this crate does not know are kept (`extra`); in a
+//! mixin to forge, they are refused.
+//!
 //! Descriptors are JSON. A `spec.yaml` written in the JSON subset of YAML,
 //! after its `# syntax=docker/sandbox-kit:3` line, is read as it is, and the
 //! `sbx` CLI reads it too.
 
 use std::path::Path;
 
-use serde_json::{Map, Value, json};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
+use super::to_json;
+use crate::Extra;
 use crate::error::{Error, Result};
 
 /// First line of a v3 descriptor: the `BuildKit` frontend that reads it.
 const SYNTAX_LINE: &str = "# syntax=docker/sandbox-kit:3";
 
-/// Capability of the install and startup commands.
+/// Capability of the install and startup commands, the `type` of
+/// [`Capability::Lifecycle`].
 pub(super) const LIFECYCLE: &str = "com.docker.sandbox/lifecycle@1";
 
-/// Capability of the network rules.
+/// Capability of the network rules, the `type` of
+/// [`Capability::NetworkPolicy`].
 pub(super) const NETWORK: &str = "com.docker.sandbox/network-policy@1";
-
-/// Top-level fields a forged mixin may carry.
-const FIELDS: &[&str] = &[
-    "schemaVersion",
-    "kind",
-    "displayName",
-    "description",
-    "version",
-    "author",
-    "licenses",
-    "sourceUrl",
-    "capabilities",
-];
-
-/// Fields of a capability entry.
-const CAPABILITY_FIELDS: &[&str] = &["type", "config", "optional", "name", "description"];
-
-/// Fields of a lifecycle step.
-const STEP_FIELDS: &[&str] = &["command", "user", "description", "env", "background"];
 
 /// A v3 kit descriptor (feature `kit-forge`), read from JSON or built in Rust.
 ///
@@ -61,8 +52,149 @@ const STEP_FIELDS: &[&str] = &["command", "user", "description", "env", "backgro
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct KitDescriptor {
-    /// The descriptor, as JSON.
-    value: Value,
+    /// The fields of the descriptor.
+    spec: Spec,
+}
+
+/// The fields of a v3 mixin descriptor, in the order `spec.yaml` writes them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct Spec {
+    /// Version of the descriptor format.
+    pub(super) schema_version: SchemaVersion,
+    /// Kind of kit.
+    pub(super) kind: MixinKind,
+    /// Name shown for the kit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) display_name: Option<String>,
+    /// What the kit is for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) description: Option<String>,
+    /// Version of the kit, e.g. `1.0.0`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) version: Option<String>,
+    /// Author of the kit, kept as written.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    author: Option<Value>,
+    /// Licenses of the kit, kept as written.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    licenses: Option<Value>,
+    /// Where the kit comes from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_url: Option<String>,
+    /// What the kit declares, in order.
+    #[serde(default)]
+    pub(super) capabilities: Vec<Capability>,
+}
+
+/// The version of the descriptor format this crate forges.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub(super) enum SchemaVersion {
+    /// Kits v3.
+    #[default]
+    #[serde(rename = "3")]
+    V3,
+}
+
+/// The kind of kit this crate forges.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub(super) enum MixinKind {
+    /// A kit composed on top of a base kit.
+    #[serde(rename = "mixin")]
+    Mixin,
+}
+
+/// A capability a forged mixin may declare.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", deny_unknown_fields)]
+pub(super) enum Capability {
+    /// Install and startup commands ([`LIFECYCLE`]).
+    #[serde(rename = "com.docker.sandbox/lifecycle@1")]
+    Lifecycle {
+        /// Name of the capability.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        /// What the capability does.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        description: Option<String>,
+        /// Whether the kit works without it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        optional: Option<bool>,
+        /// The commands.
+        #[serde(default)]
+        config: LifecycleConfig,
+    },
+    /// Network rules ([`NETWORK`]).
+    #[serde(rename = "com.docker.sandbox/network-policy@1")]
+    NetworkPolicy {
+        /// Name of the capability.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        /// What the capability does.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        description: Option<String>,
+        /// Whether the kit works without it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        optional: Option<bool>,
+        /// The rules.
+        #[serde(default)]
+        config: NetworkConfig,
+    },
+}
+
+/// The configuration of a `lifecycle@1` capability.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub(super) struct LifecycleConfig {
+    /// Commands run once, when the sandbox is created.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) install: Vec<LifecycleStep>,
+    /// Commands run at every start of the sandbox.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) startup: Vec<LifecycleStep>,
+    /// Phases this crate does not know: kept from a published kit, refused in
+    /// a mixin.
+    #[serde(flatten)]
+    pub(super) extra: Extra,
+}
+
+/// The configuration of a `network-policy@1` capability.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub(super) struct NetworkConfig {
+    /// Rules while the sandbox runs.
+    #[serde(default, skip_serializing_if = "NetworkRules::is_empty")]
+    pub(super) runtime: NetworkRules,
+    /// Rules while the install commands run.
+    #[serde(default, skip_serializing_if = "NetworkRules::is_empty")]
+    pub(super) install: NetworkRules,
+    /// Phases this crate does not know: kept from a published kit, refused in
+    /// a mixin.
+    #[serde(flatten)]
+    pub(super) extra: Extra,
+}
+
+/// Hosts allowed and denied, each `host` or `host:port`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub(super) struct NetworkRules {
+    /// Hosts allowed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) allow: Vec<String>,
+    /// Hosts denied.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) deny: Vec<String>,
+    /// Decisions this crate does not know: kept from a published kit, refused
+    /// in a mixin.
+    #[serde(flatten)]
+    pub(super) extra: Extra,
+}
+
+/// The command of a lifecycle step.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub(super) enum Command {
+    /// A shell command, run with `sh -c`.
+    Shell(String),
+    /// A program and its arguments.
+    Exec(Vec<String>),
 }
 
 impl KitDescriptor {
@@ -70,12 +202,17 @@ impl KitDescriptor {
     /// methods.
     pub fn mixin(display_name: impl Into<String>) -> Self {
         Self {
-            value: json!({
-                "schemaVersion": "3",
-                "kind": "mixin",
-                "displayName": display_name.into(),
-                "capabilities": [],
-            }),
+            spec: Spec {
+                schema_version: SchemaVersion::V3,
+                kind: MixinKind::Mixin,
+                display_name: Some(display_name.into()),
+                description: None,
+                version: None,
+                author: None,
+                licenses: None,
+                source_url: None,
+                capabilities: Vec::new(),
+            },
         }
     }
 
@@ -86,7 +223,16 @@ impl KitDescriptor {
     /// Returns [`Error::InvalidKit`] when it is not a v3 mixin this crate can
     /// forge.
     pub fn from_json(value: Value) -> Result<Self> {
-        let descriptor = Self { value };
+        let kit = value
+            .get("displayName")
+            .and_then(Value::as_str)
+            .unwrap_or("descriptor")
+            .to_owned();
+        let spec = serde_json::from_value(value).map_err(|error| Error::InvalidKit {
+            kit,
+            message: format!("not a v3 mixin this crate forges: {error}"),
+        })?;
+        let descriptor = Self { spec };
         descriptor.validate()?;
         Ok(descriptor)
     }
@@ -129,14 +275,14 @@ impl KitDescriptor {
     /// Sets the description.
     #[must_use]
     pub fn with_description(mut self, description: impl Into<String>) -> Self {
-        self.value["description"] = json!(description.into());
+        self.spec.description = Some(description.into());
         self
     }
 
     /// Sets the version of the kit, e.g. `1.0.0`.
     #[must_use]
     pub fn with_version(mut self, version: impl Into<String>) -> Self {
-        self.value["version"] = json!(version.into());
+        self.spec.version = Some(version.into());
         self
     }
 
@@ -144,14 +290,14 @@ impl KitDescriptor {
     /// starts.
     #[must_use]
     pub fn with_install(mut self, step: LifecycleStep) -> Self {
-        self.push(LIFECYCLE, "/config/install", step.into_json());
+        self.edit_lifecycle(|config| config.install.push(step));
         self
     }
 
     /// Adds a command run at every start of the sandbox, alongside its agent.
     #[must_use]
     pub fn with_startup(mut self, step: LifecycleStep) -> Self {
-        self.push(LIFECYCLE, "/config/startup", step.into_json());
+        self.edit_lifecycle(|config| config.startup.push(step));
         self
     }
 
@@ -161,77 +307,187 @@ impl KitDescriptor {
         mut self,
         hosts: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self {
-        for host in hosts {
-            self.push(NETWORK, "/config/runtime/allow", json!(host.into()));
-        }
+        let hosts = hosts.into_iter().map(Into::into);
+        self.edit_network(|config| config.runtime.allow.extend(hosts));
         self
     }
 
     /// Denies `hosts` (`host` or `host:port`) while the sandbox runs.
     #[must_use]
     pub fn with_network_deny(mut self, hosts: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        for host in hosts {
-            self.push(NETWORK, "/config/runtime/deny", json!(host.into()));
-        }
+        let hosts = hosts.into_iter().map(Into::into);
+        self.edit_network(|config| config.runtime.deny.extend(hosts));
         self
     }
 
     /// The display name, if the descriptor has one.
     #[must_use]
     pub fn display_name(&self) -> Option<&str> {
-        self.value.get("displayName").and_then(Value::as_str)
+        self.spec.display_name.as_deref()
     }
 
     /// The descriptor as JSON.
     #[must_use]
-    pub fn as_json(&self) -> &Value {
-        &self.value
+    pub fn to_json(&self) -> Value {
+        to_json(&self.spec)
     }
 
     /// The text of a `spec.yaml` holding the descriptor: its `# syntax=` line,
     /// then the descriptor as JSON, which the `sbx` CLI reads as YAML.
     #[must_use]
     pub fn to_spec(&self) -> String {
-        // Serializing a `Value` cannot fail: its map keys are strings.
-        let json = serde_json::to_string_pretty(&self.value).unwrap_or_default();
+        // Serializing the descriptor cannot fail: its maps have string keys.
+        let json = serde_json::to_string_pretty(&self.spec).unwrap_or_default();
         format!("{SYNTAX_LINE}\n{json}\n")
     }
 
-    /// Appends `item` to the list at `pointer` in the capability `kind`,
-    /// creating the capability and the list when missing.
-    fn push(&mut self, kind: &str, pointer: &str, item: Value) {
-        let mut capabilities: Vec<Value> =
-            serde_json::from_value(self.value["capabilities"].take()).unwrap_or_default();
-        let found = capabilities
-            .iter()
-            .position(|c| c.get("type").and_then(Value::as_str) == Some(kind));
-        let index = found.unwrap_or_else(|| {
-            capabilities.push(json!({ "type": kind, "config": {} }));
-            capabilities.len() - 1
-        });
-        // A validated descriptor holds objects along the way: indexing a
-        // missing key inserts it.
-        let mut target = &mut capabilities[index];
-        for key in pointer.split('/').skip(1) {
-            target = &mut target[key];
-        }
-        match target {
-            Value::Array(items) => items.push(item),
-            other => *other = json!([item]),
-        }
-        self.value["capabilities"] = Value::Array(capabilities);
+    /// The fields of the descriptor.
+    pub(super) fn spec(&self) -> &Spec {
+        &self.spec
     }
 
-    /// Checks that the descriptor is a v3 mixin this crate can forge.
+    /// Applies `change` to the configuration of the lifecycle capability,
+    /// appended when the descriptor has none.
+    fn edit_lifecycle(&mut self, change: impl FnOnce(&mut LifecycleConfig)) {
+        for capability in &mut self.spec.capabilities {
+            if let Capability::Lifecycle { config, .. } = capability {
+                change(config);
+                return;
+            }
+        }
+        let mut config = LifecycleConfig::default();
+        change(&mut config);
+        self.spec.capabilities.push(Capability::Lifecycle {
+            name: None,
+            description: None,
+            optional: None,
+            config,
+        });
+    }
+
+    /// Applies `change` to the configuration of the network capability,
+    /// appended when the descriptor has none.
+    fn edit_network(&mut self, change: impl FnOnce(&mut NetworkConfig)) {
+        for capability in &mut self.spec.capabilities {
+            if let Capability::NetworkPolicy { config, .. } = capability {
+                change(config);
+                return;
+            }
+        }
+        let mut config = NetworkConfig::default();
+        change(&mut config);
+        self.spec.capabilities.push(Capability::NetworkPolicy {
+            name: None,
+            description: None,
+            optional: None,
+            config,
+        });
+    }
+
+    /// Checks what the types of the descriptor leave open: that it uses no
+    /// kit argument, names no field this crate does not know, and that its
+    /// steps and rules are ones the daemon applies.
     ///
     /// # Errors
     ///
     /// Returns [`Error::InvalidKit`], naming the kit and what is wrong.
     pub(super) fn validate(&self) -> Result<()> {
-        check(&self.value).map_err(|message| Error::InvalidKit {
+        self.spec.check().map_err(|message| Error::InvalidKit {
             kit: self.display_name().unwrap_or("descriptor").to_owned(),
             message,
         })
+    }
+}
+
+impl Spec {
+    /// The configurations of its lifecycle capabilities.
+    pub(super) fn lifecycles(&self) -> impl Iterator<Item = &LifecycleConfig> {
+        self.capabilities
+            .iter()
+            .filter_map(|capability| match capability {
+                Capability::Lifecycle { config, .. } => Some(config),
+                Capability::NetworkPolicy { .. } => None,
+            })
+    }
+
+    /// The configurations of its network capabilities.
+    pub(super) fn network_policies(&self) -> impl Iterator<Item = &NetworkConfig> {
+        self.capabilities
+            .iter()
+            .filter_map(|capability| match capability {
+                Capability::NetworkPolicy { config, .. } => Some(config),
+                Capability::Lifecycle { .. } => None,
+            })
+    }
+
+    /// What is wrong with the descriptor as a mixin to forge, if anything.
+    fn check(&self) -> std::result::Result<(), String> {
+        if to_json(self).to_string().contains("${{") {
+            return Err("kit arguments are not supported in forged mixins".to_owned());
+        }
+        for (index, capability) in self.capabilities.iter().enumerate() {
+            match capability {
+                Capability::Lifecycle { config, .. } => config.check(),
+                Capability::NetworkPolicy { config, .. } => config.check(),
+            }
+            .map_err(|error| format!("capabilities[{index}]: {error}"))?;
+        }
+        Ok(())
+    }
+}
+
+impl Capability {
+    /// The `type` of the capability.
+    pub(super) fn kind(&self) -> &'static str {
+        match self {
+            Self::Lifecycle { .. } => LIFECYCLE,
+            Self::NetworkPolicy { .. } => NETWORK,
+        }
+    }
+}
+
+impl LifecycleConfig {
+    /// What is wrong with the commands of a mixin, if anything: every step
+    /// has a command, so that none is dropped in silence by the daemon.
+    fn check(&self) -> std::result::Result<(), String> {
+        unknown(&self.extra, "lifecycle phase")?;
+        for (phase, steps) in [("install", &self.install), ("startup", &self.startup)] {
+            for (index, step) in steps.iter().enumerate() {
+                step.check(phase)
+                    .map_err(|error| format!("{phase}[{index}]: {error}"))?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl NetworkConfig {
+    /// What is wrong with the rules of a mixin, if anything: rules at run
+    /// time, and allowed hosts during installation.
+    fn check(&self) -> std::result::Result<(), String> {
+        unknown(&self.extra, "network phase")?;
+        for (phase, rules) in [("runtime", &self.runtime), ("install", &self.install)] {
+            unknown(&rules.extra, &format!("{phase} decision"))?;
+            if phase == "install" && !rules.deny.is_empty() {
+                return Err(
+                    "install.deny is not forged: only hosts allowed during installation are"
+                        .to_owned(),
+                );
+            }
+            for (decision, hosts) in [("allow", &rules.allow), ("deny", &rules.deny)] {
+                if hosts.iter().any(|host| host.trim().is_empty()) {
+                    return Err(format!("{phase}.{decision} holds an empty host"));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl NetworkRules {
+    /// Whether there are no rules at all.
+    fn is_empty(&self) -> bool {
+        self.allow.is_empty() && self.deny.is_empty() && self.extra.is_empty()
     }
 }
 
@@ -246,30 +502,40 @@ impl KitDescriptor {
 ///     .with_description("Marks the sandbox ready")
 ///     .with_env(["MCP_GATEWAY_URL"]);
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LifecycleStep {
-    /// Shell command, run with `sh -c`.
-    command: String,
+    /// The command, a shell command run with `sh -c` or a program and its
+    /// arguments.
+    pub(super) command: Command,
     /// User it runs as, e.g. `agent`, or `0` for root.
-    user: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) user: Option<String>,
     /// What it does, shown as it runs.
-    description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) description: Option<String>,
     /// Variables of the sandbox it receives: install commands run in an
     /// emptied environment otherwise.
-    env: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(super) env: Vec<String>,
     /// Whether a startup command runs in the background.
-    background: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) background: Option<bool>,
+    /// Fields this crate does not know: kept from a published kit, refused in
+    /// a mixin.
+    #[serde(flatten)]
+    extra: Extra,
 }
 
 impl LifecycleStep {
     /// The shell command `command`, run with `sh -c`.
     pub fn new(command: impl Into<String>) -> Self {
         Self {
-            command: command.into(),
+            command: Command::Shell(command.into()),
             user: None,
             description: None,
             env: Vec::new(),
-            background: false,
+            background: None,
+            extra: Extra::new(),
         }
     }
 
@@ -299,161 +565,37 @@ impl LifecycleStep {
     /// Runs a startup command in the background.
     #[must_use]
     pub fn in_background(mut self) -> Self {
-        self.background = true;
+        self.background = Some(true);
         self
     }
 
-    /// The step as the descriptor holds it.
-    fn into_json(self) -> Value {
-        let mut step = Map::new();
-        step.insert("command".into(), json!(self.command));
-        if let Some(user) = self.user {
-            step.insert("user".into(), json!(user));
-        }
-        if let Some(description) = self.description {
-            step.insert("description".into(), json!(description));
-        }
-        if !self.env.is_empty() {
-            step.insert("env".into(), json!(self.env));
-        }
-        if self.background {
-            step.insert("background".into(), json!(true));
-        }
-        Value::Object(step)
-    }
-}
-
-/// What is wrong with `descriptor` as a mixin to forge, if anything.
-fn check(descriptor: &Value) -> std::result::Result<(), String> {
-    let fields = descriptor
-        .as_object()
-        .ok_or("a descriptor is a JSON object")?;
-    if fields.get("schemaVersion").and_then(Value::as_str) != Some("3") {
-        return Err("only v3 descriptors (schemaVersion \"3\") are forged".to_owned());
-    }
-    if fields.get("kind").and_then(Value::as_str) != Some("mixin") {
-        return Err("only mixins are forged; a base kit comes from a package".to_owned());
-    }
-    if let Some(field) = fields.keys().find(|k| !FIELDS.contains(&k.as_str())) {
-        return Err(format!(
-            "the field {field} is not one a forged mixin may carry"
-        ));
-    }
-    if descriptor.to_string().contains("${{") {
-        return Err("kit arguments are not supported in forged mixins".to_owned());
-    }
-    let capabilities = match fields.get("capabilities") {
-        None => return Ok(()),
-        Some(Value::Array(capabilities)) => capabilities,
-        Some(_) => return Err("capabilities is a list".to_owned()),
-    };
-    for (index, capability) in capabilities.iter().enumerate() {
-        check_capability(capability).map_err(|e| format!("capabilities[{index}]: {e}"))?;
-    }
-    Ok(())
-}
-
-/// What is wrong with one capability entry, if anything.
-fn check_capability(capability: &Value) -> std::result::Result<(), String> {
-    let fields = capability.as_object().ok_or("an object")?;
-    if let Some(field) = fields
-        .keys()
-        .find(|k| !CAPABILITY_FIELDS.contains(&k.as_str()))
-    {
-        return Err(format!("unknown field {field}"));
-    }
-    let config = fields.get("config").cloned().unwrap_or_else(|| json!({}));
-    let config = config.as_object().ok_or("config is an object")?;
-    match fields.get("type").and_then(Value::as_str) {
-        Some(LIFECYCLE) => check_lifecycle(config),
-        Some(NETWORK) => check_network(config),
-        Some(other) => Err(format!(
-            "{other} is not forged: only {LIFECYCLE} and {NETWORK} are"
-        )),
-        None => Err("no type".to_owned()),
-    }
-}
-
-/// What is wrong with a `lifecycle@1` configuration, if anything: every step
-/// has a command, so that none is dropped in silence by the daemon.
-fn check_lifecycle(config: &Map<String, Value>) -> std::result::Result<(), String> {
-    for (phase, steps) in config {
-        if phase != "install" && phase != "startup" {
-            return Err(format!("unknown lifecycle phase {phase}"));
-        }
-        let steps = steps
-            .as_array()
-            .ok_or_else(|| format!("{phase} is a list"))?;
-        for (index, step) in steps.iter().enumerate() {
-            check_step(phase, step).map_err(|e| format!("{phase}[{index}]: {e}"))?;
-        }
-    }
-    Ok(())
-}
-
-/// What is wrong with one lifecycle step of `phase`, if anything.
-fn check_step(phase: &str, step: &Value) -> std::result::Result<(), String> {
-    let fields = step.as_object().ok_or("an object")?;
-    if let Some(field) = fields.keys().find(|k| !STEP_FIELDS.contains(&k.as_str())) {
-        return Err(format!("unknown field {field}"));
-    }
-    let command_ok = match fields.get("command") {
-        Some(Value::String(command)) => !command.trim().is_empty(),
-        Some(Value::Array(words)) => !words.is_empty() && words.iter().all(Value::is_string),
-        _ => false,
-    };
-    if !command_ok {
-        return Err("no command: the daemon would skip the step without a word".to_owned());
-    }
-    for key in ["user", "description"] {
-        if fields.get(key).is_some_and(|v| !v.is_string()) {
-            return Err(format!("{key} is a string"));
-        }
-    }
-    let env = fields.get("env").cloned().unwrap_or_else(|| json!([]));
-    let names = env.as_array().ok_or("env is a list")?;
-    if let Some(bad) = names
-        .iter()
-        .find(|n| !n.as_str().is_some_and(is_variable_name))
-    {
-        return Err(format!("{bad} is not a variable name"));
-    }
-    match fields.get("background") {
-        None | Some(Value::Bool(false)) => Ok(()),
-        Some(Value::Bool(true)) if phase == "startup" => Ok(()),
-        Some(Value::Bool(true)) => Err("only startup commands run in the background".to_owned()),
-        Some(_) => Err("background is a boolean".to_owned()),
-    }
-}
-
-/// What is wrong with a `network-policy@1` configuration, if anything: rules
-/// at run time, and allowed hosts during installation.
-fn check_network(config: &Map<String, Value>) -> std::result::Result<(), String> {
-    for (phase, rules) in config {
-        let decisions: &[&str] = match phase.as_str() {
-            "runtime" => &["allow", "deny"],
-            "install" => &["allow"],
-            _ => return Err(format!("unknown network phase {phase}")),
+    /// What is wrong with the step of `phase` of a mixin, if anything.
+    fn check(&self, phase: &str) -> std::result::Result<(), String> {
+        unknown(&self.extra, "field")?;
+        let empty = match &self.command {
+            Command::Shell(command) => command.trim().is_empty(),
+            Command::Exec(words) => words.is_empty(),
         };
-        let rules = rules
-            .as_object()
-            .ok_or_else(|| format!("{phase} is an object"))?;
-        for (decision, hosts) in rules {
-            if !decisions.contains(&decision.as_str()) {
-                return Err(format!("{phase}.{decision} is not forged"));
-            }
-            let hosts = hosts
-                .as_array()
-                .ok_or_else(|| format!("{phase}.{decision} is a list"))?;
-            if hosts
-                .iter()
-                .any(|h| h.as_str().is_none_or(|h| h.trim().is_empty()))
-            {
-                return Err(format!("{phase}.{decision} holds an empty host"));
-            }
+        if empty {
+            return Err("no command: the daemon would skip the step without a word".to_owned());
         }
+        if let Some(name) = self.env.iter().find(|name| !is_variable_name(name)) {
+            return Err(format!("{name} is not a variable name"));
+        }
+        if self.background == Some(true) && phase != "startup" {
+            return Err("only startup commands run in the background".to_owned());
+        }
+        Ok(())
     }
-    Ok(())
+}
+
+/// An error naming the first field of `extra`, a `what` this crate does not
+/// know.
+fn unknown(extra: &Extra, what: &str) -> std::result::Result<(), String> {
+    match extra.keys().next() {
+        Some(key) => Err(format!("unknown {what} {key}")),
+        None => Ok(()),
+    }
 }
 
 /// Whether `name` is the name of an environment variable.
@@ -467,6 +609,8 @@ fn is_variable_name(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
 
     /// The message of the `InvalidKit` error `value` gives.
@@ -481,6 +625,15 @@ mod tests {
         json!({ "schemaVersion": "3", "kind": "mixin", "displayName": "Test", "capabilities": [capability] })
     }
 
+    /// Checks that each descriptor of `cases` is refused with a message
+    /// holding its expected words.
+    fn assert_refused(cases: Vec<(Value, &str)>) {
+        for (value, expected) in cases {
+            let message = refusal(value.clone());
+            assert!(message.contains(expected), "{value}: {message}");
+        }
+    }
+
     #[test]
     fn built_mixins_hold_one_capability_per_kind() {
         let descriptor = KitDescriptor::mixin("Acme")
@@ -490,16 +643,25 @@ mod tests {
             .with_network_deny(["b.example.com"])
             .with_install(LifecycleStep::new("echo hi").with_env(["MCP_GATEWAY_URL"]))
             .with_startup(LifecycleStep::new("date").in_background());
-        let value = descriptor.as_json();
+        let value = descriptor.to_json();
         assert_eq!(value["capabilities"].as_array().unwrap().len(), 2);
+        assert_eq!(value["capabilities"][0]["type"], NETWORK);
         assert_eq!(
-            value["capabilities"][0]["config"]["runtime"],
-            json!({ "allow": ["a.example.com:443"], "deny": ["b.example.com"] })
+            value["capabilities"][0]["config"],
+            json!({ "runtime": { "allow": ["a.example.com:443"], "deny": ["b.example.com"] } })
         );
+        assert_eq!(value["capabilities"][1]["type"], LIFECYCLE);
         assert_eq!(
             value["capabilities"][1]["config"]["startup"][0],
             json!({ "command": "date", "background": true })
         );
+        let kinds: Vec<&str> = descriptor
+            .spec()
+            .capabilities
+            .iter()
+            .map(Capability::kind)
+            .collect();
+        assert_eq!(kinds, [NETWORK, LIFECYCLE]);
         descriptor.validate().unwrap();
         assert_eq!(descriptor.display_name(), Some("Acme"));
     }
@@ -514,7 +676,7 @@ mod tests {
                     .with_description("d"),
             );
         assert_eq!(
-            descriptor.as_json()["capabilities"][0]["config"]["install"][0],
+            descriptor.to_json()["capabilities"][0]["config"]["install"][0],
             json!({ "command": "echo hi", "user": "agent", "description": "d" })
         );
     }
@@ -527,45 +689,48 @@ mod tests {
         assert!(KitDescriptor::parse("schemaVersion: \"3\"\n").is_err());
     }
 
-    /// Checks that each descriptor of `cases` is refused with a message
-    /// holding its expected words.
-    fn assert_refused(cases: Vec<(Value, &str)>) {
-        for (value, expected) in cases {
-            let message = refusal(value.clone());
-            assert!(message.contains(expected), "{value}: {message}");
-        }
+    #[test]
+    fn specs_are_written_in_the_order_of_their_fields() {
+        let spec = KitDescriptor::mixin("Acme").with_version("1.0.0").to_spec();
+        let display = spec.find("displayName").unwrap();
+        assert!(spec.find("schemaVersion").unwrap() < display);
+        assert!(display < spec.find("version\"").unwrap());
+        assert!(spec.find("version\"").unwrap() < spec.find("capabilities").unwrap());
     }
 
     #[test]
     fn what_cannot_be_forged_is_refused() {
         assert_refused(vec![
-            (json!([]), "a descriptor is a JSON object"),
-            (json!({ "schemaVersion": "2", "kind": "mixin" }), "only v3"),
+            (json!([]), "not a v3 mixin"),
+            (
+                json!({ "schemaVersion": "2", "kind": "mixin" }),
+                "unknown variant `2`",
+            ),
             (
                 json!({ "schemaVersion": "3", "kind": "workload" }),
-                "only mixins",
+                "unknown variant `workload`",
             ),
             (
                 json!({ "schemaVersion": "3", "kind": "mixin", "extends": "x" }),
-                "extends",
+                "unknown field `extends`",
             ),
             (
                 json!({ "schemaVersion": "3", "kind": "mixin", "capabilities": {} }),
-                "is a list",
+                "expected a sequence",
             ),
-            (with(&json!("lifecycle")), "an object"),
+            (with(&json!("lifecycle")), "invalid type"),
             (
                 with(&json!({ "type": LIFECYCLE, "extra": 1 })),
-                "unknown field extra",
+                "unknown field `extra`",
             ),
             (
                 with(&json!({ "type": LIFECYCLE, "config": [] })),
-                "config is an object",
+                "invalid type",
             ),
-            (with(&json!({ "config": {} })), "no type"),
+            (with(&json!({ "config": {} })), "missing field `type`"),
             (
                 with(&json!({ "type": "com.docker.sandbox/credential@1" })),
-                "is not forged",
+                "unknown variant",
             ),
             (
                 with(
@@ -574,6 +739,10 @@ mod tests {
                 "kit arguments",
             ),
         ]);
+        let message = refusal(
+            json!({ "schemaVersion": "3", "kind": "mixin", "displayName": "Acme", "x": 1 }),
+        );
+        assert!(message.starts_with("invalid kit Acme:"), "{message}");
     }
 
     #[test]
@@ -584,31 +753,34 @@ mod tests {
         assert_refused(vec![
             (
                 with(&json!({ "type": LIFECYCLE, "config": { "teardown": [] } })),
-                "unknown lifecycle phase",
+                "unknown lifecycle phase teardown",
             ),
             (
                 with(&json!({ "type": LIFECYCLE, "config": { "install": {} } })),
-                "install is a list",
+                "expected a sequence",
             ),
-            (step("install", json!(1)), "an object"),
+            (step("install", json!(1)), "invalid type"),
             (
                 step("install", json!({ "command": "x", "when": 1 })),
-                "unknown field when",
+                "install[0]: unknown field when",
             ),
-            (step("install", json!({ "user": "agent" })), "no command"),
+            (
+                step("install", json!({ "user": "agent" })),
+                "missing field `command`",
+            ),
             (step("install", json!({ "command": " " })), "no command"),
             (step("install", json!({ "command": [] })), "no command"),
             (
                 step("install", json!({ "command": "x", "user": 0 })),
-                "user is a string",
+                "invalid type: integer `0`",
             ),
             (
                 step("install", json!({ "command": "x", "env": "A" })),
-                "env is a list",
+                "invalid type",
             ),
             (
                 step("install", json!({ "command": "x", "env": ["1A"] })),
-                "not a variable name",
+                "1A is not a variable name",
             ),
             (
                 step("install", json!({ "command": "x", "background": true })),
@@ -616,7 +788,7 @@ mod tests {
             ),
             (
                 step("startup", json!({ "command": "x", "background": "yes" })),
-                "background is a boolean",
+                "invalid type",
             ),
         ]);
     }
@@ -625,52 +797,73 @@ mod tests {
     fn network_rules_that_cannot_be_forged_are_refused() {
         let network = |config: Value| with(&json!({ "type": NETWORK, "config": config }));
         assert_refused(vec![
-            (network(json!({ "build": {} })), "unknown network phase"),
-            (network(json!({ "runtime": [] })), "runtime is an object"),
             (
-                network(json!({ "install": { "deny": [] } })),
+                network(json!({ "build": {} })),
+                "unknown network phase build",
+            ),
+            (network(json!({ "runtime": [] })), "invalid type"),
+            (
+                network(json!({ "runtime": { "block": [] } })),
+                "unknown runtime decision block",
+            ),
+            (
+                network(json!({ "install": { "deny": ["a"] } })),
                 "install.deny is not forged",
             ),
             (
                 network(json!({ "runtime": { "allow": "a" } })),
-                "runtime.allow is a list",
+                "invalid type",
             ),
             (
                 network(json!({ "runtime": { "allow": [""] } })),
-                "empty host",
+                "runtime.allow holds an empty host",
             ),
         ]);
     }
 
     #[test]
     fn what_can_be_forged_is_accepted() {
-        let value = with(&json!({ "type": LIFECYCLE, "optional": false, "config": {
+        let value = with(
+            &json!({ "type": LIFECYCLE, "name": "tools", "description": "d", "optional": false, "config": {
             "install": [{ "command": ["sh", "-c", "x"], "user": "0", "description": "d", "env": ["_A1"], "background": false }],
-            "startup": [{ "command": "y", "background": true }] } }));
-        KitDescriptor::from_json(value).unwrap();
-        KitDescriptor::from_json(with(
-            &json!({ "type": NETWORK, "config": { "install": { "allow": ["a:80"] } } }),
-        ))
-        .unwrap();
-        KitDescriptor::from_json(json!({ "schemaVersion": "3", "kind": "mixin" })).unwrap();
+            "startup": [{ "command": "y", "background": true }] } }),
+        );
+        let descriptor = KitDescriptor::from_json(value.clone()).unwrap();
+        assert_eq!(
+            descriptor.to_json(),
+            value,
+            "read and written back as it was"
+        );
+        let network = json!({ "type": NETWORK, "name": "n", "description": "d", "optional": true,
+            "config": { "install": { "allow": ["a:80"] } } });
+        KitDescriptor::from_json(with(&network)).unwrap();
+        let metadata = json!({ "schemaVersion": "3", "kind": "mixin", "author": { "name": "Acme" },
+            "licenses": ["MIT"], "sourceUrl": "https://example.com/acme", "capabilities": [] });
+        assert_eq!(
+            KitDescriptor::from_json(metadata.clone())
+                .unwrap()
+                .to_json(),
+            metadata
+        );
     }
 
     #[test]
     fn lists_grow_one_item_at_a_time() {
         let descriptor = KitDescriptor::mixin("Acme")
-            .with_network_allow(["a.example.com", "b.example.com"])
             .with_install(LifecycleStep::new("one"))
-            .with_install(LifecycleStep::new("two"));
-        let value = descriptor.as_json();
+            .with_network_allow(["a.example.com", "b.example.com"])
+            .with_install(LifecycleStep::new("two"))
+            .with_network_allow(["c.example.com"]);
+        let value = descriptor.to_json();
         assert_eq!(
-            value["capabilities"][0]["config"]["runtime"]["allow"],
-            json!(["a.example.com", "b.example.com"])
-        );
-        assert_eq!(
-            value["capabilities"][1]["config"]["install"][1]["command"],
+            value["capabilities"][0]["config"]["install"][1]["command"],
             "two"
         );
-        assert_eq!(value["description"], Value::Null);
+        assert_eq!(
+            value["capabilities"][1]["config"]["runtime"]["allow"],
+            json!(["a.example.com", "b.example.com", "c.example.com"])
+        );
+        assert!(value.get("description").is_none());
     }
 
     #[test]
@@ -688,5 +881,19 @@ mod tests {
             KitDescriptor::read("/zz-docker-sandbox-none/spec.yaml"),
             Err(Error::File { .. })
         ));
+    }
+
+    #[test]
+    fn published_steps_keep_the_fields_this_crate_does_not_know() {
+        let config: LifecycleConfig = serde_json::from_value(json!({
+            "install": [{ "command": "x", "when": "always" }], "build": [] }))
+        .unwrap();
+        assert_eq!(config.install[0].extra["when"], "always");
+        assert_eq!(to_json(&config)["build"], json!([]));
+        let rules: NetworkConfig =
+            serde_json::from_value(json!({ "runtime": { "allow": ["a"], "audit": ["b"] } }))
+                .unwrap();
+        assert!(!rules.runtime.is_empty() && rules.install.is_empty());
+        assert_eq!(to_json(&rules)["runtime"]["audit"], json!(["b"]));
     }
 }

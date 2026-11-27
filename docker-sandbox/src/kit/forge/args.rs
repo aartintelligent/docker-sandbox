@@ -14,7 +14,8 @@ use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
 use regex::Regex;
-use serde_json::{Map, Value, json};
+use serde::Deserialize;
+use serde_json::{Map, Value};
 
 use crate::error::{Error, Result};
 
@@ -34,7 +35,32 @@ pub(super) struct ResolvedArgs {
     /// the `args` of the artifact.
     pub(super) declared: Map<String, Value>,
     /// Variables the arguments set, by name.
-    pub(super) environment: Map<String, Value>,
+    pub(super) environment: BTreeMap<String, String>,
+}
+
+/// What the declaration of an argument says, as this crate reads it.
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Declaration {
+    /// Value the argument takes when none is given.
+    #[serde(default)]
+    default: Option<String>,
+    /// Whether a value must be given.
+    #[serde(default)]
+    required: bool,
+    /// The values the argument accepts.
+    #[serde(default, rename = "enum")]
+    values: Option<Vec<String>>,
+    /// A regular expression the whole value matches.
+    #[serde(default)]
+    pattern: Option<String>,
+    /// Variable the value is set in.
+    #[serde(default)]
+    env: Option<String>,
+    /// Build argument of the image: already part of a published image, it
+    /// takes no value.
+    #[serde(default)]
+    build_arg: Option<Value>,
 }
 
 /// Resolves the arguments `descriptor` declares with the values `provided`:
@@ -57,36 +83,49 @@ pub(super) fn resolve(
         kit: kit.to_owned(),
         message,
     };
-    let empty = Map::new();
-    let declarations = descriptor
+    let declared: Map<String, Value> = descriptor
         .get("args")
         .and_then(Value::as_object)
-        .unwrap_or(&empty);
-    let is_build = |declaration: &Value| declaration.get("buildArg").is_some();
-    if let Some(name) = provided
-        .keys()
-        .find(|name| declarations.get(*name).is_none_or(is_build))
-    {
+        .cloned()
+        .unwrap_or_default();
+    let mut declarations = BTreeMap::new();
+    for (name, declaration) in &declared {
+        let read: Declaration = serde_json::from_value(declaration.clone()).map_err(|error| {
+            invalid(format!(
+                "the declaration of the argument {name} is not one this crate reads: {error}"
+            ))
+        })?;
+        declarations.insert(name.as_str(), (read, declaration));
+    }
+    let takes_value = |name: &str| {
+        declarations
+            .get(name)
+            .is_some_and(|(read, _)| read.build_arg.is_none())
+    };
+    if let Some(name) = provided.keys().find(|name| !takes_value(name)) {
         return Err(invalid(format!("the kit declares no argument {name}")));
     }
     let mut resolved = ResolvedArgs::default();
-    for (name, declaration) in declarations.iter().filter(|(_, d)| !is_build(d)) {
-        let value = match (provided.get(name), declaration.get("default")) {
+    for (name, (read, declaration)) in declarations {
+        if read.build_arg.is_some() {
+            continue;
+        }
+        let value = match (provided.get(name), read.default) {
             (Some(value), _) => value.clone(),
-            (None, Some(default)) => default.as_str().unwrap_or_default().to_owned(),
-            (None, None) if declaration.get("required") == Some(&Value::Bool(true)) => {
+            (None, Some(default)) => default,
+            (None, None) if read.required => {
                 return Err(invalid(format!("the argument {name} is required")));
             }
             (None, None) => String::new(),
         };
-        if let Some(values) = declaration.get("enum").and_then(Value::as_array)
-            && !values.iter().any(|v| v.as_str() == Some(value.as_str()))
+        if let Some(values) = &read.values
+            && !values.contains(&value)
         {
             return Err(invalid(format!(
                 "{value:?} is not one of the values of the argument {name}"
             )));
         }
-        if let Some(pattern) = declaration.get("pattern").and_then(Value::as_str) {
+        if let Some(pattern) = &read.pattern {
             let whole = Regex::new(&format!("^(?:{pattern})$")).map_err(|error| {
                 invalid(format!(
                     "the pattern of the argument {name} is invalid: {error}"
@@ -98,15 +137,17 @@ pub(super) fn resolve(
                 )));
             }
         }
-        let mut declared = declaration.clone();
-        let variable = declared
-            .as_object_mut()
-            .and_then(|fields| fields.remove("env"));
-        if let Some(Value::String(variable)) = variable {
-            resolved.environment.insert(variable, json!(value));
+        // The artifact declares the argument as the kit does, but for the
+        // variable it sets, given apart.
+        let mut kept = declaration.clone();
+        if let Some(fields) = kept.as_object_mut() {
+            fields.remove("env");
         }
-        resolved.declared.insert(name.clone(), declared);
-        resolved.values.insert(name.clone(), value);
+        if let Some(variable) = read.env {
+            resolved.environment.insert(variable, value.clone());
+        }
+        resolved.declared.insert(name.to_owned(), kept);
+        resolved.values.insert(name.to_owned(), value);
     }
     Ok(resolved)
 }
@@ -161,6 +202,8 @@ fn map_strings(value: &Value, change: &mut impl FnMut(&str) -> String) -> Value 
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
     use super::*;
 
     /// The arguments `pairs` as a map.
@@ -196,8 +239,8 @@ mod tests {
             given(&[("effort", "low"), ("model", ""), ("token", "t1")])
         );
         assert_eq!(
-            Value::Object(resolved.environment),
-            json!({ "AGENT_MODEL": "", "AGENT_TOKEN": "t1" })
+            resolved.environment,
+            given(&[("AGENT_MODEL", ""), ("AGENT_TOKEN", "t1")])
         );
         assert!(resolved.declared["model"].get("env").is_none());
         assert!(
@@ -235,6 +278,11 @@ mod tests {
         assert!(refusal(&kit, &[("token", "t"), ("other", "x")]).contains("no argument other"));
         let broken = json!({ "args": { "n": { "pattern": "(" } } });
         assert!(refusal(&broken, &[("n", "1")]).contains("pattern of the argument n is invalid"));
+        let unread = json!({ "args": { "n": { "required": "yes" } } });
+        assert!(
+            refusal(&unread, &[])
+                .contains("declaration of the argument n is not one this crate reads")
+        );
     }
 
     #[test]
