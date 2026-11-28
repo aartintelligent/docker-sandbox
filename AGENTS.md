@@ -47,7 +47,9 @@ and the examples in a workspace of their own:
     capturing proxy;
   - `reference.rs`: references read from their name as the CLI reads them, `KitRef` (a kit, as
     `sbx create <kit>` and `--kit <kit>` read it);
-  - `error.rs`: its `Error`, whose `Client` variant keeps the errors of `docker-sandbox`.
+  - `error.rs`: its `Error`, whose `Client` variant keeps the errors of `docker-sandbox`;
+  - `prelude.rs`: its types, each behind its feature, without its `Error` and `Result`, to be
+    glob-imported beside the prelude of `docker-sandbox`.
 
   `tests/` holds `forge.rs` and `compiler.rs` (the test binary re-executed as a fake `sbx`) against
   the fake daemon of `docker-sandbox/tests/support/`, included by path rather than copied, and

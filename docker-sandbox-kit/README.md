@@ -36,8 +36,8 @@ and startup commands and network rules, described in Rust or read from its
 directory.
 
 ```rust,no_run
-use docker_sandbox::Client;
-use docker_sandbox_kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
+use docker_sandbox::prelude::*;
+use docker_sandbox_kit::prelude::*;
 
 #[tokio::main]
 async fn main() -> docker_sandbox_kit::Result<()> {
