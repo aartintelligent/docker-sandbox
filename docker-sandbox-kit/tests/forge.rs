@@ -17,7 +17,9 @@ mod support;
 use std::path::Path;
 
 use docker_sandbox::kit::KitPackage;
-use docker_sandbox_kit::{Agent, Error, KitDescriptor, KitForge, KitRef, LifecycleStep, Mixin};
+use docker_sandbox_kit::{
+    Agent, Error, KitCache, KitDescriptor, KitForge, KitRef, LifecycleStep, Mixin,
+};
 use serde_json::{Value, json};
 use support::{FakeDaemon, FakeDaemonBuilder, Reply, connect};
 
@@ -541,6 +543,82 @@ async fn base_kits_are_taken_as_the_cli_names_them() {
             "{error}"
         );
     }
+}
+
+/// How many times `daemon` exported an image, once per forging.
+fn exports(daemon: &FakeDaemon) -> usize {
+    daemon
+        .requests()
+        .iter()
+        .filter(|r| r.path() == "/docker/images/export")
+        .count()
+}
+
+#[tokio::test]
+async fn packages_are_forged_once_per_composition_and_kept() {
+    let dir = tempfile::tempdir().unwrap();
+    let daemon = serving(permissive(), shell_export()).start();
+    let client = connect(&daemon).await;
+    let forge = KitForge::agent(client.clone(), Agent::Shell);
+
+    // In memory: forged once, then taken from the cache, by its clones too.
+    let cache = KitCache::new();
+    assert_eq!(cache.dir(), None);
+    let first = cache.package(&forge).await.unwrap();
+    let again = cache.clone().package(&forge).await.unwrap();
+    assert_eq!(first.kit_artifacts(), again.kit_artifacts());
+    assert_eq!(exports(&daemon), 1);
+    // Another composition is forged, and a refresh forges again.
+    cache
+        .package(&forge.clone().with_mixin(tools()))
+        .await
+        .unwrap();
+    assert_eq!(exports(&daemon), 2);
+    cache.refresh(&forge).await.unwrap();
+    assert_eq!(exports(&daemon), 3);
+
+    // In a directory: the next cache takes the package from there.
+    let saving = KitCache::new().with_dir(dir.path());
+    assert_eq!(saving.dir(), Some(dir.path()));
+    let saved = saving.package(&forge).await.unwrap();
+    let kept = saved.dir().unwrap().to_owned();
+    assert!(kept.starts_with(dir.path()));
+    assert_eq!(exports(&daemon), 4);
+    let next = KitCache::new().with_dir(dir.path());
+    let reused = next.package(&forge).await.unwrap();
+    assert_eq!(reused.dir(), Some(kept.as_path()));
+    assert_eq!(exports(&daemon), 4, "taken from the directory");
+
+    // A package that no longer suits the daemon, forged by another version
+    // of the crate, is forged again.
+    let metadata = kept.join("kit.json");
+    let mut kit: Value =
+        serde_json::from_str(&std::fs::read_to_string(&metadata).unwrap()).unwrap();
+    kit["forged_by"]["version"] = json!("0.0.1");
+    std::fs::write(&metadata, kit.to_string()).unwrap();
+    let stale = KitCache::new().with_dir(dir.path());
+    stale.package(&forge).await.unwrap();
+    assert_eq!(exports(&daemon), 5);
+    assert_eq!(
+        read(&kept, "kit.json")["forged_by"]["version"],
+        env!("CARGO_PKG_VERSION")
+    );
+
+    // A failed forging keeps nothing.
+    let failing = KitForge::new(client.clone()).with_kit(KitRef::base("./kit").unwrap());
+    assert!(cache.package(&failing).await.is_err());
+    // A directory a package cannot be saved to.
+    let file = dir.path().join("file");
+    std::fs::write(&file, "x").unwrap();
+    let error = KitCache::new()
+        .with_dir(&file)
+        .package(&forge)
+        .await
+        .unwrap_err();
+    assert!(
+        error.to_string().starts_with("invalid kit package at "),
+        "{error}"
+    );
 }
 
 #[tokio::test]

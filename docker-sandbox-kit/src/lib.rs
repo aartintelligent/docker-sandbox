@@ -55,6 +55,8 @@
 //! the next sandboxes, while it suits the daemon
 //! ([`KitPackage::suits`](docker_sandbox::kit::KitPackage::suits)), and
 //! [`KitForge::with_base_package`] takes its base kit for another composition.
+//! [`KitCache`] keeps the package of each composition, in memory and in a
+//! directory when given one, and forges it again once it no longer suits.
 //!
 //! A kit named as the CLI names it is read with [`KitRef::base`] and
 //! [`KitRef::mixin`], which follow the rules of `sbx create <kit>` and
@@ -75,7 +77,7 @@
 //!
 //! | Feature | Adds |
 //! |---|---|
-//! | `forge` (default) | [`KitForge`], [`KitDescriptor`], [`LifecycleStep`], [`Mixin`] and [`McpServer`]: forging kit packages without the CLI, base kit rebuilt from its image, mixins and MCP servers for the agent |
+//! | `forge` (default) | [`KitForge`], [`KitDescriptor`], [`LifecycleStep`], [`Mixin`], [`McpServer`] and [`KitCache`]: forging kit packages without the CLI, base kit rebuilt from its image, mixins and MCP servers for the agent, packages kept by composition |
 //! | `compiler` | [`KitCompiler`] and [`CompileJob`]: compiling kit compositions with the `sbx` CLI |
 //! | `live` | Nothing to the library: runs the integration tests against the real daemon |
 //!
@@ -98,7 +100,7 @@ pub use self::compiler::{CompileJob, KitCompiler};
 pub use self::error::{Error, Result};
 #[cfg(feature = "forge")]
 #[cfg_attr(docsrs, doc(cfg(feature = "forge")))]
-pub use self::forge::{KitDescriptor, KitForge, LifecycleStep, McpServer, Mixin};
+pub use self::forge::{KitCache, KitDescriptor, KitForge, LifecycleStep, McpServer, Mixin};
 pub use self::reference::KitRef;
 
 /// Compiles the examples of the README as doctests, with the `forge`

@@ -10,7 +10,8 @@
 //! The tests create sandboxes from packages forged through the socket alone:
 //! `shell` and `claude` rebuilt from their published image, `claude` with two of
 //! its arguments, an MCP server registered in Claude Code by a mixin, and a
-//! forged mixin. They need no package and no `sbx` CLI.
+//! forged mixin, `shell` and a mixin kept by a cache in a directory and taken
+//! from there. They need no package and no `sbx` CLI.
 //! The agent of `claude` is never started: resolved as the CLI resolves it,
 //! the kit is authorized the credential the daemon holds for `anthropic`,
 //! which the proxy would write into requests to the hosts of Anthropic, and
@@ -33,7 +34,9 @@ use docker_sandbox::Client;
 use docker_sandbox::exec::ExecSpec;
 use docker_sandbox::image::ImageSummary;
 use docker_sandbox::sandbox::{ProxiedKey, Sandbox};
-use docker_sandbox_kit::{Agent, KitDescriptor, KitForge, LifecycleStep, McpServer, Mixin, Result};
+use docker_sandbox_kit::{
+    Agent, KitCache, KitDescriptor, KitForge, LifecycleStep, McpServer, Mixin, Result,
+};
 
 /// A sandbox name unique to this test run.
 fn sandbox_name(test: &str) -> String {
@@ -221,6 +224,29 @@ async fn forged_package_on_the_published_shell_kit() -> Result<()> {
             !has_kit_rule(&client, &name).await?,
             "the rule outlived its sandbox"
         );
+        Ok(())
+    })
+    .await
+}
+
+/// The shell kit and a mixin kept by a cache in a directory: a second cache
+/// on that directory takes the package from there, and a sandbox is created
+/// from it.
+#[tokio::test]
+async fn a_cache_keeps_the_package_of_a_composition() -> Result<()> {
+    run("forged-cache", |client, name, dir| async move {
+        let forge = KitForge::agent(client.clone(), Agent::Shell).with_mixin(mixin());
+        let kept = KitCache::new().with_dir(&dir).package(&forge).await?;
+        let reused = KitCache::new().with_dir(&dir).package(&forge).await?;
+        assert_eq!(reused.dir(), kept.dir(), "taken from the directory");
+        assert!(reused.suits(client.health()));
+        let created = reused.create(&client, &name).await?;
+        assert_eq!(created.name, name);
+        let sandbox = client.sandbox(&name);
+        {
+            let _session = sandbox.ensure_running().await?;
+            assert_mixin_ran(&sandbox).await?;
+        }
         Ok(())
     })
     .await

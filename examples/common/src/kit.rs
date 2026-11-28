@@ -10,22 +10,26 @@
 //! mixin to compile it again.
 //!
 //! [`forged`] needs no CLI: `KitForge` rebuilds a published kit from its image
-//! through the socket, under `examples/target/forged/<kit>`, at every run. The
-//! image is pulled once; later runs only read its export, a few seconds.
+//! through the socket, and a `KitCache` keeps it under
+//! `examples/target/forged-cache/`, so that later runs take it from there
+//! while it suits the daemon.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use docker_sandbox::Client;
 use docker_sandbox::kit::KitPackage;
-use docker_sandbox_kit::{Agent, CompileJob, KitCompiler, KitForge};
+use docker_sandbox_kit::{Agent, CompileJob, KitCache, KitCompiler, KitForge};
 
 /// Directory of the cached packages, in the target directory of the examples.
 const CACHE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/kits");
 
-/// The package of the published kit `kit` (`claude`, `codex`, …), forged in
-/// memory without the `sbx` CLI from `docker.io/sbx/<kit>:latest`: nothing is
-/// written. The daemon
+/// Directory of the forged packages a `KitCache` keeps.
+const FORGED: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/forged-cache");
+
+/// The package of the published kit `kit` (`claude`, `codex`, …), forged
+/// without the `sbx` CLI from `docker.io/sbx/<kit>:latest`, once, then taken
+/// from the cache of the examples while it suits the daemon. The daemon
 /// authorizes the credential the kit declares as for a sandbox the CLI
 /// creates: the package holds the kit as the CLI resolves it.
 ///
@@ -36,11 +40,12 @@ const CACHE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/kits");
 pub async fn forged(client: &Client, kit: &str) -> Result<KitPackage> {
     let agent: Agent = kit.parse()?;
     eprintln!(
-        "forging the {agent} kit from {}, without the sbx CLI",
+        "the {agent} kit of {}, forged without the sbx CLI or taken from the cache",
         agent.reference()
     );
-    KitForge::agent(client.clone(), agent)
-        .build()
+    KitCache::new()
+        .with_dir(FORGED)
+        .package(&KitForge::agent(client.clone(), agent))
         .await
         .with_context(|| format!("forging the {kit} kit"))
 }
