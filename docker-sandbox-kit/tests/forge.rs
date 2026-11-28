@@ -475,6 +475,82 @@ async fn published_base_kits_are_rebuilt_as_the_cli_writes_them() {
     );
 }
 
+/// A daemon serving the shell kit whose shortcut for `shell` is `kit`.
+fn shortcut(kit: &str) -> FakeDaemonBuilder {
+    serving(permissive(), shell_export()).route(
+        "GET",
+        "/daemon/settings/kit.shortcuts.shell",
+        setting("kit.shortcuts.shell", kit),
+    )
+}
+
+#[tokio::test]
+async fn an_agent_resolves_to_the_kit_its_shortcut_names() {
+    let (captured, pinned) = captured_shell();
+    let daemon = shortcut(&format!("oci://{pinned}")).start();
+    let client = connect(&daemon).await;
+
+    let package = KitForge::agent(client.clone(), Agent::Shell)
+        .build()
+        .await
+        .unwrap();
+
+    // As the CLI v0.54.1 records a pinned base: its source as given, its
+    // selection by digest; the rest as for the published kit.
+    let mut expected = captured.clone();
+    expected["storageSource"] = json!(format!("oci://{pinned}"));
+    let selection = captured["v3Selection"]
+        .to_string()
+        .replace("docker.io/sbx/shell:latest", &pinned);
+    expected["v3Selection"] = serde_json::from_str(&selection).unwrap();
+    assert_eq!(package.kit_artifacts(), [expected]);
+    assert_eq!(package.kit_refs(), std::slice::from_ref(&pinned));
+    let export = daemon.request("GET", "/docker/images/export");
+    assert_eq!(export.query()["name"], pinned);
+}
+
+#[tokio::test]
+async fn shortcuts_the_forge_cannot_follow_are_refused_and_empty_ones_ignored() {
+    for kit in ["git+https://example.com/kits.git#shell", "/opt/kits/shell"] {
+        let daemon = shortcut(kit).start();
+        let client = connect(&daemon).await;
+        let error = KitForge::agent(client, Agent::Shell)
+            .build()
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("(kit.shortcuts.shell), a kit only the sbx CLI builds"),
+            "{error}"
+        );
+    }
+
+    // A daemon that cannot say which kit the agent resolves to.
+    let daemon = serving(permissive(), shell_export())
+        .route(
+            "GET",
+            "/daemon/settings/kit.shortcuts.shell",
+            Reply::json(500, &json!({ "message": "settings unavailable" })),
+        )
+        .start();
+    let client = connect(&daemon).await;
+    let error = KitForge::agent(client, Agent::Shell)
+        .build()
+        .await
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("settings unavailable"),
+        "{error}"
+    );
+
+    // An empty shortcut is the default of the setting: the published kit.
+    let (captured, _) = captured_shell();
+    let daemon = shortcut("").start();
+    let client = connect(&daemon).await;
+    let package = KitForge::agent(client, Agent::Shell).build().await.unwrap();
+    assert_eq!(package.kit_artifacts(), [captured]);
+}
+
 #[tokio::test]
 async fn arguments_and_mixins_compose_on_a_published_base() {
     let dir = tempfile::tempdir().unwrap();
