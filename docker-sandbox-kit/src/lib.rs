@@ -56,6 +56,10 @@
 //! ([`KitPackage::suits`](docker_sandbox::kit::KitPackage::suits)), and
 //! [`KitForge::with_base_package`] takes its base kit for another composition.
 //!
+//! A kit named as the CLI names it is read with [`KitRef::base`] and
+//! [`KitRef::mixin`], which follow the rules of `sbx create <kit>` and
+//! `--kit <kit>`.
+//!
 //! [`Mixin::mcp`] gives the agent of a sandbox its MCP servers ([`McpServer`]),
 //! served by a process of the host or remote, with nothing written on the
 //! host: its install commands register them in the configuration of the agent,
@@ -85,6 +89,7 @@ mod compiler;
 mod error;
 #[cfg(feature = "forge")]
 mod forge;
+mod reference;
 
 pub use self::agent::Agent;
 #[cfg(feature = "compiler")]
@@ -94,6 +99,7 @@ pub use self::error::{Error, Result};
 #[cfg(feature = "forge")]
 #[cfg_attr(docsrs, doc(cfg(feature = "forge")))]
 pub use self::forge::{KitDescriptor, KitForge, LifecycleStep, McpServer, Mixin};
+pub use self::reference::KitRef;
 
 /// Compiles the examples of the README as doctests, with the `forge`
 /// feature its example forges the claude kit with.

@@ -98,6 +98,18 @@ compares them field by field with those of the CLI at each `sbx` version.
   daemon that refuses it (`kit.requireSignature`, `kit.allowLocalKits`,
   `kit.allowedSources`), read from its settings.
 
+## Kits named as the CLI names them
+
+`KitRef::base(text)` and `KitRef::mixin(text)` read a kit as `sbx create <kit>`
+and `sbx create --kit <kit>` read it: an agent (`claude`), an image
+(`ghcr.io/acme/kit:1`, `oci://…`), a directory or a ZIP file (`./kit`, `~/kit`),
+or a Git repository (`git+https://…`). The two rules differ, as measured on the
+CLI: a name without a slash is an agent as a base kit, and a mixin only when a
+directory of that name exists; `kits/tools` is an image as a base kit, and a
+directory as a mixin when it exists. `KitForge::with_kit` and
+`Mixin::from_ref` take what forging covers, and refuse what only the CLI
+builds.
+
 ## Compiling with the CLI
 
 When a kit needs what forging does not cover, `KitCompiler` (feature

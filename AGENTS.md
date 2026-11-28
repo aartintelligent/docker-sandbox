@@ -41,6 +41,8 @@ and the examples in a workspace of their own:
     `Mixin::mcp`, claude only);
   - `compiler/` (feature `compiler`): `KitCompiler`, packages compiled once by the CLI behind a
     capturing proxy;
+  - `reference.rs`: references read from their name as the CLI reads them, `KitRef` (a kit, as
+    `sbx create <kit>` and `--kit <kit>` read it);
   - `error.rs`: its `Error`, whose `Client` variant keeps the errors of `docker-sandbox`.
 
   `tests/` holds `forge.rs` and `compiler.rs` (the test binary re-executed as a fake `sbx`) against

@@ -52,8 +52,8 @@ use serde::Serialize;
 use serde_json::{Value, json};
 
 use self::artifact::MixinParts;
-use crate::Agent;
 use crate::error::{Error, Result};
+use crate::{Agent, KitRef};
 use docker_sandbox::Client;
 use docker_sandbox::kit::{KitPackage, PackageImage};
 use docker_sandbox::sandbox::CreateRequest;
@@ -259,6 +259,31 @@ impl Mixin {
         })
     }
 
+    /// The mixin `kit` names, read as the CLI reads a mixin
+    /// ([`KitRef::mixin`]): a directory is read as [`Mixin::read`] reads it.
+    ///
+    /// # Errors
+    ///
+    /// As [`Mixin::read`] for a directory, and [`Error::InvalidKit`] for any
+    /// other kit: an image, a ZIP file or a Git repository is resolved by the
+    /// CLI, and an agent is a base kit.
+    pub fn from_ref(kit: &KitRef) -> Result<Self> {
+        let other = |kit: String, what: &str| Error::InvalidKit {
+            kit,
+            message: format!("{what}: a forged mixin is read from its directory"),
+        };
+        match kit {
+            KitRef::Local(path) if path.is_dir() => Self::read(path),
+            KitRef::Local(path) => Err(other(path.display().to_string(), "not a directory")),
+            KitRef::Image(image) => Err(other(image.clone(), "an image the sbx CLI resolves")),
+            KitRef::Git(repository) => Err(other(
+                repository.clone(),
+                "a Git repository the sbx CLI resolves",
+            )),
+            KitRef::Agent(agent) => Err(other(agent.to_string(), "an agent is a base kit")),
+        }
+    }
+
     /// Name of the mixin, the last part of its reference.
     #[must_use]
     pub fn name(&self) -> &str {
@@ -286,6 +311,9 @@ enum Base {
     Agent(Agent),
     /// A published kit, rebuilt from its image.
     Published(String),
+    /// A kit only the CLI builds, from a directory, a ZIP file or a Git
+    /// repository, named as given.
+    Cli(String),
     /// The first kit of a compiled package.
     Package(KitPackage),
 }
@@ -375,6 +403,21 @@ impl KitForge {
     #[must_use]
     pub fn with_base(mut self, reference: impl Into<String>) -> Self {
         self.base = Some(Base::Published(reference.into()));
+        self
+    }
+
+    /// Takes as base kit `kit`, read as the CLI reads a base kit
+    /// ([`KitRef::base`]): an agent as [`KitForge::agent`] takes it, an image
+    /// as [`KitForge::with_base`] does. A directory, a ZIP file or a Git
+    /// repository, which the CLI builds, fails the forging.
+    #[must_use]
+    pub fn with_kit(mut self, kit: KitRef) -> Self {
+        self.base = Some(match kit {
+            KitRef::Agent(agent) => Base::Agent(agent),
+            KitRef::Image(reference) => Base::Published(reference),
+            KitRef::Local(path) => Base::Cli(path.display().to_string()),
+            KitRef::Git(repository) => Base::Cli(repository),
+        });
         self
     }
 
@@ -546,6 +589,10 @@ impl KitForge {
                 self.published(&requested).await
             }
             Some(Base::Published(requested)) => self.published(requested).await,
+            Some(Base::Cli(kit)) => Err(Error::Forge(format!(
+                "{kit} is a kit the sbx CLI builds, from a directory, a ZIP file or a Git \
+                 repository: compile it with KitCompiler, or take a published kit"
+            ))),
         }
     }
 
@@ -791,6 +838,36 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.starts_with("cannot access "), "{error}");
+    }
+
+    #[test]
+    fn mixins_are_taken_from_a_kit_only_when_it_is_a_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let kit = dir.path().join("acme-tools");
+        std::fs::create_dir(&kit).unwrap();
+        std::fs::write(
+            kit.join("spec.yaml"),
+            KitDescriptor::mixin("Acme").to_spec(),
+        )
+        .unwrap();
+        let mixin = Mixin::from_ref(&KitRef::Local(kit.clone())).unwrap();
+        assert_eq!(mixin, Mixin::read(&kit).unwrap());
+        let file = kit.join("spec.yaml");
+        for (other, expected) in [
+            (KitRef::Local(file), "not a directory"),
+            (
+                KitRef::Image("ghcr.io/acme/tools:1".into()),
+                "an image the sbx CLI resolves",
+            ),
+            (
+                KitRef::Git("git+https://host/r.git".into()),
+                "a Git repository the sbx CLI resolves",
+            ),
+            (KitRef::Agent(Agent::Claude), "an agent is a base kit"),
+        ] {
+            let error = Mixin::from_ref(&other).unwrap_err().to_string();
+            assert!(error.contains(expected), "{error}");
+        }
     }
 
     #[test]
