@@ -177,9 +177,12 @@ daemon authorizes the credential of the kit as for a sandbox the CLI creates.
 It also gives Claude Code the MCP server of the examples, served on a loopback
 port of the host, through a mixin (`Mixin::mcp`): its install command runs
 `claude mcp add` inside the sandbox, so that nothing is registered on the host,
-and the token of the server is given at creation. The example sends the
-`initialize` request of Claude Code from inside the sandbox, to the URL and
-with the header it registered. It starts no agent either.
+and the token of the server is given at creation, in a variable Claude Code
+reads when it connects. The example sends the `initialize` request of Claude
+Code from inside the sandbox, to the URL and with the header it registered.
+The mixin also registers a stdio server, which the example starts as Claude
+Code would, and the example prints the servers in their JSON form. It starts
+no agent either.
 
 ### The MCP variants
 

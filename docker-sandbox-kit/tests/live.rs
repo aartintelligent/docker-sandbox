@@ -9,10 +9,11 @@
 //!
 //! The tests create sandboxes from packages forged through the socket alone:
 //! `shell` and `claude` rebuilt from their published image, `claude` with two of
-//! its arguments, an MCP server registered in Claude Code by a mixin, and a
-//! forged mixin, `shell` and a mixin kept by a cache in a directory and taken
-//! from there. They need no package and no `sbx` CLI.
-//! The agent of `claude` is never started: resolved as the CLI resolves it,
+//! its arguments, MCP servers registered in Claude Code by a mixin, and a
+//! forged mixin; `copilot` and `opencode` with MCP servers registered beside
+//! the gateway their kit registers; `shell` and a mixin kept by a cache in a
+//! directory and taken from there. They need no package and no `sbx` CLI.
+//! No agent is ever started: resolved as the CLI resolves it,
 //! the kit is authorized the credential the daemon holds for `anthropic`,
 //! which the proxy would write into requests to the hosts of Anthropic, and
 //! the tests send none. `proxied_keys_*` sends a dummy key to the public echo
@@ -252,10 +253,113 @@ async fn a_cache_keeps_the_package_of_a_composition() -> Result<()> {
     .await
 }
 
-/// The claude kit rebuilt from its image with two of its arguments, an MCP
-/// server registered by a mixin and a forged mixin, built in memory. The
-/// agent is never started, and Claude Code never connects to the server: the
-/// test reads what the install command of the mixin registered.
+/// A stdio server for the agent, registered and never started.
+fn files() -> McpServer {
+    McpServer::stdio("docker-sandbox-files", "mcp-fs").with_args(["/work", "it's"])
+}
+
+/// Creates a sandbox of the kit of `agent` with a server of the host, a remote
+/// server behind a token and a stdio server registered by a mixin, starts it,
+/// and checks that the kit kept them beside its gateway in the object `key`
+/// of the configuration file `config` of the agent. The agent is never
+/// started.
+async fn mcp_beside_the_gateway(agent: Agent, config: &str, key: &str) -> Result<()> {
+    run(
+        &format!("forged-mcp-{agent}"),
+        |client, name, _dir| async move {
+            let tools = McpServer::host("docker-sandbox-live", 47813);
+            let docs = McpServer::remote("docker-sandbox-docs", "https://mcp.example.com/mcp")
+                .with_bearer_env("DOCKER_SANDBOX_DOCS_TOKEN");
+            let package = KitForge::agent(client.clone(), agent)
+                .with_mixin(Mixin::mcp(agent, [tools.clone(), docs, files()])?)
+                .build()
+                .await?;
+            let request = package
+                .request(&name)?
+                .with_env(tools.token_env().unwrap(), "docker-sandbox-live-token")
+                .with_env("DOCKER_SANDBOX_DOCS_TOKEN", "docker-sandbox-docs-token");
+            package.create_with(&client, &request).await?;
+            let sandbox = client.sandbox(&name);
+            // The kit merges its gateway into the file at each start.
+            let _session = sandbox.ensure_running().await?;
+            let servers = shell(&sandbox, &format!("jq -c '.{key}' {config}")).await?;
+            let servers: serde_json::Value = serde_json::from_str(&servers).unwrap();
+            assert!(
+                servers.get("mcp-gateway").is_some(),
+                "the kit registers its gateway"
+            );
+            let (bearer, docs_bearer) = if agent == Agent::OpenCode {
+                (
+                    "Bearer {env:DOCKER_SANDBOX_MCP_DOCKER_SANDBOX_LIVE_TOKEN}",
+                    "Bearer {env:DOCKER_SANDBOX_DOCS_TOKEN}",
+                )
+            } else {
+                (
+                    "Bearer ${DOCKER_SANDBOX_MCP_DOCKER_SANDBOX_LIVE_TOKEN}",
+                    "Bearer ${DOCKER_SANDBOX_DOCS_TOKEN}",
+                )
+            };
+            let read = |server: &str, field: &str| servers[server][field].clone();
+            assert_eq!(
+                read("docker-sandbox-live", "url"),
+                "http://host.docker.internal:47813/mcp"
+            );
+            assert_eq!(
+                read("docker-sandbox-live", "headers")["Authorization"],
+                bearer
+            );
+            assert_eq!(
+                read("docker-sandbox-docs", "headers")["Authorization"],
+                docs_bearer
+            );
+            assert_eq!(read("docker-sandbox-files", "type"), "local");
+            if agent == Agent::OpenCode {
+                assert_eq!(
+                    read("docker-sandbox-files", "command"),
+                    serde_json::json!(["mcp-fs", "/work", "it's"])
+                );
+            } else {
+                assert_eq!(read("docker-sandbox-files", "command"), "mcp-fs");
+                assert_eq!(
+                    read("docker-sandbox-files", "args"),
+                    serde_json::json!(["/work", "it's"])
+                );
+            }
+            Ok(())
+        },
+    )
+    .await
+}
+
+/// The copilot kit rebuilt from its image, with MCP servers registered by a
+/// mixin in `~/.copilot/mcp-config.json`, beside the gateway of the kit.
+#[tokio::test]
+async fn copilot_keeps_the_servers_of_a_mixin() -> Result<()> {
+    mcp_beside_the_gateway(
+        Agent::Copilot,
+        "/home/agent/.copilot/mcp-config.json",
+        "mcpServers",
+    )
+    .await
+}
+
+/// The opencode kit rebuilt from its image, with MCP servers registered by a
+/// mixin in `~/.config/opencode/opencode.json`, beside the gateway of the
+/// kit.
+#[tokio::test]
+async fn opencode_keeps_the_servers_of_a_mixin() -> Result<()> {
+    mcp_beside_the_gateway(
+        Agent::OpenCode,
+        "/home/agent/.config/opencode/opencode.json",
+        "mcp",
+    )
+    .await
+}
+
+/// The claude kit rebuilt from its image with two of its arguments, MCP
+/// servers registered by a mixin and a forged mixin, built in memory. The
+/// agent is never started, and Claude Code never connects to the servers:
+/// the test reads what the install commands of the mixin registered.
 #[tokio::test]
 async fn claude_rebuilt_with_its_arguments() -> Result<()> {
     run("forged-claude", |client, name, _dir| async move {
@@ -263,7 +367,7 @@ async fn claude_rebuilt_with_its_arguments() -> Result<()> {
         let package = KitForge::agent(client.clone(), Agent::Claude)
             .with_arg("model", "claude-haiku-5-5")
             .with_arg("reasoningEffort", "low")
-            .with_mixin(Mixin::mcp(Agent::Claude, [tools.clone()])?)
+            .with_mixin(Mixin::mcp(Agent::Claude, [tools.clone(), files()])?)
             .with_mixin(mixin())
             .build()
             .await?;
@@ -296,17 +400,23 @@ async fn claude_rebuilt_with_its_arguments() -> Result<()> {
         )
         .await?;
         assert_eq!(settings, "claude-haiku-5-5 low\n");
-        // Only the server of the mixin is read from the configuration of
-        // Claude Code, which `claude mcp add` wrote at install time.
+        // Only the servers of the mixin are read from the configuration of
+        // Claude Code, which `claude mcp add` wrote at install time: the
+        // token is a reference to its variable, which Claude Code reads when
+        // it connects.
         let registered = shell(
             &sandbox,
-            "python3 -c \"import json; s = json.load(open('/home/agent/.claude.json'))['mcpServers']\
-             ['docker-sandbox-live']; print(s['type'], s['url'], s['headers']['Authorization'])\"",
+            "python3 -c \"import json; s = json.load(open('/home/agent/.claude.json'))['mcpServers']; \
+             t = s['docker-sandbox-live']; f = s['docker-sandbox-files']; \
+             print(t['type'], t['url'], t['headers']['Authorization']); \
+             print(f['type'], f['command'], *f['args'])\"",
         )
         .await?;
         assert_eq!(
             registered,
-            "http http://host.docker.internal:47813/mcp Bearer docker-sandbox-live-token\n"
+            "http http://host.docker.internal:47813/mcp \
+             Bearer ${DOCKER_SANDBOX_MCP_DOCKER_SANDBOX_LIVE_TOKEN}\n\
+             stdio mcp-fs /work it's\n"
         );
         assert!(
             sandbox

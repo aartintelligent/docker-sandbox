@@ -147,8 +147,11 @@ the daemon, which a new `sbx` can change without changing a route. Check, before
 5. **The registration of MCP servers.** `Mixin::mcp` registers a server in
    Claude Code with the command the claude kit registers its gateway with
    (`claude mcp add … --transport http --scope user --header …`, in
-   `forge/mcp.rs`). When the install commands of the new kit register it
-   otherwise, follow them.
+   `forge/mcp.rs`), and in copilot and opencode by a merge with `jq` into the
+   file their kit merges its gateway into (`~/.copilot/mcp-config.json` under
+   the lock of the kit, `~/.config/opencode/opencode.json`). When the commands
+   of a new kit register the gateway otherwise, follow them; `assets/notes.md`
+   says what each agent reads ("MCP servers registered in the agent").
 6. **For real.** `just test-live` forges `shell` and `claude`, with two of its
    arguments and an MCP server, against the new daemon. The other agent kits are forged by their
    examples (`agent-<agent>`), which start their agent: run them only when the
