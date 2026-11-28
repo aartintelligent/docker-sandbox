@@ -161,7 +161,7 @@ fn to_json(value: &impl Serialize) -> Value {
 /// assert_eq!(mixin.name(), "acme-tools");
 /// # Ok::<(), docker_sandbox_kit::Error>(())
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mixin {
     /// Reference of the mixin, a path, as the CLI lists a local kit.
     reference: String,

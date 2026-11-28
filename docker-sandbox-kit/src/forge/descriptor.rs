@@ -57,14 +57,14 @@ const GATEWAY_ENV: [&str; 2] = ["MCP_GATEWAY_URL", "MCP_SENTINEL_TOKEN_NAME"];
 /// assert_eq!(KitDescriptor::parse(&spec)?, descriptor);
 /// # Ok::<(), docker_sandbox_kit::Error>(())
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KitDescriptor {
     /// The fields of the descriptor.
     spec: Spec,
 }
 
 /// The fields of a v3 mixin descriptor, in the order `spec.yaml` writes them.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct Spec {
     /// Version of the descriptor format.
@@ -112,7 +112,7 @@ pub(super) enum MixinKind {
 }
 
 /// A capability a forged mixin may declare.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub(super) enum Capability {
     /// Install and startup commands ([`LIFECYCLE`]).
@@ -150,7 +150,7 @@ pub(super) enum Capability {
 }
 
 /// The configuration of a `lifecycle@1` capability.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct LifecycleConfig {
     /// Commands run once, when the sandbox is created.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -165,7 +165,7 @@ pub(super) struct LifecycleConfig {
 }
 
 /// The configuration of a `network-policy@1` capability.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct NetworkConfig {
     /// Rules while the sandbox runs.
     #[serde(default, skip_serializing_if = "NetworkRules::is_empty")]
@@ -180,7 +180,7 @@ pub(super) struct NetworkConfig {
 }
 
 /// Hosts allowed and denied, each `host` or `host:port`.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct NetworkRules {
     /// Hosts allowed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

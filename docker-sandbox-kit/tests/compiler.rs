@@ -22,6 +22,8 @@ use docker_sandbox::Client;
 use docker_sandbox::sandbox::CreateRequest;
 use docker_sandbox_kit::Error;
 use docker_sandbox_kit::{CompileJob, KitCompiler};
+#[cfg(feature = "forge")]
+use docker_sandbox_kit::{KitDescriptor, LifecycleStep, Mixin};
 use serde_json::{Value, json};
 use support::{FakeDaemon, Reply, connect, sandbox_json};
 use tokio::sync::Mutex;
@@ -116,9 +118,18 @@ async fn fake_sbx() {
         "silent" => {}
         base => {
             let name = args.iter().skip_while(|arg| *arg != "--name").nth(1);
+            // The descriptor of each mixin given as a directory, as the CLI
+            // reads it while it compiles.
+            let specs: Vec<String> = args
+                .windows(2)
+                .filter(|pair| pair[0] == "--kit")
+                .filter_map(|pair| {
+                    std::fs::read_to_string(Path::new(&pair[1]).join("spec.yaml")).ok()
+                })
+                .collect();
             let client = Client::connect().await.unwrap();
             client.images().load(oci_layout()).await.unwrap();
-            let template = json!({ "name": "{{name}}", "agent": base, "cli_args": args,
+            let template = json!({ "name": "{{name}}", "agent": base, "cli_args": args, "kit_specs": specs,
                                    "ssh_agent_socket_path": "/run/ssh-agent.sock",
                                    "bindings_path": "/home/agent/.config/sbx/credentials.yaml" });
             let request = CreateRequest::from_template(template, name.unwrap()).unwrap();
@@ -175,6 +186,46 @@ async fn compositions_compile_into_packages() {
         .map(|r| json!(r.path()))
         .collect();
     assert_eq!(deletions, [json!(format!("/sandbox/{}", args[3]))]);
+}
+
+#[cfg(feature = "forge")]
+#[tokio::test]
+async fn mixins_described_in_code_are_written_for_the_cli_then_removed() {
+    let _serial = SERIAL.lock().await;
+    let dir = tempfile::tempdir().unwrap();
+    let daemon = daemon(true);
+    let client = connect(&daemon).await;
+    let work = dir.path().join("work");
+    let compiler = KitCompiler::new(fake_sbx_in(dir.path()), client, &work)
+        .with_timeout(Duration::from_secs(60));
+    let tools = KitDescriptor::mixin("Acme tools")
+        .with_install(LifecycleStep::new("make tools").as_user("agent"));
+    let job = CompileJob::new("shell", dir.path().join("package"))
+        .with_mixin("/kits/mixin")
+        .with_mixin_spec(Mixin::new("/kits/acme-tools", tools.clone()).unwrap());
+
+    let package = compiler.compile(&job).await.unwrap();
+    let request = package.request("job-42").unwrap();
+    let args: Vec<String> = serde_json::from_value(request.extra["cli_args"].clone()).unwrap();
+    // After the mixins given by reference, the one written for the CLI, in a
+    // directory named after it.
+    let kits: Vec<&String> = args
+        .windows(2)
+        .filter(|pair| pair[0] == "--kit")
+        .map(|pair| &pair[1])
+        .collect();
+    assert_eq!(kits[0], "/kits/mixin");
+    let written = Path::new(kits[1]);
+    assert!(
+        written.starts_with(&work) && written.ends_with("acme-tools"),
+        "{written:?}"
+    );
+    let specs: Vec<String> = serde_json::from_value(request.extra["kit_specs"].clone()).unwrap();
+    assert_eq!(KitDescriptor::parse(&specs[0]).unwrap(), tools);
+    assert!(
+        !written.exists(),
+        "the directory goes once the package is written"
+    );
 }
 
 #[tokio::test]

@@ -137,6 +137,11 @@ let package = KitCompiler::new("sbx", client.clone(), "/tmp/kc").compile(&job).a
 # }
 ```
 
+A mixin described in code goes to the CLI too: `CompileJob::with_mixin_spec`
+takes a `Mixin` (with the `forge` feature), which the compiler writes into a
+directory of its work directory named after the mixin, gives to `sbx create
+--kit`, and removes once the package is written.
+
 ## In memory, or on disk
 
 `KitForge::build` forges the same package in memory: nothing is written, and
