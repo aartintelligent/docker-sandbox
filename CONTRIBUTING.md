@@ -272,7 +272,7 @@ environment `release`), so no crates.io token is stored. A new crate cannot be
 published that way: `docker-sandbox` 0.1.0, tagged before the crate was
 publishable, was published by hand from `main` with
 `cargo publish --locked -p docker-sandbox`, and `docker-sandbox-kit` 0.3.0
-went the same way. A new published crate follows these steps:
+and `docker-sandbox-blueprint` 0.4.0 went the same way. A new published crate follows these steps:
 
 1. Give it an entry in `release-plz.toml` with `release = false`, so that
    release-plz leaves it alone, and merge the release pull request of the
