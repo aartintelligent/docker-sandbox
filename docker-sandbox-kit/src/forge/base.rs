@@ -60,27 +60,42 @@ const SKILLS_MODE: &str = "readonly";
 /// `docker.io/sbx/shell:latest`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Reference {
+    /// The reference as it was given, without an `oci://` prefix: the CLI
+    /// records it so as the source of the kit (`storageSource`).
+    given: String,
     /// Repository, registry included, e.g. `docker.io/sbx/claude`.
     pub(super) repository: String,
     /// Tag, `latest` when the reference names none.
     tag: String,
+    /// Whether the reference names its tag.
+    tagged: bool,
     /// Digest the reference is pinned to, if any.
     digest: Option<String>,
 }
 
 impl Reference {
     /// Parses `reference`, e.g. `docker.io/sbx/claude:latest`, optionally
-    /// pinned as `docker.io/sbx/claude:latest@sha256:…`.
+    /// pinned as `docker.io/sbx/claude:latest@sha256:…` and prefixed with
+    /// `oci://`.
     ///
     /// # Errors
     ///
     /// Returns [`Error::InvalidKit`] when the reference is empty, holds a
-    /// space, or is pinned to something other than a SHA-256 digest.
+    /// space, is pinned to something other than a SHA-256 digest, or names a
+    /// kit to build from a directory or a Git repository, which the CLI
+    /// builds.
     pub(super) fn parse(reference: &str) -> Result<Self> {
         let invalid = |message: &str| Error::InvalidKit {
             kit: reference.to_owned(),
             message: message.to_owned(),
         };
+        if reference.starts_with("git+") || reference.starts_with(['/', '.', '~']) {
+            return Err(invalid(
+                "a kit built from a directory or a Git repository is built by the sbx CLI: the \
+                 forge rebuilds published kits",
+            ));
+        }
+        let reference = reference.strip_prefix("oci://").unwrap_or(reference);
         if reference.is_empty() || reference.contains(char::is_whitespace) {
             return Err(invalid("a kit reference is an image name without spaces"));
         }
@@ -90,11 +105,11 @@ impl Reference {
             None => (reference, None),
         };
         let last_slash = named.rfind('/');
-        let (path, tag) = match named.rfind(':') {
+        let (path, tag, tagged) = match named.rfind(':') {
             Some(colon) if last_slash.is_none_or(|slash| colon > slash) => {
-                (&named[..colon], &named[colon + 1..])
+                (&named[..colon], &named[colon + 1..], true)
             }
-            _ => (named, "latest"),
+            _ => (named, "latest", false),
         };
         let first = path.split('/').next().unwrap_or_default();
         let has_registry = path.contains('/')
@@ -105,8 +120,10 @@ impl Reference {
             (false, false) => format!("{DEFAULT_REGISTRY}/library/{path}"),
         };
         Ok(Self {
+            given: reference.to_owned(),
             repository,
             tag: tag.to_owned(),
+            tagged,
             digest: digest.map(str::to_owned),
         })
     }
@@ -116,6 +133,17 @@ impl Reference {
         match &self.digest {
             Some(digest) => format!("{}@{digest}", self.repository),
             None => format!("{}:{}", self.repository, self.tag),
+        }
+    }
+
+    /// The reference the CLI names the kit of version `version` by in its
+    /// capability selection: by digest when pinned, by its tag when it names
+    /// one, and by the version of the kit otherwise.
+    fn selected_from(&self, version: Option<&str>) -> String {
+        match (&self.digest, version) {
+            (Some(_), _) => self.fetched(),
+            (None, Some(version)) if !self.tagged => format!("{}:{version}", self.repository),
+            (None, _) => format!("{}:{}", self.repository, self.tag),
         }
     }
 
@@ -184,6 +212,9 @@ struct Published {
     /// Licenses of the kit, kept as written.
     #[serde(default)]
     licenses: Option<Value>,
+    /// Version of the kit, which names it when its reference names no tag.
+    #[serde(default)]
+    version: Option<String>,
 }
 
 /// The fields of a capability of a published kit the artifact is derived
@@ -361,7 +392,7 @@ fn base_kit(
     }
     let name = reference.name().to_owned();
     let pinned = format!("{kit}@{}", facts.digest);
-    let source = format!("{kit}:{}", reference.tag);
+    let selected_from = reference.selected_from(published.version.as_deref());
     let resolved = args::resolve(kit, descriptor, args)?;
     let substituted = args::substitute(kit, descriptor, &resolved.values)?;
 
@@ -423,11 +454,11 @@ fn base_kit(
         manifest: manifest(&published, &name, &pinned, facts, &context),
         v3: descriptor.clone(),
         v3_effective: with_key_names(effective(&selected)),
-        v3_selection: selection(&listed, &source, rejection),
+        v3_selection: selection(&listed, &selected_from, rejection),
         v3_digest: facts.digest.clone(),
         v3_reference: pinned.clone(),
         v3_entrypoint: Some(facts.entrypoint.clone()),
-        storage_source: Some(format!("oci://{source}")),
+        storage_source: Some(format!("oci://{}", reference.given)),
         kit_usage: KitUsage::published(),
         kit_hub_publication: kit.strip_prefix("docker.io/").map(|hub| HubPublication {
             digest: facts.digest.clone(),
@@ -581,6 +612,7 @@ mod tests {
                 "description": "A plain shell",
                 "sourceUrl": "https://example.com/definitions",
                 "licenses": ["Apache-2.0"],
+                "version": "1.1.0",
                 "capabilities": [
                     { "type": "com.docker.sandbox/sbx@1", "name": "sbx" },
                     { "type": CONTEXT_V1, "optional": true, "config": { "content": "one", "filename": "AGENTS.md" } },
@@ -658,11 +690,77 @@ mod tests {
         }
         for bad in [
             "",
+            "oci://",
             "docker.io/sbx/shell latest",
             "docker.io/sbx/shell@md5:00",
         ] {
             let error = Reference::parse(bad).unwrap_err().to_string();
             assert!(error.starts_with("invalid kit "), "{bad:?}: {error}");
+        }
+        for local in [
+            "/opt/kits/shell",
+            "./kits/shell",
+            "~/kits/shell",
+            "git+https://example.com/kits.git",
+        ] {
+            let error = Reference::parse(local).unwrap_err().to_string();
+            assert!(
+                error.contains("is built by the sbx CLI"),
+                "{local:?}: {error}"
+            );
+        }
+        // An `oci://` prefix names the same image, and is not recorded.
+        let prefixed = reference("oci://sbx/shell@sha256:8e4b");
+        assert_eq!(prefixed.fetched(), "docker.io/sbx/shell@sha256:8e4b");
+        assert_eq!(prefixed.given, "sbx/shell@sha256:8e4b");
+    }
+
+    #[test]
+    fn the_base_is_named_as_the_cli_names_it() {
+        // As the CLI v0.54.1 records each form: the source as given, the
+        // selection by digest when pinned.
+        let named = |text: &str| {
+            let kit = base_kit(&reference(text), &shell(), &BTreeMap::new()).unwrap();
+            let artifact = kit.artifact.into_json();
+            (
+                artifact["storageSource"].as_str().unwrap().to_owned(),
+                artifact["v3Selection"]["capabilities"][0]["source"]["kit"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned(),
+            )
+        };
+        let pinned = "docker.io/sbx/shell@sha256:6bde";
+        for (text, source, selected) in [
+            (
+                "docker.io/sbx/shell:latest",
+                "oci://docker.io/sbx/shell:latest",
+                "docker.io/sbx/shell:latest",
+            ),
+            // Untagged: named by the version of the kit, `1.1.0` here.
+            ("sbx/shell", "oci://sbx/shell", "docker.io/sbx/shell:1.1.0"),
+            (pinned, &format!("oci://{pinned}"), pinned),
+            (
+                &format!("oci://{pinned}"),
+                &format!("oci://{pinned}"),
+                pinned,
+            ),
+            (
+                "docker.io/sbx/shell:latest@sha256:6bde",
+                "oci://docker.io/sbx/shell:latest@sha256:6bde",
+                pinned,
+            ),
+            (
+                "sbx/shell@sha256:6bde",
+                "oci://sbx/shell@sha256:6bde",
+                pinned,
+            ),
+        ] {
+            assert_eq!(
+                named(text),
+                (source.to_owned(), selected.to_owned()),
+                "{text}"
+            );
         }
     }
 

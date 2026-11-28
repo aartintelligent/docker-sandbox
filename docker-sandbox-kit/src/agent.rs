@@ -76,6 +76,9 @@ impl Agent {
     }
 
     /// The reference of its published kit, `docker.io/sbx/<name>:latest`.
+    /// The daemon may name another kit for the agent
+    /// (`kit.shortcuts.<name>`), which the CLI and
+    /// `KitForge::agent` (feature `forge`) follow.
     #[must_use]
     pub fn reference(self) -> String {
         format!("docker.io/sbx/{}:latest", self.name())

@@ -1163,6 +1163,61 @@
       "note": "a package forged by the KitForge of docker-sandbox-kit with nothing from the CLI, the shell kit rebuilt from its image, compared field by field with the one the CLI compiled for the same kits"
     },
     {
+      "name": "shortcut-shell-set",
+      "category": "kit-shortcuts",
+      "mutates": true,
+      "args": [
+        "settings",
+        "set",
+        "kit.shortcuts.shell",
+        "sbx/shell"
+      ],
+      "note": "the kit sbx create shell resolves to, in a form the default never takes"
+    },
+    {
+      "name": "kit-compile-shortcut",
+      "category": "kit-shortcuts",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-compile",
+        "{kits}/audit-mixin-json",
+        "--base",
+        "shell",
+        "--out",
+        "{work}/kit-package-shortcut"
+      ],
+      "note": "the CLI resolves the agent to its shortcut"
+    },
+    {
+      "name": "kit-forge-shortcut",
+      "category": "kit-shortcuts",
+      "mutates": true,
+      "program": "{audit}",
+      "args": [
+        "kit-forge",
+        "{kits}/audit-mixin-json",
+        "--base-agent",
+        "shell",
+        "--library",
+        "--out",
+        "{work}/kit-forged-shortcut",
+        "--compare",
+        "{work}/kit-package-shortcut"
+      ],
+      "note": "KitForge::agent follows the shortcut: every field of the base artifact is the one the CLI wrote"
+    },
+    {
+      "name": "shortcut-shell-unset",
+      "category": "kit-shortcuts",
+      "mutates": true,
+      "args": [
+        "settings",
+        "unset",
+        "kit.shortcuts.shell"
+      ]
+    },
+    {
       "name": "load-forged-base",
       "category": "kit-forge-base",
       "mutates": true,

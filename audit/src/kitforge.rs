@@ -80,6 +80,8 @@ pub(crate) enum BaseSource<'a> {
         /// Values of the arguments the kit declares, by name.
         args: BTreeMap<String, String>,
     },
+    /// The kit of an agent, as `KitForge::agent` resolves it (`--library`).
+    Agent(&'a str),
 }
 
 /// Options of the `kit-forge` command.
@@ -129,16 +131,17 @@ pub(crate) async fn run_library(opts: &ForgeOpts<'_>, socket: &Path) -> Result<(
         .connect()
         .await
         .context("connecting to sandboxd")?;
-    let forge = KitForge::new(client);
     let forge = match &opts.base {
-        BaseSource::Package(package) => forge.with_base_package(KitPackage::open(package)?),
+        BaseSource::Package(package) => {
+            KitForge::new(client).with_base_package(KitPackage::open(package)?)
+        }
         BaseSource::Image {
             reference, args, ..
-        } => args
-            .iter()
-            .fold(forge.with_base(*reference), |forge, (name, value)| {
-                forge.with_arg(name, value)
-            }),
+        } => args.iter().fold(
+            KitForge::new(client).with_base(*reference),
+            |forge, (name, value)| forge.with_arg(name, value),
+        ),
+        BaseSource::Agent(agent) => KitForge::agent(client, agent.parse()?),
     };
     let package = forge
         .with_mixin(Mixin::read(opts.kit)?)
@@ -215,6 +218,7 @@ fn omit(artifact: &mut Value, fields: &[String]) {
 /// from its image through the socket.
 async fn base(source: &BaseSource<'_>) -> Result<Base> {
     match source {
+        BaseSource::Agent(_) => bail!("--base-agent forges with --library only"),
         BaseSource::Package(package) => {
             let template = read_json(&package.join("create-body.json"))?;
             let reference = template

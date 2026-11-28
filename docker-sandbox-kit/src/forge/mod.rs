@@ -29,6 +29,10 @@
 //! `kit.allowLocalKits` is off; a published base kit outside the sources of
 //! `kit.allowedSources`. A setting the daemon does not know keeps its
 //! default.
+//!
+//! An agent is resolved as the CLI resolves `sbx create <agent>`: to the kit
+//! the daemon names for it in `kit.shortcuts.<agent>`, when it names one, and
+//! to its published kit otherwise.
 
 mod args;
 mod artifact;
@@ -63,6 +67,10 @@ const REQUIRE_SIGNATURE: &str = "kit.requireSignature";
 /// Setting of the daemon listing the prefixes of the references kits may
 /// come from, `*` for any.
 const ALLOWED_SOURCES: &str = "kit.allowedSources";
+
+/// Prefix of the settings of the daemon naming the kit an agent resolves to
+/// instead of its published kit, e.g. `kit.shortcuts.claude`.
+const SHORTCUTS: &str = "kit.shortcuts.";
 
 /// Default of [`ALLOWED_SOURCES`], as the daemon describes it.
 const DEFAULT_SOURCES: &[&str] = &["docker.io/", "dhi.io/"];
@@ -236,6 +244,9 @@ impl Mixin {
 /// Where the base kit of a package comes from.
 #[derive(Debug, Clone)]
 enum Base {
+    /// The kit of an agent: its published kit, or the one its shortcut on
+    /// the daemon names.
+    Agent(Agent),
     /// A published kit, rebuilt from its image.
     Published(String),
     /// The first kit of a compiled package.
@@ -302,19 +313,28 @@ impl KitForge {
         }
     }
 
-    /// Forges on the published kit of `agent`, `docker.io/sbx/<name>:latest`:
-    /// [`KitForge::new`] with [`KitForge::with_base`] of
-    /// [`Agent::reference`].
+    /// Forges on the kit of `agent`, as the CLI resolves `sbx create
+    /// <name>`: the kit the daemon names in `kit.shortcuts.<name>` when it
+    /// names one, its published kit [`Agent::reference`]
+    /// (`docker.io/sbx/<name>:latest`) otherwise, then as
+    /// [`KitForge::with_base`] takes it.
     #[must_use]
     pub fn agent(client: Client, agent: Agent) -> Self {
-        Self::new(client).with_base(agent.reference())
+        Self {
+            base: Some(Base::Agent(agent)),
+            ..Self::new(client)
+        }
     }
 
     /// Takes as base kit the published v3 workload kit `reference`, e.g.
     /// `docker.io/sbx/claude:latest`, optionally pinned by digest as
-    /// `docker.io/sbx/claude:latest@sha256:…`, and normalized as Docker does
-    /// (`sbx/shell` is `docker.io/sbx/shell:latest`). Its image is pulled and
-    /// exported when the package is forged, and the kit rebuilt from it.
+    /// `docker.io/sbx/claude:latest@sha256:…` or prefixed with `oci://`, and
+    /// normalized as Docker does (`sbx/shell` is
+    /// `docker.io/sbx/shell:latest`). Its image is pulled and exported when
+    /// the package is forged, and the kit rebuilt from it, its source
+    /// recorded as `reference` is written, as the CLI records it. A kit to
+    /// build from a directory or a Git repository is refused: the CLI builds
+    /// it.
     #[must_use]
     pub fn with_base(mut self, reference: impl Into<String>) -> Self {
         self.base = Some(Base::Published(reference.into()));
@@ -482,23 +502,49 @@ impl KitForge {
                     image: None,
                 })
             }
-            Some(Base::Published(requested)) => {
-                let reference = base::Reference::parse(requested)?;
-                self.check_policy(Some(&reference)).await?;
-                let kit = base::rebuild(&self.client, &reference, &self.args).await?;
-                let mut request = CreateRequest::for_agent(NAME_PLACEHOLDER, kit.name);
-                if !self.args.is_empty() {
-                    request
-                        .extra
-                        .insert("kit_args".to_owned(), json!(self.args));
-                }
-                Ok(ResolvedBase {
-                    request,
-                    reference: kit.reference,
-                    artifact: kit.artifact.into_json(),
-                    image: Some(requested.clone()),
-                })
+            Some(Base::Agent(agent)) => {
+                let requested = self.agent_kit(*agent).await?;
+                self.published(&requested).await
             }
+            Some(Base::Published(requested)) => self.published(requested).await,
+        }
+    }
+
+    /// The published base kit `requested`, once the kit policy of the daemon
+    /// is checked, rebuilt from its image.
+    async fn published(&self, requested: &str) -> Result<ResolvedBase> {
+        let reference = base::Reference::parse(requested)?;
+        self.check_policy(Some(&reference)).await?;
+        let kit = base::rebuild(&self.client, &reference, &self.args).await?;
+        let mut request = CreateRequest::for_agent(NAME_PLACEHOLDER, kit.name);
+        if !self.args.is_empty() {
+            request
+                .extra
+                .insert("kit_args".to_owned(), json!(self.args));
+        }
+        Ok(ResolvedBase {
+            request,
+            reference: kit.reference,
+            artifact: kit.artifact.into_json(),
+            image: Some(requested.to_owned()),
+        })
+    }
+
+    /// The kit `agent` resolves to: the one its shortcut on the daemon
+    /// names, or its published kit.
+    async fn agent_kit(&self, agent: Agent) -> Result<String> {
+        let key = format!("{SHORTCUTS}{agent}");
+        match self.setting(&key).await? {
+            Some(Value::String(kit)) if !kit.is_empty() => {
+                if kit.starts_with("git+") || kit.starts_with('/') {
+                    return Err(Error::Forge(format!(
+                        "the daemon resolves {agent} to {kit} ({key}), a kit only the sbx CLI \
+                         builds"
+                    )));
+                }
+                Ok(kit)
+            }
+            _ => Ok(agent.reference()),
         }
     }
 
