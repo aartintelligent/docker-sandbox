@@ -23,7 +23,7 @@ use docker_sandbox::sandbox::CreateRequest;
 use docker_sandbox_kit::Error;
 use docker_sandbox_kit::{CompileJob, KitCompiler};
 #[cfg(feature = "forge")]
-use docker_sandbox_kit::{KitDescriptor, LifecycleStep, Mixin};
+use docker_sandbox_kit::{KitCache, KitDescriptor, LifecycleStep, Mixin};
 use serde_json::{Value, json};
 use support::{FakeDaemon, Reply, connect, sandbox_json};
 use tokio::sync::Mutex;
@@ -226,6 +226,73 @@ async fn mixins_described_in_code_are_written_for_the_cli_then_removed() {
         !written.exists(),
         "the directory goes once the package is written"
     );
+}
+
+#[cfg(feature = "forge")]
+#[tokio::test]
+async fn compiled_packages_are_kept_by_composition() {
+    let _serial = SERIAL.lock().await;
+    let dir = tempfile::tempdir().unwrap();
+    let daemon = daemon(true);
+    let client = connect(&daemon).await;
+    let compiler = KitCompiler::new(fake_sbx_in(dir.path()), client, dir.path().join("work"))
+        .with_timeout(Duration::from_secs(60));
+    let runs = || {
+        daemon
+            .requests()
+            .iter()
+            .filter(|r| r.method == "POST" && r.path() == "/sandbox")
+            .count()
+    };
+    // A mixin given as a directory, and one given by a reference.
+    let acme = dir.path().join("acme");
+    std::fs::create_dir_all(&acme).unwrap();
+    let spec = |text: &str| {
+        KitDescriptor::mixin("Acme")
+            .with_description(text)
+            .to_spec()
+    };
+    std::fs::write(acme.join("spec.yaml"), spec("one")).unwrap();
+    let job = CompileJob::new("shell", dir.path().join("output"))
+        .with_mixin(acme.to_string_lossy())
+        .with_mixin("docker.io/acme/kit:1");
+
+    // In memory: compiled once, then taken from the cache.
+    let cache = KitCache::new();
+    let first = cache.compiled(&compiler, &job).await.unwrap();
+    let again = cache.compiled(&compiler, &job).await.unwrap();
+    assert_eq!(first.kit_artifacts(), again.kit_artifacts());
+    assert_eq!(runs(), 1);
+    assert_eq!(first.dir(), Some(dir.path().join("output").as_path()));
+    // A mixin changed in its directory is another composition, and a
+    // recompilation compiles again.
+    std::fs::write(acme.join("spec.yaml"), spec("two")).unwrap();
+    cache.compiled(&compiler, &job).await.unwrap();
+    assert_eq!(runs(), 2);
+    cache.recompile(&compiler, &job).await.unwrap();
+    assert_eq!(runs(), 3);
+    // So is a mixin described in code.
+    let tools = Mixin::new("/kits/tools", KitDescriptor::mixin("Tools")).unwrap();
+    let described = job.clone().with_mixin_spec(tools);
+    cache.compiled(&compiler, &described).await.unwrap();
+    assert_eq!(runs(), 4);
+
+    // In a directory: the package goes there, and the next cache takes it.
+    let kept = dir.path().join("cache");
+    let saved = KitCache::new()
+        .with_dir(&kept)
+        .compiled(&compiler, &job)
+        .await
+        .unwrap();
+    assert!(saved.dir().unwrap().starts_with(&kept), "{:?}", saved.dir());
+    assert_eq!(runs(), 5);
+    let reused = KitCache::new()
+        .with_dir(&kept)
+        .compiled(&compiler, &job)
+        .await
+        .unwrap();
+    assert_eq!(reused.dir(), saved.dir());
+    assert_eq!(runs(), 5, "taken from the directory");
 }
 
 #[tokio::test]

@@ -3,11 +3,10 @@
 //!
 //! The daemon cannot resolve kit references by itself: a package captures what
 //! the CLI sends once, and every later sandbox of that kit is created from it.
-//! Packages are cached under `examples/target/kits/<kit>`, and compiled again
-//! when the daemon runs another `sbx` version. A composition with a mixin of
-//! the examples is cached as `<base>+<mixin>`, one with kit arguments as
-//! `<base>@<name>=<value>,…`: delete the first after a change of the
-//! mixin to compile it again.
+//! A `KitCache` keeps the compiled packages under `examples/target/kits/`, one
+//! per composition (base kit, arguments, mixins and the text of their
+//! descriptors), and compiles one again when the daemon runs another `sbx`
+//! version or a mixin of the examples changed.
 //!
 //! [`forged`] needs no CLI: `KitForge` rebuilds a published kit from its image
 //! through the socket, and a `KitCache` keeps it under
@@ -114,20 +113,20 @@ pub async fn package_with_args(
     cached(client, &label, job).await
 }
 
-/// The package of `job`, from the cache while it suits the daemon (compiled
-/// for the `sbx` version it runs, `KitPackage::suits`), else compiled with
-/// the CLI.
+/// The package of `job`, from the cache of the examples while it suits the
+/// daemon (compiled for the `sbx` version it runs, `KitPackage::suits`) and
+/// its mixins are unchanged, else compiled with the CLI.
 async fn cached(client: &Client, label: &str, job: CompileJob) -> Result<KitPackage> {
-    if let Ok(package) = KitPackage::open(&job.output)
-        && package.suits(client.health())
-    {
-        return Ok(package);
-    }
-    eprintln!("compiling the {label} kit with the sbx CLI (first run only, it can take a while)");
+    eprintln!(
+        "the {label} kit, compiled with the sbx CLI or taken from the cache (a first compilation \
+         can take a while)"
+    );
     let work = std::env::temp_dir().join(format!("example-kc-{}", std::process::id()));
-    let compiled = KitCompiler::new("sbx", client.clone(), &work)
-        .compile(&job)
+    let compiler = KitCompiler::new("sbx", client.clone(), &work);
+    let package = KitCache::new()
+        .with_dir(CACHE)
+        .compiled(&compiler, &job)
         .await;
     let _ = std::fs::remove_dir_all(&work);
-    compiled.with_context(|| format!("compiling the {label} kit"))
+    package.with_context(|| format!("compiling the {label} kit"))
 }
