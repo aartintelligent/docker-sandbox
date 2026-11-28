@@ -1,9 +1,0 @@
-{
-  "method": "POST",
-  "request": null,
-  "response": {
-    "message": "resize applied"
-  },
-  "route": "/sandbox/{name}/exec/{exec_id}/resize",
-  "status": 200
-}

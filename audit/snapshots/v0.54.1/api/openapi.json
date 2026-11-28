@@ -404,22 +404,22 @@
             "content": {
               "application/json": {
                 "example": {
-                  "daemon_uptime_seconds": 228909.448733761,
+                  "daemon_uptime_seconds": 300549.10989942,
                   "daemon_version": "v0.54.1",
                   "docker": {
                     "containers": [
                       {
-                        "created": "2026-11-27T15:54:24Z",
-                        "id": "99a72749cf035893a5a80bbd9074fd70072e0e06c485d6f10a74906989907062",
+                        "created": "2026-11-28T11:48:24Z",
+                        "id": "70304460fac369dfbd2556d11c02978ff35e8cce35397daa951aaaf2cdd8ea94",
                         "name": "audit-w",
                         "tracked": true
                       }
                     ],
                     "networks": [
                       {
-                        "created": "2026-11-27T15:54:24.59567501Z",
+                        "created": "2026-11-28T11:48:24.309367485Z",
                         "driver": "gvisor",
-                        "id": "2e0f77262e6e5e33b2fbab60f11c2f2d7c64373fdf5a10c4bf848b2d5161b14e",
+                        "id": "bf06514fb12a9c7d8fcac254cd7f322123783824ecc9c033d965e1d8aa4eaad4",
                         "name": "audit-w",
                         "sandbox_managed": true
                       }
@@ -449,11 +449,11 @@
                       "agent_name": "shell",
                       "custom_secrets": [],
                       "has_proxy_state": true,
-                      "id": "0e69f8f3-1852-4383-af79-5410d0980a56",
-                      "image": "sandbox-kit-assembled:821cf15df4202c4f",
-                      "image_digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                      "id": "ad9dce3f-753a-4010-8786-881b523c6eac",
+                      "image": "sandbox-kit-assembled:7ed1ba819f4b7b6e",
+                      "image_digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                       "kits": [
-                        "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
+                        "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80"
                       ],
                       "mcp_gateway_present": true,
                       "name": "audit-w",
@@ -486,7 +486,7 @@
                     "oauth_token_managers": [
                       {
                         "expired": false,
-                        "expires_at": "2026-11-27T21:49:42Z",
+                        "expires_at": "2026-11-28T13:25:02Z",
                         "has_access_token": true,
                         "has_client_id": false,
                         "has_client_secret": false,
@@ -870,11 +870,11 @@
               "application/json": {
                 "example": {
                   "disk": {
-                    "free_bytes": 288569204736,
+                    "free_bytes": 264573865984,
                     "total_bytes": 982240026624
                   },
                   "info": {
-                    "CapturedAt": "2026-11-27T15:47:56.400584406Z",
+                    "CapturedAt": "2026-11-28T11:41:49.649842052Z",
                     "ContainerdConfig": {
                       "DisabledPlugins": [
                         "io.containerd.server.v1.grpc",
@@ -1043,15 +1043,15 @@
                     },
                     "GoRuntime": "go1.27.4",
                     "Goroutines": [
-                      "goroutine 2600965 [running]:\ngithub.com/docker/docker-next/pkg/diag.captureGoroutines(0xb3cf628)\n\tgithub.com/docker/docker-next@v0.81.0/pkg/diag/goroutines.go:43 +0x75\ngithub.com/docker/docker-next/pk…",
-                      "goroutine 1 [chan receive, 3808 minutes, locked to thread]:\ngithub.com/docker/sandboxes/sandboxd.Run({0xb38e768, 0xbfc3460}, {{0x24ffe004e410, 0x4d}, {0x504180b, 0x4}, {0x0, 0x0}, {0x0, 0x0}, ...})\n\tg…",
-                      "goroutine 72 [syscall, 3808 minutes]:\nos/signal.signal_recv()\n\truntime/sigqueue.go:152 +0x98\nos/signal.loop()\n\tos/signal/signal_unix.go:23 +0x13\ncreated by os/signal.Notify.func2.1 in goroutine 1\n\tos/…",
-                      "… +149 more items"
+                      "goroutine 4077858 [running]:\ngithub.com/docker/docker-next/pkg/diag.captureGoroutines(0xb3cf628)\n\tgithub.com/docker/docker-next@v0.81.0/pkg/diag/goroutines.go:43 +0x75\ngithub.com/docker/docker-next/pk…",
+                      "goroutine 1 [chan receive, 5002 minutes, locked to thread]:\ngithub.com/docker/sandboxes/sandboxd.Run({0xb38e768, 0xbfc3460}, {{0x24ffe004e410, 0x4d}, {0x504180b, 0x4}, {0x0, 0x0}, {0x0, 0x0}, ...})\n\tg…",
+                      "goroutine 72 [syscall, 5002 minutes]:\nos/signal.signal_recv()\n\truntime/sigqueue.go:152 +0x98\nos/signal.loop()\n\tos/signal/signal_unix.go:23 +0x13\ncreated by os/signal.Notify.func2.1 in goroutine 1\n\tos/…",
+                      "… +205 more items"
                     ],
                     "Host": {
                       "Arch": "amd64",
                       "Memory": {
-                        "AvailableBytes": 115671166976,
+                        "AvailableBytes": 110971457536,
                         "TotalBytes": 132431224832
                       },
                       "NumCPU": 20,
@@ -1073,43 +1073,43 @@
                               "CPUIntervalNS": null,
                               "CPUPercent": null,
                               "Errors": "{… 0 fields}",
-                              "RSSBytes": 220729344,
-                              "SampledAt": "2026-11-27T16:47:56.149589199+01:00",
+                              "RSSBytes": 228859904,
+                              "SampledAt": "2026-11-28T12:41:49.399237373+01:00",
                               "StartedAtUnixMS": 1795565957390,
-                              "SystemCPUSeconds": 700.24,
-                              "UserCPUSeconds": 1582.98
+                              "SystemCPUSeconds": 1040.43,
+                              "UserCPUSeconds": 2528.51
                             },
                             {
-                              "CPUIntervalNS": 250711303,
-                              "CPUPercent": 9.069143382148672e-11,
+                              "CPUIntervalNS": 250406767,
+                              "CPUPercent": 9.080172958873436e-11,
                               "Errors": "{… 0 fields}",
-                              "RSSBytes": 220729344,
-                              "SampledAt": "2026-11-27T16:47:56.400300452+01:00",
+                              "RSSBytes": 228859904,
+                              "SampledAt": "2026-11-28T12:41:49.649644103+01:00",
                               "StartedAtUnixMS": 1795565957390,
-                              "SystemCPUSeconds": 700.24,
-                              "UserCPUSeconds": 1582.98
+                              "SystemCPUSeconds": 1040.43,
+                              "UserCPUSeconds": 2528.51
                             }
                           ],
                           "Shim": false,
                           "TaskID": ""
                         }
                       ],
-                      "NumGoroutine": 152,
+                      "NumGoroutine": 208,
                       "Self": {
                         "PID": 2955251,
-                        "RSSBytes": 220729344
+                        "RSSBytes": 228859904
                       },
                       "Shims": {
                         "Count": 0,
                         "TotalRSSBytes": 0
                       },
-                      "UptimeSec": 228518
+                      "UptimeSec": 300151
                     },
                     "SchemaVersion": 1,
                     "State": {
                       "Images": {
                         "Count": 12,
-                        "TotalBytes": 230899
+                        "TotalBytes": 214922
                       },
                       "Sandboxes": {
                         "Running": 0,
@@ -1827,27 +1827,14 @@
                   "images": [
                     {
                       "containers": 0,
-                      "created_at": "2026-11-27T02:24:32.503373223Z",
-                      "id": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
+                      "created_at": "2026-11-27T02:45:19.063365449Z",
+                      "id": "sha256:bd4f4c5355ac4c95d538e25839ad49997641bc4566288bda060699101da7af9f",
                       "names": [
-                        "docker.io/library/sandbox-kit-assembled:a17f21961034ae91",
-                        "docker.io/sbx/claude@sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783"
-                      ],
-                      "shared_size": 0,
-                      "size": 1578855587,
-                      "unique_size": 1578855587
-                    },
-                    {
-                      "containers": 0,
-                      "created_at": "2026-11-27T02:45:21.374703202Z",
-                      "id": "sha256:ce985e32b6a93628c6b67c866e1b2d55513ba4c7ee6e29de805aabe088109c5c",
-                      "names": [
-                        "docker.io/library/sandbox-kit-assembled:b8ac0e203ed3c470",
                         "docker.io/sbx/claude:latest"
                       ],
                       "shared_size": 0,
-                      "size": 1584057165,
-                      "unique_size": 1584057165
+                      "size": 1583157059,
+                      "unique_size": 1583157059
                     },
                     {
                       "containers": 0,
@@ -1860,14 +1847,25 @@
                       "size": 1553528920,
                       "unique_size": 1553502561
                     },
-                    "… +5 more items"
+                    {
+                      "containers": 0,
+                      "created_at": "2026-11-25T01:53:08.194463963Z",
+                      "id": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
+                      "names": [
+                        "docker.io/sbx/claude@sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783"
+                      ],
+                      "shared_size": 0,
+                      "size": 1578855587,
+                      "unique_size": 1578855587
+                    },
+                    "… +8 more items"
                   ],
                   "summaries": [
                     {
                       "active": 0,
-                      "reclaimable": 10979221619,
-                      "size": 10979221619,
-                      "total_count": 8,
+                      "reclaimable": 14612340406,
+                      "size": 14612340406,
+                      "total_count": 11,
                       "type": "Images"
                     },
                     {
@@ -2051,6 +2049,8 @@
           "cp-to-a",
           "create-a",
           "create-a-plain",
+          "create-ab1-plain",
+          "create-ab3-plain",
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
@@ -2058,6 +2058,8 @@
           "create-cr-cred",
           "create-e",
           "create-if-install-fail",
+          "create-ifn-install-fail",
+          "create-ifn-plain",
           "create-k-skills-readwrite",
           "create-m-mcp",
           "create-n-net",
@@ -2164,13 +2166,16 @@
           "port-publish-multi",
           "port-unpublish",
           "port-unpublish-multi",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
           "probe-nq",
           "prune-dry",
+          "remove-ab1-orphan-rule",
           "rm-a",
           "rm-ab",
+          "rm-abc",
           "rm-ag",
           "rm-aw",
           "rm-b",
@@ -2179,6 +2184,7 @@
           "rm-forged-base-sandboxes",
           "rm-forged-claude",
           "rm-forged-sandboxes",
+          "rm-ifn",
           "rm-k",
           "rm-kit-capability-sandboxes",
           "rm-kit-sandboxes",
@@ -2211,7 +2217,7 @@
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 592
+        "x-sample-count": 628
       }
     },
     "/daemon/info": {
@@ -2605,6 +2611,8 @@
           "cp-to-a",
           "create-a",
           "create-a-plain",
+          "create-ab1-plain",
+          "create-ab3-plain",
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
@@ -2612,6 +2620,8 @@
           "create-cr-cred",
           "create-e",
           "create-if-install-fail",
+          "create-ifn-install-fail",
+          "create-ifn-plain",
           "create-k-skills-readwrite",
           "create-m-mcp",
           "create-n-net",
@@ -2714,13 +2724,16 @@
           "port-publish-multi",
           "port-unpublish",
           "port-unpublish-multi",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
           "probe-nq",
           "prune-dry",
+          "remove-ab1-orphan-rule",
           "rm-a",
           "rm-ab",
+          "rm-abc",
           "rm-ag",
           "rm-aw",
           "rm-b",
@@ -2729,6 +2742,7 @@
           "rm-forged-base-sandboxes",
           "rm-forged-claude",
           "rm-forged-sandboxes",
+          "rm-ifn",
           "rm-k",
           "rm-kit-capability-sandboxes",
           "rm-kit-sandboxes",
@@ -2768,7 +2782,7 @@
           "version"
         ],
         "x-observed": true,
-        "x-sample-count": 220
+        "x-sample-count": 233
       }
     },
     "/daemon/settings/{key}": {
@@ -3091,29 +3105,28 @@
                   {
                     "agent": "shell",
                     "created_at": "2026-11-19T17:01:03Z",
-                    "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
-                    "id": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "digest": "sha256:aa2a111941c99992d59c64946f8c56855a242943264dd993251851d055c06ddf",
+                    "id": "sha256:aa2a111941c99992d59c64946f8c56855a242943264dd993251851d055c06ddf",
                     "repository": "docker.io/library/sandbox-kit-assembled",
-                    "size": 229929015,
-                    "tag": "821cf15df4202c4f"
+                    "size": 229714952,
+                    "tag": "10c58844be7f40fc"
                   },
                   {
                     "agent": "shell",
-                    "created_at": "2026-11-27T15:48:40Z",
-                    "digest": "sha256:58c7d2aac263ea884a985ada79bc73e77605460bd5ad09d22d21434297935dfd",
-                    "id": "sha256:58c7d2aac263ea884a985ada79bc73e77605460bd5ad09d22d21434297935dfd",
+                    "created_at": "2026-11-19T17:01:03Z",
+                    "digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
+                    "id": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                     "repository": "docker.io/library/sandbox-kit-assembled",
-                    "size": 230301823,
-                    "tag": "88da6bcc400b5455"
+                    "size": 229810346,
+                    "tag": "10c58844be7f40fc-kit-0"
                   },
                   {
-                    "agent": "claude",
-                    "created_at": "2026-11-24T05:25:46Z",
-                    "digest": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
-                    "id": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
+                    "created_at": "2026-11-28T11:43:11Z",
+                    "digest": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
+                    "id": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
                     "repository": "docker.io/library/sandbox-kit-assembled",
-                    "size": 389469081,
-                    "tag": "a17f21961034ae91"
+                    "size": 6077,
+                    "tag": "10c58844be7f40fc-kit-1"
                   },
                   "… +16 more items"
                 ],
@@ -3203,21 +3216,21 @@
               "application/x-ndjson": {
                 "example": [
                   {
-                    "id": "12acfa76ac88",
+                    "id": "5dd9f443d108",
                     "progressDetail": {
                       "hidecounts": true
                     },
                     "status": "Already exists"
                   },
                   {
-                    "id": "e53759f691d2",
+                    "id": "ef0aef407b96",
                     "progressDetail": {
                       "hidecounts": true
                     },
                     "status": "Already exists"
                   },
                   {
-                    "id": "67c1d5a2503e",
+                    "id": "5d3467ee6c4e",
                     "progressDetail": {
                       "hidecounts": true
                     },
@@ -3225,7 +3238,32 @@
                   }
                 ],
                 "schema": {
-                  "type": "string"
+                  "type": "string",
+                  "x-ndjson-item": {
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "progressDetail": {
+                        "properties": {
+                          "hidecounts": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "hidecounts"
+                        ],
+                        "type": "object"
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "status"
+                    ],
+                    "type": "object"
+                  }
                 }
               }
             },
@@ -3262,7 +3300,6 @@
           "docker"
         ],
         "x-cli-scenarios": [
-          "create-a",
           "image-pull",
           "image-pull-unknown",
           "kit-forge-agent",
@@ -3279,7 +3316,7 @@
             "application/x-ndjson"
           ]
         },
-        "x-sample-count": 10
+        "x-sample-count": 9
       }
     },
     "/docker/images/export": {
@@ -3384,7 +3421,7 @@
                     "exec \"$@\"",
                     "… +1 more items"
                   ],
-                  "id": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                  "id": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                   "user": "1000"
                 },
                 "schema": {
@@ -3432,7 +3469,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "message": "no image \"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\""
+                  "message": "no image \"zz-audit-none:latest\""
                 },
                 "schema": {
                   "properties": {
@@ -3456,6 +3493,8 @@
         "x-cli-scenarios": [
           "create-a",
           "create-a-plain",
+          "create-ab1-plain",
+          "create-ab3-plain",
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
@@ -3463,6 +3502,8 @@
           "create-cr-cred",
           "create-e",
           "create-if-install-fail",
+          "create-ifn-install-fail",
+          "create-ifn-plain",
           "create-k-skills-readwrite",
           "create-m-mcp",
           "create-n-net",
@@ -3488,7 +3529,7 @@
           "kit-compile-net"
         ],
         "x-observed": true,
-        "x-sample-count": 65
+        "x-sample-count": 73
       }
     },
     "/docker/images/load": {
@@ -3556,6 +3597,7 @@
           "create-cq-cred-required",
           "create-cr-cred",
           "create-if-install-fail",
+          "create-ifn-install-fail",
           "create-m-mcp",
           "create-n-net",
           "create-ni-net-install",
@@ -3573,6 +3615,8 @@
           "kit-inspect-cred",
           "kit-validate",
           "kit-validate-net",
+          "load-ab3-net-source",
+          "load-abandoned-source",
           "load-caps-source-0",
           "load-caps-source-1",
           "load-caps-source-2",
@@ -3600,7 +3644,7 @@
             "application/octet-stream"
           ]
         },
-        "x-sample-count": 45
+        "x-sample-count": 49
       }
     },
     "/docker/images/local-metadata": {
@@ -3608,7 +3652,7 @@
         "operationId": "get_docker_images_local_metadata",
         "parameters": [
           {
-            "example": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c032",
+            "example": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f220",
             "in": "query",
             "name": "name",
             "required": false,
@@ -3646,12 +3690,16 @@
         "x-cli-scenarios": [
           "create-a",
           "create-a-plain",
+          "create-ab1-plain",
+          "create-ab3-plain",
           "create-b-static-mcp",
           "create-c-clone",
           "create-cq-cred-required",
           "create-cr-cred",
           "create-e",
           "create-if-install-fail",
+          "create-ifn-install-fail",
+          "create-ifn-plain",
           "create-k-skills-readwrite",
           "create-m-mcp",
           "create-n-net",
@@ -3677,7 +3725,7 @@
           "kit-compile-net"
         ],
         "x-observed": true,
-        "x-sample-count": 34
+        "x-sample-count": 38
       }
     },
     "/docker/images/remove": {
@@ -3699,7 +3747,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "message": "removed image \"docker.io/library/sandbox-kit-assembled:d1e1c32b46271063-template\""
+                  "message": "removed image \"docker.io/library/sandbox-kit-assembled:3aa0410f74947781-template\""
                 },
                 "schema": {
                   "properties": {
@@ -3765,46 +3813,46 @@
                   {
                     "action": "allowed",
                     "data": {
-                      "count": 2,
-                      "host": "audit-net-path.example.invalid:80",
-                      "last_seen": "2026-11-27T16:44:57.042960256+01:00",
+                      "count": 1,
+                      "host": "audit-orphan-control.example.invalid:80",
+                      "last_seen": "2026-11-28T12:38:43.942299094+01:00",
                       "proxy_type": "forward",
                       "rule": "<dial failed>",
-                      "since": "2026-11-27T16:44:54.694642836+01:00"
+                      "since": "2026-11-28T12:38:43.942299094+01:00"
                     },
-                    "id": "f0f7bdd0-a756-414c-a995-7ec58e81d567",
-                    "sandbox_name": "audit-np",
-                    "timestamp": "2026-11-27T16:47:03.132155962+01:00",
-                    "type": "policy.network"
-                  },
-                  {
-                    "action": "allowed",
-                    "data": {
-                      "count": 2,
-                      "host": "audit-net-scheme.example.invalid:80",
-                      "last_seen": "2026-11-27T16:44:57.033515619+01:00",
-                      "proxy_type": "forward",
-                      "rule": "<dial failed>",
-                      "since": "2026-11-27T16:44:54.683582037+01:00"
-                    },
-                    "id": "d8ced441-e934-44fe-9d45-d04f1d8ace9f",
-                    "sandbox_name": "audit-np",
-                    "timestamp": "2026-11-27T16:47:03.132194837+01:00",
+                    "id": "a7840808-1d39-4de7-bc23-39b0cde4fbbd",
+                    "sandbox_name": "audit-ab3",
+                    "timestamp": "2026-11-28T12:41:09.679986133+01:00",
                     "type": "policy.network"
                   },
                   {
                     "action": "allowed",
                     "data": {
                       "count": 1,
-                      "host": "audit-net-port.example.invalid:80",
-                      "last_seen": "2026-11-27T16:44:54.668688997+01:00",
+                      "host": "postman-echo.com:80",
+                      "last_seen": "2026-11-28T12:11:24.006391762+01:00",
                       "proxy_type": "forward",
-                      "rule": "<dial failed>",
-                      "since": "2026-11-27T16:44:54.668688997+01:00"
+                      "rule": "",
+                      "since": "2026-11-28T12:11:24.006391762+01:00"
                     },
-                    "id": "48fc2fbb-b6cc-4926-9ef0-8e013fb5e703",
-                    "sandbox_name": "audit-np",
-                    "timestamp": "2026-11-27T16:47:03.132204547+01:00",
+                    "id": "86b52b72-38c9-498d-880c-e7a39c0bf8e5",
+                    "sandbox_name": "docker-sandbox-proxied-key-1162914",
+                    "timestamp": "2026-11-28T12:41:09.680034311+01:00",
+                    "type": "policy.network"
+                  },
+                  {
+                    "action": "allowed",
+                    "data": {
+                      "count": 1,
+                      "host": "dhi.io:80",
+                      "last_seen": "2026-11-28T12:11:13.22160448+01:00",
+                      "proxy_type": "forward",
+                      "rule": "",
+                      "since": "2026-11-28T12:11:13.22160448+01:00"
+                    },
+                    "id": "f9c9c8db-bf39-49d0-bbe5-6603a46cfcb6",
+                    "sandbox_name": "docker-sandbox-forged-claude-1162914",
+                    "timestamp": "2026-11-28T12:41:09.680041018+01:00",
                     "type": "policy.network"
                   }
                 ],
@@ -4444,66 +4492,66 @@
                 "example": {
                   "allowed_hosts": [
                     {
-                      "count_since": 2,
-                      "host": "audit-net-path.example.invalid:80",
-                      "last_seen": "2026-11-27T16:44:57.042960256+01:00",
+                      "count_since": 1,
+                      "host": "audit-orphan-control.example.invalid:80",
+                      "last_seen": "2026-11-28T12:38:43.942299094+01:00",
                       "proxy_type": "forward",
                       "rule": "<dial failed>",
-                      "since": "2026-11-27T16:44:54.694642836+01:00",
-                      "vm_name": "audit-np"
-                    },
-                    {
-                      "count_since": 2,
-                      "host": "audit-net-scheme.example.invalid:80",
-                      "last_seen": "2026-11-27T16:44:57.033515619+01:00",
-                      "proxy_type": "forward",
-                      "rule": "<dial failed>",
-                      "since": "2026-11-27T16:44:54.683582037+01:00",
-                      "vm_name": "audit-np"
+                      "since": "2026-11-28T12:38:43.942299094+01:00",
+                      "vm_name": "audit-ab3"
                     },
                     {
                       "count_since": 1,
-                      "host": "audit-net-port.example.invalid:80",
-                      "last_seen": "2026-11-27T16:44:54.668688997+01:00",
+                      "host": "postman-echo.com:80",
+                      "last_seen": "2026-11-28T12:11:24.006391762+01:00",
                       "proxy_type": "forward",
-                      "rule": "<dial failed>",
-                      "since": "2026-11-27T16:44:54.668688997+01:00",
-                      "vm_name": "audit-np"
+                      "rule": "",
+                      "since": "2026-11-28T12:11:24.006391762+01:00",
+                      "vm_name": "docker-sandbox-proxied-key-1162914"
+                    },
+                    {
+                      "count_since": 1,
+                      "host": "dhi.io:80",
+                      "last_seen": "2026-11-28T12:11:13.22160448+01:00",
+                      "proxy_type": "forward",
+                      "rule": "",
+                      "since": "2026-11-28T12:11:13.22160448+01:00",
+                      "vm_name": "docker-sandbox-forged-claude-1162914"
                     },
                     "… +97 more items"
                   ],
                   "blocked_hosts": [
                     {
                       "count_since": 1,
-                      "host": "audit-net-other.example.invalid:80",
-                      "last_seen": "2026-11-27T16:45:12.923146373+01:00",
+                      "host": "audit-kit-deny.example.com:80",
+                      "last_seen": "2026-11-28T12:38:43.93451347+01:00",
                       "proxy_type": "forward",
                       "reason": "Denied by local rule",
-                      "rule": "denied: rule \"kit:audit-nk:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-net-other.example.invalid:80)",
-                      "since": "2026-11-27T16:45:12.923146373+01:00",
-                      "vm_name": "audit-nk"
+                      "rule": "denied: rule \"kit:audit-ab3:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-kit-deny.example.com:80)",
+                      "since": "2026-11-28T12:38:43.93451347+01:00",
+                      "vm_name": "audit-ab3"
                     },
                     {
-                      "count_since": 1,
-                      "host": "audit-net-extra.example.invalid:80",
-                      "last_seen": "2026-11-27T16:45:12.91732005+01:00",
-                      "proxy_type": "forward",
-                      "reason": "Denied by local rule",
-                      "rule": "denied: rule \"kit:audit-nk:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-net-extra.example.invalid:80)",
-                      "since": "2026-11-27T16:45:12.91732005+01:00",
-                      "vm_name": "audit-nk"
+                      "count_since": 2,
+                      "host": "172.17.0.0:3128",
+                      "last_seen": "2026-11-28T12:11:13.458043699+01:00",
+                      "proxy_type": "network",
+                      "reason": "Direct TCP connections not allowed",
+                      "rule": "<tcp proxy policy>",
+                      "since": "2026-11-28T12:11:13.458005473+01:00",
+                      "vm_name": "docker-sandbox-forged-claude-1162914"
                     },
                     {
-                      "count_since": 1,
-                      "host": "audit-net-allowed.example.invalid:80",
-                      "last_seen": "2026-11-27T16:45:12.908057978+01:00",
-                      "proxy_type": "forward",
-                      "reason": "Denied by local rule",
-                      "rule": "denied: rule \"kit:audit-nk:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-net-allowed.example.invalid:80)",
-                      "since": "2026-11-27T16:45:12.908057978+01:00",
-                      "vm_name": "audit-nk"
+                      "count_since": 2,
+                      "host": "[fd44:49a1:423a::]:3128",
+                      "last_seen": "2026-11-28T12:11:13.457820167+01:00",
+                      "proxy_type": "network",
+                      "reason": "Direct TCP connections not allowed",
+                      "rule": "<tcp proxy policy>",
+                      "since": "2026-11-28T12:11:13.457741938+01:00",
+                      "vm_name": "docker-sandbox-forged-claude-1162914"
                     },
-                    "… +42 more items"
+                    "… +97 more items"
                   ]
                 },
                 "schema": {
@@ -4899,10 +4947,14 @@
           "policy-ls-x",
           "policy-ls-y",
           "policy-ls-y-swapped",
-          "policy-profile-ls"
+          "policy-profile-ls",
+          "rules-ab-after-rm",
+          "rules-ab-orphaned",
+          "rules-ab1-plain",
+          "rules-ifn-after"
         ],
         "x-observed": true,
-        "x-sample-count": 22
+        "x-sample-count": 26
       },
       "post": {
         "operationId": "post_policy_network_rules",
@@ -4992,7 +5044,7 @@
                             "udp"
                           ],
                           "resource": "audit-deny.example.com",
-                          "rule_id": "96816e00-3166-49fa-9fa5-64103258334c"
+                          "rule_id": "f063b1fd-f6db-4011-89ae-bbdea2227387"
                         }
                       ],
                       "resources": [
@@ -5108,6 +5160,7 @@
           "policy-rm-global",
           "policy-rm-id-unknown",
           "policy-rm-sbx",
+          "remove-ab1-orphan-rule",
           "rules-invalid-action",
           "rules-no-action"
         ],
@@ -5117,7 +5170,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 17
+        "x-sample-count": 18
       }
     },
     "/policy/network/setup": {
@@ -5154,6 +5207,8 @@
           "cp-to-a",
           "create-a",
           "create-a-plain",
+          "create-ab1-plain",
+          "create-ab3-plain",
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
@@ -5161,6 +5216,8 @@
           "create-cr-cred",
           "create-e",
           "create-if-install-fail",
+          "create-ifn-install-fail",
+          "create-ifn-plain",
           "create-k-skills-readwrite",
           "create-m-mcp",
           "create-n-net",
@@ -5213,6 +5270,7 @@
           "policy-ls-x",
           "policy-ls-y",
           "policy-ls-y-swapped",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
@@ -5227,7 +5285,7 @@
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 79
+        "x-sample-count": 84
       },
       "post": {
         "operationId": "post_policy_network_setup",
@@ -5404,7 +5462,7 @@
                   {
                     "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of it…",
                     "kitHubPublication": {
-                      "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                      "digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                       "repository": "sbx/shell"
                     },
                     "kitUsage": {
@@ -5429,7 +5487,7 @@
                       ],
                       "schemaVersion": "3",
                       "sourceURL": "https://github.com/docker-hardened-images/definitions",
-                      "template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
+                      "template": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80"
                     },
                     "storageSource": "oci://docker.io/sbx/shell:latest",
                     "v3": {
@@ -5471,7 +5529,7 @@
                       "sourceUrl": "https://github.com/docker-hardened-images/definitions",
                       "version": "1.1.0"
                     },
-                    "v3Digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "v3Digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                     "v3Effective": {
                       "author": "Docker, Inc. https://docker.com",
                       "capabilities": [
@@ -5509,7 +5567,7 @@
                       "exec \"$@\"",
                       "… +1 more items"
                     ],
-                    "v3Reference": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "v3Reference": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                     "v3Selection": {
                       "capabilities": [
                         {
@@ -5591,7 +5649,7 @@
                   }
                 ],
                 "kits": [
-                  "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
+                  "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80"
                 ],
                 "name": "audit-w",
                 "pull_policy": "missing",
@@ -7718,16 +7776,16 @@
                   {
                     "result": {
                       "agent": "shell",
-                      "id": "d253886d-f32c-4ce8-9e39-4d475403253c",
+                      "id": "aaeb7848-0a21-4d36-888e-2b45fd94bbce",
                       "mcp": {
-                        "port": 41573,
+                        "port": 46403,
                         "state": "ready",
                         "static": false,
                         "url": "http://mcp-gateway.docker.internal/mcp"
                       },
-                      "name": "audit-k",
+                      "name": "audit-c",
                       "status": "running",
-                      "workspace": ""
+                      "workspace": "/tmp/docker-sandbox-audit-work/repo"
                     }
                   }
                 ],
@@ -7869,9 +7927,9 @@
               "application/json": {
                 "example": {
                   "agent": "shell",
-                  "id": "40a18359-9754-42e3-985b-a42a9a862347",
+                  "id": "a57c9c64-3246-483f-963e-a7edc4abad8e",
                   "mcp": {
-                    "port": 33521,
+                    "port": 45215,
                     "state": "ready",
                     "static": false,
                     "url": "http://mcp-gateway.docker.internal/mcp"
@@ -7964,6 +8022,32 @@
               }
             },
             "description": "Bad Request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "sandbox_name_conflict",
+                  "message": "sandbox \"audit-abc\" already exists"
+                },
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Conflict"
           }
         },
         "tags": [
@@ -7972,6 +8056,14 @@
         "x-cli-scenarios": [
           "create-a",
           "create-a-plain",
+          "create-ab1-abandoned",
+          "create-ab1-plain",
+          "create-ab2-abandoned",
+          "create-ab2-again",
+          "create-ab3-abandoned",
+          "create-ab3-plain",
+          "create-abc",
+          "create-abc-taken",
           "create-ag",
           "create-b-from-template",
           "create-b-static-mcp",
@@ -7992,6 +8084,8 @@
           "create-h-forged",
           "create-i-forged",
           "create-if-install-fail",
+          "create-ifn-install-fail",
+          "create-ifn-plain",
           "create-j-forged",
           "create-k-skills-readwrite",
           "create-m-mcp",
@@ -8027,7 +8121,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 55,
+        "x-sample-count": 65,
         "x-streaming": "Response never completed during capture (long-lived stream or hijacked connection)"
       }
     },
@@ -8044,7 +8138,7 @@
             }
           },
           {
-            "example": "02707201-4599-4a1f-b5c7-cc1a5be6f7de",
+            "example": "050f1157-0479-411d-a1bb-ac2cab2ad92d",
             "in": "query",
             "name": "expected_id",
             "required": false,
@@ -8145,6 +8239,7 @@
           "kit-compile-net",
           "rm-a",
           "rm-ab",
+          "rm-abc",
           "rm-ag",
           "rm-aw",
           "rm-b",
@@ -8153,6 +8248,7 @@
           "rm-forged-base-sandboxes",
           "rm-forged-claude",
           "rm-forged-sandboxes",
+          "rm-ifn",
           "rm-k",
           "rm-kit-capability-sandboxes",
           "rm-kit-sandboxes",
@@ -8164,7 +8260,7 @@
           "sandbox-delete-unknown"
         ],
         "x-observed": true,
-        "x-sample-count": 54
+        "x-sample-count": 59
       },
       "get": {
         "operationId": "get_sandbox_name",
@@ -8198,7 +8294,7 @@
                     }
                   ],
                   "agent": "shell",
-                  "created_at": "2026-11-27T16:54:24+01:00",
+                  "created_at": "2026-11-28T12:48:24+01:00",
                   "effective_working_dir": "/tmp/docker-sandbox-audit-work/fixtures/mountdir",
                   "host_mounts": [
                     {
@@ -8218,18 +8314,18 @@
                     },
                     "… +1 more items"
                   ],
-                  "id": "0e69f8f3-1852-4383-af79-5410d0980a56",
+                  "id": "ad9dce3f-753a-4010-8786-881b523c6eac",
                   "labels": {
                     "com.docker.container.etc-hosts": "disabled",
                     "com.docker.container.fuse": "true",
                     "com.docker.sandbox.agent": "shell",
                     "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
                     "com.docker.sandbox.createdVersion": "v0.54.1",
-                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:821cf15df4202c4f",
-                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
-                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\",\"digest\":\"sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a…",
+                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:7ed1ba819f4b7b6e",
+                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
+                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80\",\"digest\":\"sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056…",
                     "com.docker.sandbox.kit-workspace-dir": "false",
-                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\"]",
+                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80\"]",
                     "com.docker.sandbox.mount-snapshot": "v1:f689acaba707cb874499c2b0fd10ce3ccca81eb61a964828a05772cd1ba5adc5",
                     "com.docker.sandbox.name": "audit-w",
                     "com.docker.sandbox.skillsReserved": "true",
@@ -8241,7 +8337,7 @@
                     "com.docker.sdk.lang": "go",
                     "docker/sandbox": "true"
                   },
-                  "last_used_at": "2026-11-27T15:54:24.708136496Z",
+                  "last_used_at": "2026-11-28T11:48:24.381588799Z",
                   "name": "audit-w",
                   "runtime_mounts": [],
                   "status": "running",
@@ -8461,6 +8557,8 @@
           "cp-to-a",
           "create-a",
           "create-a-plain",
+          "create-ab1-plain",
+          "create-ab3-plain",
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
@@ -8468,6 +8566,8 @@
           "create-cr-cred",
           "create-e",
           "create-if-install-fail",
+          "create-ifn-install-fail",
+          "create-ifn-plain",
           "create-k-skills-readwrite",
           "create-m-mcp",
           "create-n-net",
@@ -8497,6 +8597,8 @@
           "exec-tty-sized",
           "exec-w-mounts",
           "inspect-a",
+          "inspect-ab1-after",
+          "inspect-ab2-after",
           "inspect-c",
           "inspect-cr",
           "inspect-e-after-agent",
@@ -8538,12 +8640,14 @@
           "policy-ls-y-swapped",
           "port-publish",
           "port-publish-multi",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
           "probe-nq",
           "rm-a",
           "rm-ab",
+          "rm-abc",
           "rm-ag",
           "rm-aw",
           "rm-b",
@@ -8552,6 +8656,7 @@
           "rm-forged-base-sandboxes",
           "rm-forged-claude",
           "rm-forged-sandboxes",
+          "rm-ifn",
           "rm-k",
           "rm-kit-capability-sandboxes",
           "rm-kit-sandboxes",
@@ -8577,7 +8682,7 @@
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 239
+        "x-sample-count": 255
       }
     },
     "/sandbox/{name}/agent/session": {
@@ -8668,7 +8773,7 @@
             "description": "Switching Protocols (raw stream after the upgrade)",
             "headers": {
               "Sandboxes-Exec-Id": {
-                "example": "4b8dee358645ae767469690f851cf21410eeb51e676b555844c4e6d812709d97",
+                "example": "7f3960c465b05ba37f5fda4b5af747e46f623b420e17796fe6c875df64d52851",
                 "schema": {
                   "type": "string"
                 }
@@ -8905,6 +9010,7 @@
           "kit-add",
           "port-publish",
           "port-publish-multi",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
@@ -8930,7 +9036,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 42
+        "x-sample-count": 43
       }
     },
     "/sandbox/{name}/debug/vm": {
@@ -9394,7 +9500,7 @@
             "description": "Switching Protocols (raw stream after the upgrade)",
             "headers": {
               "Sandboxes-Exec-Id": {
-                "example": "58f244c33db27dfc014086649be3c09c8fb4986ccb281d84b435db79e00a747c",
+                "example": "5f86ba6de1aea94968a9a76b8b5333378e4e97d7b6fc837ae1c10ea8d52213fe",
                 "schema": {
                   "type": "string"
                 }
@@ -9438,6 +9544,7 @@
           "exec-tty",
           "exec-tty-sized",
           "exec-w-mounts",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
@@ -9458,7 +9565,7 @@
             "tcp"
           ]
         },
-        "x-sample-count": 18
+        "x-sample-count": 19
       }
     },
     "/sandbox/{name}/exec/{exec_id}": {
@@ -9488,7 +9595,7 @@
               "application/json": {
                 "example": {
                   "exit_code": 0,
-                  "id": "58f244c33db27dfc014086649be3c09c8fb4986ccb281d84b435db79e00a747c",
+                  "id": "5f86ba6de1aea94968a9a76b8b5333378e4e97d7b6fc837ae1c10ea8d52213fe",
                   "running": false
                 },
                 "schema": {
@@ -9551,6 +9658,7 @@
           "exec-tty",
           "exec-tty-sized",
           "exec-w-mounts",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
@@ -9565,7 +9673,7 @@
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 23
+        "x-sample-count": 24
       }
     },
     "/sandbox/{name}/exec/{exec_id}/resize": {
@@ -9608,27 +9716,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "message": "resize applied"
-                },
-                "schema": {
-                  "properties": {
-                    "message": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "message"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "OK"
-          },
           "404": {
             "content": {
               "application/json": {
@@ -9655,7 +9742,7 @@
               "application/json": {
                 "example": {
                   "code": "exec_not_running",
-                  "message": "exec \"6ac96fea959f02c14cfc04ec6b8935324f2d563e6ae2a7e9fd907b3843640d0b\" is no longer running"
+                  "message": "exec \"dbd746cf86fa301ecddda4e201fe349272591714e5e8e3b61972c35aa2f21efe\" is no longer running"
                 },
                 "schema": {
                   "properties": {
@@ -10473,7 +10560,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "port": 39025,
+                  "port": 39305,
                   "state": "ready",
                   "static": false,
                   "url": "http://mcp-gateway.docker.internal/mcp"
@@ -10553,6 +10640,7 @@
           "inspect-w-json",
           "loaded-gateway",
           "mcp-gateway-unknown-sandbox",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
@@ -10568,7 +10656,7 @@
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 29
+        "x-sample-count": 30
       }
     },
     "/sandbox/{name}/mcp/gateway/servers": {
@@ -11469,7 +11557,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "image_id": "sha256:58c7d2aac263ea884a985ada79bc73e77605460bd5ad09d22d21434297935dfd",
+                  "image_id": "sha256:a83508f59a653ef03d9eac1a6baf3c823a3b27e17d9cd21d51af44ba622dbaa0",
                   "tag": "docker.io/library/audit-snap:v1"
                 },
                 "schema": {
@@ -11578,12 +11666,15 @@
           "cp-to-a",
           "create-a",
           "create-a-plain",
+          "create-ab1-plain",
+          "create-ab3-plain",
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
           "create-cq-cred-required",
           "create-cr-cred",
           "create-e",
+          "create-ifn-plain",
           "create-k-skills-readwrite",
           "create-m-mcp",
           "create-n-net",
@@ -11617,6 +11708,7 @@
           "kit-compile-cred-echo",
           "kit-compile-json",
           "kit-compile-net",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
@@ -11650,7 +11742,7 @@
           "verify-mixin"
         ],
         "x-observed": true,
-        "x-sample-count": 78,
+        "x-sample-count": 82,
         "x-streaming": "Response never completed during capture (long-lived stream or hijacked connection)"
       }
     },
@@ -11781,7 +11873,7 @@
                     }
                   ],
                   "agent": "shell",
-                  "created_at": "2026-11-27T16:54:24+01:00",
+                  "created_at": "2026-11-28T12:48:24+01:00",
                   "effective_working_dir": "/tmp/docker-sandbox-audit-work/fixtures/mountdir",
                   "host_mounts": [
                     {
@@ -11801,18 +11893,18 @@
                     },
                     "… +1 more items"
                   ],
-                  "id": "0e69f8f3-1852-4383-af79-5410d0980a56",
+                  "id": "ad9dce3f-753a-4010-8786-881b523c6eac",
                   "labels": {
                     "com.docker.container.etc-hosts": "disabled",
                     "com.docker.container.fuse": "true",
                     "com.docker.sandbox.agent": "shell",
                     "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
                     "com.docker.sandbox.createdVersion": "v0.54.1",
-                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:821cf15df4202c4f",
-                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
-                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\",\"digest\":\"sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a…",
+                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:7ed1ba819f4b7b6e",
+                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
+                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80\",\"digest\":\"sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056…",
                     "com.docker.sandbox.kit-workspace-dir": "false",
-                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\"]",
+                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80\"]",
                     "com.docker.sandbox.mount-snapshot": "v1:f689acaba707cb874499c2b0fd10ce3ccca81eb61a964828a05772cd1ba5adc5",
                     "com.docker.sandbox.name": "audit-w",
                     "com.docker.sandbox.skillsReserved": "true",
@@ -11824,7 +11916,7 @@
                     "com.docker.sdk.lang": "go",
                     "docker/sandbox": "true"
                   },
-                  "last_used_at": "2026-11-27T15:54:27.09298841Z",
+                  "last_used_at": "2026-11-28T11:48:26.794459172Z",
                   "name": "audit-w",
                   "runtime_mounts": [],
                   "status": "running",
@@ -12008,12 +12100,15 @@
           "cp-to-a",
           "create-a",
           "create-a-plain",
+          "create-ab1-plain",
+          "create-ab3-plain",
           "create-b-from-template",
           "create-b-static-mcp",
           "create-c-clone",
           "create-cq-cred-required",
           "create-cr-cred",
           "create-e",
+          "create-ifn-plain",
           "create-k-skills-readwrite",
           "create-m-mcp",
           "create-n-net",
@@ -12047,6 +12142,7 @@
           "kit-compile-net",
           "port-publish",
           "port-publish-multi",
+          "probe-ab3-orphan-deny",
           "probe-nk",
           "probe-np-default",
           "probe-np-forms",
@@ -12077,7 +12173,7 @@
             "application/json"
           ]
         },
-        "x-sample-count": 70
+        "x-sample-count": 74
       }
     },
     "/sandbox/{name}/stop": {
@@ -12112,21 +12208,21 @@
               "application/json": {
                 "example": {
                   "agent": "shell",
-                  "created_at": "2026-11-27T16:48:06+01:00",
+                  "created_at": "2026-11-28T12:41:59+01:00",
                   "effective_working_dir": "/home/agent/workspace",
                   "host_mounts": [],
-                  "id": "b54bd14c-f495-4b97-9afc-29b6ceef1de2",
+                  "id": "f8c82c2c-6701-4dbf-99c6-0ef000371e3f",
                   "labels": {
                     "com.docker.container.etc-hosts": "disabled",
                     "com.docker.container.fuse": "true",
                     "com.docker.sandbox.agent": "shell",
                     "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
                     "com.docker.sandbox.createdVersion": "v0.54.1",
-                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:821cf15df4202c4f",
-                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
-                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\",\"digest\":\"sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a…",
+                    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:7ed1ba819f4b7b6e",
+                    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
+                    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80\",\"digest\":\"sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056…",
                     "com.docker.sandbox.kit-workspace-dir": "false",
-                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\"]",
+                    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80\"]",
                     "com.docker.sandbox.mount-snapshot": "v1:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                     "com.docker.sandbox.name": "audit-a",
                     "com.docker.sandbox.skillsReserved": "true",
@@ -12138,7 +12234,7 @@
                     "com.docker.sdk.lang": "go",
                     "docker/sandbox": "true"
                   },
-                  "last_used_at": "2026-11-27T15:48:33.070372843Z",
+                  "last_used_at": "2026-11-28T11:42:20.782420287Z",
                   "name": "audit-a",
                   "runtime_mounts": [],
                   "status": "stopped",
@@ -12284,12 +12380,12 @@
           "content": {
             "application/json": {
               "example": {
-                "docker_name_override": "audit-a-swap-a5ee1b83",
+                "docker_name_override": "audit-a-swap-a9171d2c",
                 "kit_artifacts": [
                   {
                     "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of it…",
                     "kitHubPublication": {
-                      "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                      "digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                       "repository": "sbx/shell"
                     },
                     "kitUsage": {
@@ -12314,9 +12410,9 @@
                       ],
                       "schemaVersion": "3",
                       "sourceURL": "https://github.com/docker-hardened-images/definitions",
-                      "template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
+                      "template": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80"
                     },
-                    "storageSource": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "storageSource": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                     "v3": {
                       "author": "Docker, Inc. https://docker.com",
                       "capabilities": [
@@ -12356,7 +12452,7 @@
                       "sourceUrl": "https://github.com/docker-hardened-images/definitions",
                       "version": "1.1.0"
                     },
-                    "v3Digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "v3Digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                     "v3Effective": {
                       "author": "Docker, Inc. https://docker.com",
                       "capabilities": [
@@ -12394,12 +12490,12 @@
                       "exec \"$@\"",
                       "… +1 more items"
                     ],
-                    "v3Reference": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                    "v3Reference": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                     "v3Selection": {
                       "capabilities": [
                         {
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                            "kit": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                             "path": "capabilities[0]"
                           },
                           "type": "com.docker.sandbox/sbx@1"
@@ -12411,7 +12507,7 @@
                           },
                           "optional": true,
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                            "kit": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                             "path": "capabilities[2]"
                           },
                           "type": "com.docker.sandbox/agent-context@2"
@@ -12430,7 +12526,7 @@
                           ],
                           "path": "capabilities[0]",
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                            "kit": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                             "path": "capabilities[0]"
                           }
                         },
@@ -12446,7 +12542,7 @@
                           ],
                           "path": "capabilities[2]",
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                            "kit": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                             "path": "capabilities[2]"
                           }
                         }
@@ -12467,7 +12563,7 @@
                             "capabilities[1]"
                           ],
                           "source": {
-                            "kit": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                            "kit": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                             "path": "capabilities[1]"
                           }
                         }
@@ -12569,7 +12665,7 @@
                   }
                 ],
                 "kit_refs": [
-                  "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+                  "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
                   "/tmp/docker-sandbox-audit-work/kits/audit-mixin-v3"
                 ]
               },
@@ -13592,9 +13688,9 @@
             "content": {
               "application/json": {
                 "example": {
-                  "committed_image_id": "sha256:1778eb1e38019e231d453216be821c99bec820cffe421f95544e090e10619f20",
-                  "container_id": "b749f9a5c68582d88a35fee79354dcbad0fd7508d6184fb46a189eaef7087c68",
-                  "docker_name": "audit-a-swap-a5ee1b83"
+                  "committed_image_id": "sha256:aee338c40b03d1ff4577afb4e56376a90e8c9a29bfcf688baf4e42d8239cfb5d",
+                  "container_id": "565381d8df2e8b474c5ac0c728311128f2759d001f5aaf02213a41dcfca1b578",
+                  "docker_name": "audit-a-swap-a9171d2c"
                 },
                 "schema": {
                   "properties": {

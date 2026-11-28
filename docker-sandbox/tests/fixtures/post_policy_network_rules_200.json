@@ -26,7 +26,7 @@
               "udp"
             ],
             "resource": "audit-deny.example.com",
-            "rule_id": "96816e00-3166-49fa-9fa5-64103258334c"
+            "rule_id": "f063b1fd-f6db-4011-89ae-bbdea2227387"
           }
         ],
         "resources": [
