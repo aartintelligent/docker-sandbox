@@ -54,11 +54,13 @@ compiler = [
     "tokio/sync",
     "tokio/time",
 ]
-# `KitForge`, `KitDescriptor` and `Mixin`: writes kit packages without the `sbx`
-# CLI, the mixins forged from their descriptor and the base kit rebuilt from its
-# published image. Needs the SHA-256 digests of the OCI image layouts it writes
-# (`sha2`), and the patterns kit arguments declare for their values (`regex`).
-forge = ["dep:regex", "dep:sha2"]
+# `KitForge`, `KitDescriptor`, `Mixin` and `KitCache`: writes kit packages
+# without the `sbx` CLI, the mixins forged from their descriptor and the base kit
+# rebuilt from its published image, and keeps them by composition. Needs the
+# SHA-256 digests of the OCI image layouts it writes and of the compositions it
+# keeps (`sha2`), the patterns kit arguments declare for their values (`regex`),
+# and the lock a composition is forged under once at a time (`tokio/sync`).
+forge = ["dep:regex", "dep:sha2", "dep:tokio", "tokio/sync"]
 # Runs the integration tests against the real daemon of the current user
 # (`tests/live.rs`); it adds no code to the library.
 live = []

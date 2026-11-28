@@ -146,6 +146,14 @@ for and to the version of the crate that forged it, a compiled one to the
 `sbx` version that compiled it: `KitPackage::suits` says whether a package
 still suits a daemon, or is to be made again.
 
+`KitCache` does that for a program: `cache.package(&forge)` forges the
+package of a composition once, then hands it back while it suits the daemon.
+It keeps the packages in memory, and in a directory with `with_dir`, where the
+next process finds them. A composition is its base kit, its arguments and its
+mixins, the text of their descriptors included, so a mixin changed is forged
+again. The cache does not ask the registry whether a published kit moved:
+`cache.refresh(&forge)` forges it again when asked.
+
 ## MCP servers for the agent
 
 The daemon only loads into the gateway of a sandbox the MCP servers registered
@@ -192,7 +200,7 @@ repository run all of this against the real daemon.
 
 | Feature | Adds |
 |---|---|
-| `forge` (default) | `KitForge`, `KitDescriptor`, `LifecycleStep`, `Mixin` and `McpServer` |
+| `forge` (default) | `KitForge`, `KitDescriptor`, `LifecycleStep`, `Mixin`, `McpServer` and `KitCache` |
 | `compiler` | `KitCompiler` and `CompileJob`; needs the `sbx` CLI at run time |
 | `live` | Nothing to the library: runs the integration tests against the real daemon |
 

@@ -37,11 +37,13 @@
 mod args;
 mod artifact;
 mod base;
+mod cache;
 mod descriptor;
 mod export;
 mod mcp;
 mod oci;
 
+pub use self::cache::KitCache;
 pub use self::descriptor::{KitDescriptor, LifecycleStep};
 pub use self::mcp::McpServer;
 
@@ -367,6 +369,17 @@ pub struct KitForge {
 }
 
 impl KitForge {
+    /// The client of the daemon the package is forged for.
+    pub(super) fn client(&self) -> &Client {
+        &self.client
+    }
+
+    /// The key of the composition: a digest of its base kit, its arguments
+    /// and its mixins, the text of their descriptors included.
+    pub(super) fn composition_key(&self) -> String {
+        composition_key(self.base.as_ref(), &self.args, &self.mixins)
+    }
+
     /// Forges packages for the daemon of `client`.
     #[must_use]
     pub fn new(client: Client) -> Self {
@@ -729,6 +742,31 @@ impl KitForge {
     }
 }
 
+/// The key of the composition of `base`, `args` and `mixins`: the first 16
+/// hexadecimal digits of a SHA-256 digest of what they are.
+fn composition_key(
+    base: Option<&Base>,
+    args: &BTreeMap<String, String>,
+    mixins: &[Mixin],
+) -> String {
+    let base = match base {
+        None => Value::Null,
+        Some(Base::Agent(agent)) => json!({ "agent": agent.name() }),
+        Some(Base::Published(reference)) => json!({ "image": reference }),
+        Some(Base::Cli(kit)) => json!({ "cli": kit }),
+        Some(Base::Package(package)) => {
+            json!({ "package": package.kit_refs().first(), "artifact": package.kit_artifacts().first() })
+        }
+    };
+    let mixins: Vec<Value> = mixins
+        .iter()
+        .map(|mixin| json!({ "reference": mixin.reference, "spec": mixin.spec }))
+        .collect();
+    let composition = json!({ "base": base, "args": args, "mixins": mixins });
+    let digest = oci::digest(composition.to_string().as_bytes());
+    digest["sha256:".len().."sha256:".len() + 16].to_owned()
+}
+
 /// Path of the `index`-th image archive inside a package.
 fn image_file(index: usize) -> String {
     format!("images/{index:02}.oci.tar")
@@ -868,6 +906,42 @@ mod tests {
             let error = Mixin::from_ref(&other).unwrap_err().to_string();
             assert!(error.contains(expected), "{error}");
         }
+    }
+
+    #[test]
+    fn compositions_are_keyed_by_what_they_are() {
+        let mixin = |text: &str| {
+            Mixin::new(
+                "/kits/acme",
+                KitDescriptor::mixin("Acme").with_description(text),
+            )
+            .unwrap()
+        };
+        let none = BTreeMap::new();
+        let args = BTreeMap::from([("model".to_owned(), "m".to_owned())]);
+        let package =
+            KitPackage::in_memory(serde_json::json!({ "name": "{{name}}" }), Value::Null, [])
+                .unwrap();
+        let bases = [
+            None,
+            Some(Base::Agent(Agent::Shell)),
+            Some(Base::Published("docker.io/sbx/shell:latest".into())),
+            Some(Base::Cli("./kit".into())),
+            Some(Base::Package(package)),
+        ];
+        let mut keys: Vec<String> = bases
+            .iter()
+            .map(|base| composition_key(base.as_ref(), &none, &[]))
+            .collect();
+        let agent = bases[1].as_ref();
+        keys.push(composition_key(agent, &args, &[]));
+        keys.push(composition_key(agent, &none, &[mixin("one")]));
+        // The same mixin with another descriptor is another composition.
+        keys.push(composition_key(agent, &none, &[mixin("two")]));
+        assert!(keys.iter().all(|key| key.len() == 16));
+        let distinct: BTreeSet<&String> = keys.iter().collect();
+        assert_eq!(distinct.len(), keys.len(), "{keys:?}");
+        assert_eq!(composition_key(agent, &none, &[mixin("one")]), keys[6]);
     }
 
     #[test]
