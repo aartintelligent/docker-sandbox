@@ -180,6 +180,43 @@ impl Mixin {
         Self::read_dir(dir.as_ref())
     }
 
+    /// Writes the mixin into the directory `dir`, created if needed, as the
+    /// CLI reads a local kit: its `spec.yaml`, the descriptor in JSON behind
+    /// its `# syntax=` line. Returns the mixin of that directory, named after
+    /// it and listed under its canonical path, as the CLI lists the kit in
+    /// the packages it compiles (`sbx create --kit <dir>`, `KitCompiler`).
+    ///
+    /// ```no_run
+    /// use docker_sandbox_kit::{KitDescriptor, LifecycleStep, Mixin};
+    ///
+    /// let tools = KitDescriptor::mixin("Acme tools")
+    ///     .with_install(LifecycleStep::new("pip install acme-cli").as_user("agent"));
+    /// let saved = Mixin::new("/kits/acme-tools", tools)?.save("/var/lib/kits/acme-tools")?;
+    /// assert_eq!(saved.name(), "acme-tools");
+    /// # Ok::<(), docker_sandbox_kit::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Client`] ([`docker_sandbox::Error::File`]) when the
+    /// directory or its `spec.yaml` cannot be written, and as
+    /// [`Mixin::read`] when they cannot be read again.
+    pub fn save(&self, dir: impl AsRef<Path>) -> Result<Self> {
+        self.save_to(dir.as_ref())
+    }
+
+    /// [`Mixin::save`], compiled once whatever the type of path.
+    fn save_to(&self, dir: &Path) -> Result<Self> {
+        let file_error = |path: &Path| {
+            let path = path.to_owned();
+            move |source| docker_sandbox::Error::File { path, source }
+        };
+        std::fs::create_dir_all(dir).map_err(file_error(dir))?;
+        let spec = dir.join("spec.yaml");
+        std::fs::write(&spec, &self.spec).map_err(file_error(&spec))?;
+        Self::read_dir(dir)
+    }
+
     /// [`Mixin::read`], compiled once whatever the type of path.
     fn read_dir(dir: &Path) -> Result<Self> {
         let file_error = |path: &Path| {
@@ -720,6 +757,40 @@ mod tests {
         );
         let refused = renamed(Error::Forge("f".to_owned()), Path::new("acme"));
         assert_eq!(refused.to_string(), "kit forging refused: f");
+    }
+
+    #[test]
+    fn mixins_are_saved_as_the_cli_reads_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let descriptor = KitDescriptor::mixin("Acme")
+            .with_install(LifecycleStep::new("make tools").as_user("agent"));
+        let mixin = Mixin::new("/kits/acme-tools", descriptor).unwrap();
+        let output = dir.path().join("kits/acme-tools");
+        let saved = mixin.save(&output).unwrap();
+        assert_eq!(saved.name(), "acme-tools");
+        assert_eq!(saved.descriptor(), mixin.descriptor());
+        assert_eq!(
+            saved.reference(),
+            output.canonicalize().unwrap().display().to_string()
+        );
+        assert_eq!(
+            std::fs::read_to_string(output.join("spec.yaml")).unwrap(),
+            mixin.spec
+        );
+        assert_eq!(Mixin::read(&output).unwrap(), saved);
+
+        // Under a file, nothing can be written.
+        let file = dir.path().join("file");
+        std::fs::write(&file, "x").unwrap();
+        let error = mixin.save(file.join("acme")).unwrap_err().to_string();
+        assert!(error.starts_with("cannot access "), "{error}");
+        // A directory named `spec.yaml` takes no file of that name.
+        std::fs::create_dir_all(dir.path().join("taken/spec.yaml")).unwrap();
+        let error = mixin
+            .save(dir.path().join("taken"))
+            .unwrap_err()
+            .to_string();
+        assert!(error.starts_with("cannot access "), "{error}");
     }
 
     #[test]
