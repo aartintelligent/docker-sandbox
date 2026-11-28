@@ -15,6 +15,10 @@
 //! - a **mixin read from its directory**, [`json-mixin`](../json-mixin/spec.yaml),
 //!   a `spec.yaml` written in the JSON subset of YAML (`Mixin::read`).
 //!
+//! Kits are also named as the CLI takes them (`KitRef`): `shell` is the agent,
+//! a directory is a mixin, and a base kit in a directory is refused, since
+//! only the CLI builds it.
+//!
 //! Before anything is forged, the example shows what a forged mixin may not
 //! declare: the library refuses it with a message, rather than sending the
 //! daemon a kit it would half apply. Its error tells a refused kit
@@ -45,7 +49,7 @@ use docker_sandbox::Client;
 use docker_sandbox::exec::ExecSpec;
 use docker_sandbox::kit::{ImageArchive, KitPackage, PackageImage};
 use docker_sandbox::sandbox::{CreateRequest, Sandbox};
-use docker_sandbox_kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
+use docker_sandbox_kit::{KitDescriptor, KitForge, KitRef, LifecycleStep, Mixin};
 use example_common::{connect, sandbox};
 use serde_json::{Value, json};
 
@@ -89,6 +93,18 @@ const STARTUP_WAIT: Duration = Duration::from_secs(10);
 async fn main() -> Result<()> {
     let client = connect().await?;
     refusals()?;
+    // Kits named as the CLI takes them: an agent, and a directory as a base
+    // kit, which only the CLI builds.
+    let shell = KitRef::base("shell")?;
+    println!("sbx create shell takes {shell:?}");
+    let local = KitForge::new(client.clone())
+        .with_kit(KitRef::base("./my-kit")?)
+        .build()
+        .await;
+    ensure!(local.is_err(), "a base kit in a directory was forged");
+    if let Err(error) = local {
+        println!("refused, a base kit in a directory: {error}");
+    }
 
     let tools = tools_mixin()?;
     println!("the mixin built in Rust, as its spec.yaml:");
@@ -200,9 +216,10 @@ async fn reuse(client: &Client, package: &KitPackage) -> Result<()> {
         "its {} images are now files of that directory",
         saved.images().len()
     );
+    // The mixin named as `sbx create --kit` takes it.
     let reused = KitForge::new(client.clone())
         .with_base_package(saved)
-        .with_mixin(Mixin::read(JSON_MIXIN)?)
+        .with_mixin(Mixin::from_ref(&KitRef::mixin(JSON_MIXIN)?)?)
         .forge(REUSED)
         .await?;
     println!(

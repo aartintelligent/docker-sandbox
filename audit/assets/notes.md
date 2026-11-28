@@ -172,6 +172,17 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   "model"`), of a kit outside the composition (`no kit named "other" was
   resolved (kits: audit-mixin-json, claude)`), and an argument no kit declares
   (`no kit declares this argument (available: model, reasoningEffort)`).
+- **A kit read from its name** (measured by hand with `sbx create`, in a
+  directory of its own): as a base kit, a name without a slash is an agent
+  (`unknown agent "foo:1"` otherwise), even when a directory of that name
+  exists; `kits/tools` is an image of `docker.io`, even when that directory
+  exists; `~/…` is a path, `~` expanded. As a mixin (`--kit`), a path relative
+  to the current directory that exists is that directory, written `tools` or
+  `kits/tools`; one that does not exist is an image when it holds a slash, and
+  refused otherwise (`not a local path and does not look like a registry
+  reference`, which lists `./my-kit/`, `./my-kit.zip`, `ghcr.io/org/kit:tag`,
+  `oci://…`, `git+https://…`, `git+ssh://…`, `#ref=…`, `#dir=…`). The kit list
+  of the sandbox shows a local mixin under the path as written.
 - **The kit an agent resolves to** (`kit-compile-shortcut`, measured by hand
   on more forms with `audit kit-compile --base`): `sbx create <agent>` uses
   the kit the setting `kit.shortcuts.<agent>` names, when it names one, in

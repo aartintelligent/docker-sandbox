@@ -17,7 +17,7 @@ mod support;
 use std::path::Path;
 
 use docker_sandbox::kit::KitPackage;
-use docker_sandbox_kit::{Agent, Error, KitDescriptor, KitForge, LifecycleStep, Mixin};
+use docker_sandbox_kit::{Agent, Error, KitDescriptor, KitForge, KitRef, LifecycleStep, Mixin};
 use serde_json::{Value, json};
 use support::{FakeDaemon, FakeDaemonBuilder, Reply, connect};
 
@@ -510,6 +510,37 @@ async fn an_agent_resolves_to_the_kit_its_shortcut_names() {
     assert_eq!(package.kit_refs(), std::slice::from_ref(&pinned));
     let export = daemon.request("GET", "/docker/images/export");
     assert_eq!(export.query()["name"], pinned);
+}
+
+#[tokio::test]
+async fn base_kits_are_taken_as_the_cli_names_them() {
+    let (captured, pinned) = captured_shell();
+    let daemon = serving(permissive(), shell_export()).start();
+    let client = connect(&daemon).await;
+    for text in ["shell", "docker.io/sbx/shell:latest"] {
+        let package = KitForge::new(client.clone())
+            .with_kit(KitRef::base(text).unwrap())
+            .build()
+            .await
+            .unwrap();
+        assert_eq!(
+            package.kit_artifacts(),
+            std::slice::from_ref(&captured),
+            "{text}"
+        );
+        assert_eq!(package.kit_refs(), std::slice::from_ref(&pinned));
+    }
+    for text in ["./kits/shell", "git+https://host/org/kits.git#dir=shell"] {
+        let error = KitForge::new(client.clone())
+            .with_kit(KitRef::base(text).unwrap())
+            .build()
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, Error::Forge(ref m) if m.starts_with(&format!("{text} is a kit the sbx CLI builds"))),
+            "{error}"
+        );
+    }
 }
 
 #[tokio::test]
