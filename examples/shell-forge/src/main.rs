@@ -10,7 +10,8 @@
 //!   the kit is read from the image;
 //! - a **mixin built in Rust** (`KitDescriptor`, `LifecycleStep`): an install
 //!   command given a variable of the sandbox, a startup command run in the
-//!   background, a host allowed and one denied while the sandbox runs;
+//!   background, a host allowed and one denied while the sandbox runs; it is
+//!   also written as a kit directory the CLI reads (`Mixin::save`);
 //! - a **mixin read from its directory**, [`json-mixin`](../json-mixin/spec.yaml),
 //!   a `spec.yaml` written in the JSON subset of YAML (`Mixin::read`).
 //!
@@ -72,6 +73,9 @@ const ALLOWED: &str = "docs.example.com:443";
 /// The host the Rust mixin denies.
 const DENIED: &str = "ads.example.com";
 
+/// Where the mixin built in Rust is written, as the CLI reads a local kit.
+const SAVED_MIXIN: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/forged/forged-tools");
+
 /// Where the second composition is written.
 const REUSED: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -89,6 +93,12 @@ async fn main() -> Result<()> {
     let tools = tools_mixin()?;
     println!("the mixin built in Rust, as its spec.yaml:");
     println!("{}", tools.descriptor().to_spec());
+    // Written as a kit directory, for `sbx create --kit` or `KitCompiler`.
+    let saved = tools.save(SAVED_MIXIN)?;
+    println!(
+        "the mixin written as a kit directory the CLI reads, listed as {}",
+        saved.reference()
+    );
     // A descriptor can be read and inspected alone, without forging.
     let descriptor = KitDescriptor::read(format!("{JSON_MIXIN}/spec.yaml"))?;
     println!(

@@ -76,7 +76,9 @@ async fn main() -> docker_sandbox_kit::Result<()> {
 
 The artifacts are written as the CLI writes them, down to the order of their
 capabilities, which decides whether the daemon gives the agent the credential
-of its kit, a Claude subscription for instance. The audit of the repository
+of its kit, a Claude subscription for instance. A mixin described in Rust is
+written as a kit directory the CLI reads with `Mixin::save(dir)`, for
+`sbx create --kit` or `KitCompiler`. The audit of the repository
 compares them field by field with those of the CLI at each `sbx` version.
 
 ## Checked before anything is written
