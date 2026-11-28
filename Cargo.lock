@@ -81,7 +81,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "audit"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -233,7 +233,7 @@ dependencies = [
 
 [[package]]
 name = "docker-sandbox"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bytes",
  "futures-core",
@@ -256,7 +256,7 @@ dependencies = [
 
 [[package]]
 name = "docker-sandbox-kit"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bytes",
  "docker-sandbox",
@@ -472,7 +472,7 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "live-probe"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bytes",
  "http-body-util",
