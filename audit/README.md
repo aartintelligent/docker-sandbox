@@ -129,7 +129,13 @@ the daemon, which a new `sbx` can change without changing a route. Check, before
    the optional types the CLI does not support (`UNSUPPORTED`). A published kit
    that declares a type outside both is refused ("not one this crate knows the
    CLI to resolve"): find where the CLI places it, in the `v3Effective` of a
-   package it compiled (`audit kit-compile`), then add it there.
+   package it compiled (`audit kit-compile`), then add it there. The `kits`
+   suite compares the forge with the CLI on the `shell` kit only: compare an
+   agent kit too, with `audit kit-compile --base claude` then `audit kit-forge
+   --library --compare` on that package. `sbx` v0.55 knows `open-url@1`,
+   which v0.54.1 leaves out as unsupported, and five other new types (see
+   `assets/notes.md`): at its upgrade, the capabilities of the `claude` kit
+   may take another place.
 3. **The mixin descriptor.** The crate refuses any field it does not know in a
    mixin. A field the new CLI accepts is measured with a scenario of the `kits`
    suite before `forge/descriptor.rs` accepts it.
