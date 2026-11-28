@@ -18,16 +18,25 @@
 //! rules of a launch and the kit policy of the daemon, without pulling or
 //! writing anything.
 //!
+//! [`SandboxSpec::launch`] applies it: the kit forged in memory, a token
+//! drawn for each MCP server of the host, the keys given to the proxy, the
+//! sandbox created and started. It returns a [`Lease`], which owns the
+//! sandbox and its session: the program works in it with the whole API of
+//! `docker-sandbox`, then [`Lease::shutdown`] removes it, its network rules
+//! and its keys with it. A launch that fails once the sandbox exists removes
+//! it, unless the spec keeps it ([`Error::Launch`]). The [`Report`] of a
+//! launch says what it did, and never holds the value of a key or a token.
+//!
 //! It shares the version of `docker-sandbox` and `docker-sandbox-kit`: use
 //! the three crates at the same version.
 //!
-//! [`prelude`] imports what a spec is written with, the types of the two
-//! other crates included.
+//! [`prelude`] imports what a spec is written with and its lease used with,
+//! the types of the two other crates included.
 //!
 //! # Example
 //!
 //! A claude sandbox on a project, its tools served on the host and its key
-//! given at launch, checked against the daemon.
+//! given at launch, checked against the daemon, launched, then removed.
 //!
 //! ```no_run
 //! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -43,6 +52,13 @@
 //! spec.check(&client).await?;
 //! let keys = Keys::new().with_key("ANTHROPIC_API_KEY", std::env::var("ANTHROPIC_API_KEY")?);
 //! spec.check_keys(&keys)?;
+//! let lease = spec.launch(&client, "job-42", &keys).await?;
+//! // The server of the host checks this token in the requests of the agent.
+//! let token = lease.mcp_token("tools");
+//! # let _ = token;
+//! lease.sandbox().exec(&ExecSpec::shell("git status")).await?;
+//! println!("{}", serde_json::to_string(lease.report())?);
+//! lease.shutdown().await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -66,15 +82,25 @@
 //!
 //! Runners, queues, scheduling, retries, pools of sandboxes and any HTTP API
 //! or command line on top: those live in another repository. The crate
-//! describes and checks one sandbox at a time.
+//! describes, checks and launches one sandbox at a time, and keeps nothing
+//! outside the daemon.
 
 mod error;
 mod key;
+mod launch;
 mod mcp;
 mod network;
 pub mod prelude;
 mod spec;
 
-pub use self::error::{Error, Result};
-pub use self::key::{KeySpec, Keys};
+pub use self::error::{Error, LaunchStep, Result};
+pub use self::key::{KeyReport, KeySpec, Keys};
+pub use self::launch::{Lease, Report};
+pub use self::mcp::ServerReport;
+pub use self::network::NetworkReport;
 pub use self::spec::SandboxSpec;
+
+/// Compiles the examples of the README as doctests.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;

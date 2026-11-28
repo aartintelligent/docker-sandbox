@@ -101,6 +101,65 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Launched, and owned by a lease
+
+`spec.launch(&client, name, &keys)` applies a spec in seven steps:
+
+1. check the spec and the values of its keys;
+2. forge its kit in memory, the base kit rebuilt from its image, its mixins,
+   the mixin of its network rules and the one of its MCP servers;
+3. draw a token for each MCP server of the host, 32 bytes of `/dev/urandom`
+   in hexadecimal, in the variable the agent reads it from;
+4. prepare a `ProxiedKey` for each key, its placeholder in its variable, its
+   hosts those the kits declare for its service; a refusal of the spec that
+   covers one of them is refused;
+5. create the sandbox with the variables, tokens, placeholders, workspace,
+   mounts and resources;
+6. start it, which runs its startup commands, and push its keys to the proxy;
+7. return the `Lease`, which holds its session.
+
+Nothing is written on the host at any step. A failure once the sandbox
+exists (steps 6 and 7) removes it, unless the spec says `keep_on_failure`, and
+the `Error::Launch` names the sandbox, the step and whether it stays.
+
+```rust,no_run
+use docker_sandbox_blueprint::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::connect().await?;
+    let lease = SandboxSpec::agent(Agent::Shell)
+        .with_workspace("/srv/project")
+        .launch(&client, "job-42", &Keys::new())
+        .await?;
+    let output = lease.sandbox().exec(&ExecSpec::shell("ls")).await?;
+    println!("{}", output.stdout);
+    lease.shutdown().await?;
+    Ok(())
+}
+```
+
+| `Lease` | Gives |
+|---|---|
+| `sandbox()` | the `Sandbox`: commands, files, ports, the whole API of `docker-sandbox` |
+| `created()` | the answer of the creation, `withheld` included |
+| `agent()` | the agent its kit declares, whose `command(args)` runs a task |
+| `report()` | what the launch did |
+| `mcp_token(name)` | the token of a server of the host, which the program checks |
+| `shutdown()` | closes the session and removes the sandbox, its rules and keys with it |
+| `detach()` | the sandbox and its session, kept beyond the lease |
+
+A lease dropped without `shutdown()` closes its session: the sandbox stops
+about 30 s later and stays, named in a warning of `tracing`. No removal runs
+in a hidden task.
+
+The `Report` is serializable, for a program in another language, and never
+holds the value of a key or of a token: the kits of the sandbox, the hosts its
+rules allow and refuse (with a warning when the global policy of the daemon
+allows every host, so that the allowances restrict nothing), where each key
+goes, the name, kind and agent of each MCP server, and the services whose
+credential the daemon withholds.
+
 ## From another language
 
 A spec also has a JSON form (serde), for a program in another language that
@@ -129,9 +188,9 @@ an MCP server its JSON form by kind.
 
 ## Scope
 
-The crate is the declarative layer: a description, its checks, and their
-application through the socket, one sandbox at a time, with nothing kept
-outside the daemon. Runners, queues, scheduling, retries, pools of sandboxes
+The crate is the declarative layer: a description, its checks, its
+application through the socket and the handle that owns the result, one
+sandbox at a time, with nothing kept outside the daemon. Runners, queues, scheduling, retries, pools of sandboxes
 and any HTTP API or command line on top live in another repository.
 
 ## Version and errors

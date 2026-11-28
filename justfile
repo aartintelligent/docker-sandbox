@@ -74,12 +74,13 @@ coverage-html:
 # and remove their own sandboxes and images; the state of the daemon is recorded before and
 # checked after, even when a test fails. The program they run inside sandboxes, live-probe, is
 # built statically for the architecture of the host (`rustup target add <arch>-unknown-linux-musl`).
-# The live tests of docker-sandbox-kit forge their packages, without the CLI.
+# The live tests of docker-sandbox-kit forge their packages, without the CLI, and those of
+# docker-sandbox-blueprint launch sandboxes from their spec.
 test-live:
     cargo run --quiet -p audit -- state --save
     cargo run --quiet -p audit -- kit-compile audit/assets/kits/audit-mixin-v3
     cargo build --quiet --release -p live-probe --target {{live_target}}
-    status=0; DOCKER_SANDBOX_LIVE_PACKAGE="$PWD/target/audit/kits/audit-mixin-v3" DOCKER_SANDBOX_LIVE_PROBE="$PWD/target/{{live_target}}/release/live-probe" cargo test -p docker-sandbox --features live --test live -- --test-threads=1 || status=$?; cargo test -p docker-sandbox-kit --features live --test live -- --test-threads=1 || status=$?; cargo run --quiet -p audit -- state --check; exit $status
+    status=0; DOCKER_SANDBOX_LIVE_PACKAGE="$PWD/target/audit/kits/audit-mixin-v3" DOCKER_SANDBOX_LIVE_PROBE="$PWD/target/{{live_target}}/release/live-probe" cargo test -p docker-sandbox --features live --test live -- --test-threads=1 || status=$?; cargo test -p docker-sandbox-kit --features live --test live -- --test-threads=1 || status=$?; cargo test -p docker-sandbox-blueprint --features live --test live -- --test-threads=1 || status=$?; cargo run --quiet -p audit -- state --check; exit $status
 
 # CI pins a dated nightly (see .github/workflows/ci.yml) because newer nightlies break `filetime`;
 # locally, any nightly at or before that date works.

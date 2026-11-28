@@ -13,7 +13,8 @@ mod host;
 
 pub(crate) use self::host::{authority, covers};
 
-use docker_sandbox::policy::HostPattern;
+use docker_sandbox::Client;
+use docker_sandbox::policy::{Decision, HostPattern};
 use docker_sandbox_kit::{KitDescriptor, Mixin};
 use serde::{Deserialize, Serialize};
 
@@ -34,6 +35,21 @@ pub(crate) struct Network {
     /// Hosts refused, whatever else allows them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) deny: Vec<String>,
+}
+
+/// The network rules of a launch, as its report shows them.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+#[non_exhaustive]
+pub struct NetworkReport {
+    /// Hosts the spec allows.
+    pub allow: Vec<String>,
+    /// Hosts the spec refuses.
+    pub deny: Vec<String>,
+    /// Why the allowances restrict nothing, when the global policy of the
+    /// daemon allows every host, as it does by default: a refusal is what
+    /// keeps a sandbox from a host.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warning: Option<String>,
 }
 
 impl Network {
@@ -136,6 +152,39 @@ impl SandboxSpec {
             }
         }
         Ok(())
+    }
+
+    /// The network rules of a launch, with a warning when the global policy
+    /// of the daemon allows every host: the allowances of the spec then
+    /// restrict nothing. The policy is read only when the spec allows hosts.
+    pub(crate) async fn network_report(&self, client: &Client) -> Result<NetworkReport> {
+        let warning = if self.network.allow.is_empty() {
+            None
+        } else {
+            let rules = client.policy().rules().await?;
+            rules
+                .rules
+                .iter()
+                .find(|rule| {
+                    rule.decision == Decision::Allow
+                        && rule.scope.as_deref() == Some("global")
+                        && rule.resource_type.as_deref() == Some("network")
+                        && rule.resources.iter().any(|resource| resource == "**")
+                })
+                .map(|rule| {
+                    format!(
+                        "the global rule {} of the daemon allows every host: the allowances of \
+                         the spec restrict nothing, only its refusals keep the sandbox from a \
+                         host",
+                        rule.name
+                    )
+                })
+        };
+        Ok(NetworkReport {
+            allow: self.network.allow.clone(),
+            deny: self.network.deny.clone(),
+            warning,
+        })
     }
 }
 

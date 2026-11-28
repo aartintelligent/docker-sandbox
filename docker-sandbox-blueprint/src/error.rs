@@ -27,6 +27,50 @@ pub enum Error {
     /// field it is about.
     #[error("invalid sandbox spec: {0}")]
     InvalidSpec(String),
+
+    /// A launch failed once its sandbox existed: the sandbox was removed,
+    /// unless `kept` says it stays, kept by the spec or because it could not
+    /// be removed.
+    #[error("launching the sandbox {sandbox} failed {step}{}: {source}", kept_note(*.kept))]
+    Launch {
+        /// Name of the sandbox.
+        sandbox: String,
+        /// The step that failed.
+        step: LaunchStep,
+        /// Whether the sandbox stays.
+        kept: bool,
+        /// The error of the client.
+        source: docker_sandbox::Error,
+    },
+}
+
+/// The step of a launch that failed once its sandbox existed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum LaunchStep {
+    /// Starting the sandbox, its startup commands included.
+    Start,
+    /// Pushing its keys to the proxy.
+    Keys,
+}
+
+impl std::fmt::Display for LaunchStep {
+    /// Writes the step as the error says it: `when starting it`.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Start => "when starting it",
+            Self::Keys => "when pushing its keys",
+        })
+    }
+}
+
+/// What the error of a launch says of the sandbox it left.
+fn kept_note(kept: bool) -> &'static str {
+    if kept {
+        ", and the sandbox stays"
+    } else {
+        ", and the sandbox was removed"
+    }
 }
 
 /// An [`Error::InvalidSpec`] saying `message`.

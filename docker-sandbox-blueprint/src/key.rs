@@ -11,10 +11,13 @@
 
 use std::collections::BTreeMap;
 
-use docker_sandbox::sandbox::Secret;
+use docker_sandbox::kit::KitPackage;
+use docker_sandbox::policy::HostPattern;
+use docker_sandbox::sandbox::{ProxiedKey, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Result, invalid};
+use crate::network::covers;
 use crate::spec::SandboxSpec;
 
 /// Where an API key goes: the variable the agent reads it from, and the hosts
@@ -55,6 +58,16 @@ struct KeyForm {
     /// Hosts written out.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     hosts: Option<Vec<String>>,
+}
+
+/// Where a key goes, as the report of a launch shows it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct KeyReport {
+    /// Variable of the sandbox holding its placeholder.
+    pub env: String,
+    /// Hosts the proxy writes it for.
+    pub hosts: Vec<String>,
 }
 
 /// The values of the API keys of a launch, by the variable of their
@@ -171,6 +184,11 @@ impl Keys {
     pub(crate) fn contains(&self, env: &str) -> bool {
         self.values.contains_key(env)
     }
+
+    /// The value of the variable `env`.
+    pub(crate) fn get(&self, env: &str) -> Option<&Secret> {
+        self.values.get(env)
+    }
 }
 
 impl SandboxSpec {
@@ -237,6 +255,62 @@ impl SandboxSpec {
         }
         Ok(())
     }
+
+    /// A `ProxiedKey` for each key, with the value `keys` gives it, its
+    /// hosts those the kits of `package` declare for its service when it
+    /// names one. A refusal of the spec that covers one of those hosts is
+    /// refused, as it would keep the key from its host.
+    pub(crate) fn proxied_keys(
+        &self,
+        package: &KitPackage,
+        keys: &Keys,
+    ) -> Result<Vec<ProxiedKey>> {
+        // `check` read every refusal as a host pattern.
+        let deny: Vec<HostPattern> = self
+            .network
+            .deny
+            .iter()
+            .filter_map(|host| HostPattern::parse(host.as_str()).ok())
+            .collect();
+        let mut proxied = Vec::new();
+        // `check_keys` gave every key its value.
+        for (key, value) in self
+            .keys
+            .iter()
+            .filter_map(|key| keys.get(key.env()).map(|value| (key, value.clone())))
+        {
+            let made = match key.service() {
+                Some(service) => ProxiedKey::for_service(package, service, key.env(), value)?,
+                None => ProxiedKey::new(key.env(), key.hosts().iter().cloned(), value)?,
+            };
+            if let Some((pattern, host)) = deny.iter().find_map(|pattern| {
+                made.hosts()
+                    .iter()
+                    .find(|host| covers(pattern, host, 443))
+                    .map(|host| (pattern, host))
+            }) {
+                return Err(invalid(format!(
+                    "network.deny: {pattern} refuses {host}, where the key {} goes; a refusal \
+                     wins over any allowance",
+                    key.env()
+                )));
+            }
+            proxied.push(made);
+        }
+        Ok(proxied)
+    }
+}
+
+/// Where each of the keys `proxied` goes, as the report of a launch shows
+/// it.
+pub(crate) fn key_reports(proxied: &[ProxiedKey]) -> Vec<KeyReport> {
+    proxied
+        .iter()
+        .map(|key| KeyReport {
+            env: key.env().to_owned(),
+            hosts: key.hosts().to_vec(),
+        })
+        .collect()
 }
 
 impl<K: Into<String>, V: Into<Secret>> FromIterator<(K, V)> for Keys {

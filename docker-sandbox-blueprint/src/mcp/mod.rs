@@ -6,12 +6,31 @@
 //! servers names its agent with `agent`, since the agent of a published base
 //! kit is known only once its kit is forged. A server of the host reads its
 //! token from a variable the spec sets; a remote server reads its own from a
-//! variable a key or `env` sets.
+//! variable a key or `env` sets, and the token of a server of the host is
+//! drawn at each launch (`token.rs`).
+
+mod token;
+
+pub(crate) use self::token::Tokens;
 
 use docker_sandbox_kit::{McpServer, Mixin};
+use serde::Serialize;
 
 use crate::error::{Error, Result, invalid};
 use crate::spec::{Owners, SandboxSpec};
+
+/// An MCP server registered in the agent, as the report of a launch shows
+/// it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct ServerReport {
+    /// Name the agent knows it under.
+    pub name: String,
+    /// Its kind, as its JSON form names it: `host`, `remote` or `stdio`.
+    pub kind: String,
+    /// The agent it is registered in.
+    pub agent: String,
+}
 
 impl SandboxSpec {
     /// Registers the MCP server `server` in the agent.
@@ -64,6 +83,22 @@ impl SandboxSpec {
             }
         }
         Ok(())
+    }
+
+    /// The MCP servers of the spec, as the report of a launch shows them.
+    pub(crate) fn server_reports(&self) -> Vec<ServerReport> {
+        let agent = self
+            .agent
+            .map(|agent| agent.name().to_owned())
+            .unwrap_or_default();
+        self.mcp
+            .iter()
+            .map(|server| ServerReport {
+                name: server.name().to_owned(),
+                kind: server_kind(server),
+                agent: agent.clone(),
+            })
+            .collect()
     }
 }
 
