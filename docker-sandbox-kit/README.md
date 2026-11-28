@@ -202,7 +202,10 @@ image. The mixin allows the host of each server reached at a URL.
 A server is plain data, written and read as JSON by its kind
 (`{"kind": "host", "name": "tools", "port": 47813}`, `"remote"` with its
 `url` and `token_env`, `"stdio"` with its `command`), so that a program in
-another language declares it.
+another language declares it. Agents, descriptors and mixins are written and
+read as JSON too: an agent as its name (`"claude"`), a descriptor as the JSON
+of its `spec.yaml`, a mixin as its `reference` and its `descriptor`. Each is
+checked when it is read, as it is when it is built.
 
 The [`shell-forge`](../examples/shell-forge/src/main.rs) and
 [`agent-kit-forge`](../examples/agent-kit-forge/src/main.rs) examples of the

@@ -50,7 +50,7 @@ pub use self::mcp::McpServer;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Value, json};
 
 use self::artifact::MixinParts;
@@ -147,6 +147,10 @@ fn to_json(value: &impl Serialize) -> Value {
 
 /// A mixin to forge: its descriptor, and the reference the kit list of the
 /// sandbox shows it under.
+///
+/// Its JSON form is `{"reference": …, "descriptor": …}`, read and checked as
+/// [`Mixin::new`] makes a mixin. The text of a `spec.yaml` it was read from
+/// is not part of it: read again, the mixin writes its descriptor out.
 ///
 /// ```
 /// use docker_sandbox_kit::{KitDescriptor, LifecycleStep, Mixin};
@@ -302,6 +306,36 @@ impl Mixin {
     #[must_use]
     pub fn descriptor(&self) -> &KitDescriptor {
         &self.descriptor
+    }
+}
+
+/// The JSON form of a [`Mixin`]: its reference and its descriptor.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MixinForm {
+    /// Reference of the mixin.
+    reference: String,
+    /// Its descriptor.
+    descriptor: KitDescriptor,
+}
+
+impl Serialize for Mixin {
+    /// Writes the mixin as its reference and its descriptor: the text of a
+    /// `spec.yaml` it was read from is not kept, the descriptor is.
+    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        MixinForm {
+            reference: self.reference.clone(),
+            descriptor: self.descriptor.clone(),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Mixin {
+    /// Reads a mixin as [`Mixin::new`] makes one, checked as it checks it.
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        let form = MixinForm::deserialize(deserializer)?;
+        Self::new(form.reference, form.descriptor).map_err(serde::de::Error::custom)
     }
 }
 
@@ -942,6 +976,37 @@ mod tests {
         let distinct: BTreeSet<&String> = keys.iter().collect();
         assert_eq!(distinct.len(), keys.len(), "{keys:?}");
         assert_eq!(composition_key(agent, &none, &[mixin("one")]), keys[6]);
+    }
+
+    #[test]
+    fn descriptors_and_mixins_are_written_and_read_as_json() {
+        let descriptor = KitDescriptor::mixin("Acme")
+            .with_install(LifecycleStep::new("make tools").as_user("agent"))
+            .with_network_deny(["*.example.com"]);
+        let json = serde_json::to_value(&descriptor).unwrap();
+        assert_eq!(json, descriptor.to_json());
+        assert_eq!(
+            serde_json::from_value::<KitDescriptor>(json).unwrap(),
+            descriptor
+        );
+        let refused =
+            serde_json::from_value::<KitDescriptor>(serde_json::json!({ "schemaVersion": "2" }));
+        assert!(refused.unwrap_err().to_string().contains("invalid kit"));
+        assert!(serde_json::from_str::<KitDescriptor>("{").is_err());
+
+        let mixin = Mixin::new("/kits/acme", descriptor.clone()).unwrap();
+        let json = serde_json::to_value(&mixin).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({ "reference": "/kits/acme", "descriptor": descriptor.to_json() })
+        );
+        assert_eq!(serde_json::from_value::<Mixin>(json).unwrap(), mixin);
+        for refused in [
+            serde_json::json!({ "reference": "/", "descriptor": descriptor.to_json() }),
+            serde_json::json!({ "reference": "/kits/acme", "descriptor": descriptor.to_json(), "dir": "x" }),
+        ] {
+            assert!(serde_json::from_value::<Mixin>(refused).is_err());
+        }
     }
 
     #[test]

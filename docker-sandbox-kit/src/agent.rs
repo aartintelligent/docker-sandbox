@@ -7,16 +7,21 @@
 use std::fmt;
 use std::str::FromStr;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 use crate::error::Error;
 
 /// An agent `sbx` knows, run by the published kit of its name.
+///
+/// Its JSON form is its name, `"claude"`, read as [`str::parse`] reads it.
 ///
 /// ```
 /// use docker_sandbox_kit::Agent;
 ///
 /// assert_eq!(Agent::Claude.reference(), "docker.io/sbx/claude:latest");
 /// assert_eq!("docker-agent".parse::<Agent>()?, Agent::DockerAgent);
-/// # Ok::<(), docker_sandbox_kit::Error>(())
+/// assert_eq!(serde_json::to_value(Agent::Claude)?, "claude");
+/// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -106,9 +111,41 @@ impl FromStr for Agent {
     }
 }
 
+impl Serialize for Agent {
+    /// Writes the agent as its name, `claude`.
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.name())
+    }
+}
+
+impl<'de> Deserialize<'de> for Agent {
+    /// Reads the agent from its name.
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let name = String::deserialize(deserializer)?;
+        name.parse().map_err(serde::de::Error::custom)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn agents_are_written_and_read_as_their_name() {
+        assert_eq!(
+            serde_json::to_value(Agent::DockerAgent).unwrap(),
+            "docker-agent"
+        );
+        assert_eq!(
+            serde_json::from_value::<Agent>("claude".into()).unwrap(),
+            Agent::Claude
+        );
+        let error = serde_json::from_value::<Agent>("acme".into())
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("not an agent sbx knows"), "{error}");
+        assert!(serde_json::from_value::<Agent>(serde_json::json!(3)).is_err());
+    }
 
     #[test]
     fn agents_name_their_published_kit_and_are_parsed_back() {
