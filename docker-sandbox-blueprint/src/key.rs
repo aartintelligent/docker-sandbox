@@ -23,7 +23,14 @@ use crate::spec::SandboxSpec;
 /// Where an API key goes: the variable the agent reads it from, and the hosts
 /// the proxy writes it for.
 ///
-/// Its JSON form is `{"env", "service"}` or `{"env", "hosts"}`.
+/// Its JSON form is `{"env", "service"}` or `{"env", "hosts"}`, with
+/// `"optional": true` for an optional key.
+///
+/// An optional key ([`KeySpec::optional`]) may be given no value at launch,
+/// and a key of a service no kit of the sandbox declares is then left out
+/// rather than refused: a program that hands an agent every key it finds in
+/// its environment launches its sandbox all the same. The report of the
+/// launch names the keys left out, never their value.
 ///
 /// ```
 /// use docker_sandbox_blueprint::KeySpec;
@@ -43,6 +50,9 @@ pub struct KeySpec {
     service: Option<String>,
     /// Hosts the key is written for, when they are written out.
     hosts: Vec<String>,
+    /// Whether the key is left out when it has no value or no kit declares
+    /// its service.
+    optional: bool,
 }
 
 /// The JSON form of a [`KeySpec`]: its variable, and its service or its
@@ -58,6 +68,9 @@ struct KeyForm {
     /// Hosts written out.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     hosts: Option<Vec<String>>,
+    /// Whether the key is optional.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    optional: bool,
 }
 
 /// Where a key goes, as the report of a launch shows it.
@@ -68,6 +81,29 @@ pub struct KeyReport {
     pub env: String,
     /// Hosts the proxy writes it for.
     pub hosts: Vec<String>,
+}
+
+/// A key a launch left out, as its report shows it: never its value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub struct LeftOutKey {
+    /// Variable of the key.
+    pub env: String,
+    /// Service of the key, if it names one.
+    pub service: Option<String>,
+    /// Why the key was left out.
+    pub reason: LeftOutReason,
+}
+
+/// Why a launch left an optional key out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum LeftOutReason {
+    /// The key was given no value at launch.
+    NoValue,
+    /// No kit of the sandbox declares the service of the key.
+    UndeclaredService,
 }
 
 /// The values of the API keys of a launch, by the variable of their
@@ -96,6 +132,7 @@ impl KeySpec {
             env: env.into(),
             service: Some(service.into()),
             hosts: Vec::new(),
+            optional: false,
         }
     }
 
@@ -110,7 +147,33 @@ impl KeySpec {
             env: env.into(),
             service: None,
             hosts: hosts.into_iter().map(Into::into).collect(),
+            optional: false,
         }
+    }
+
+    /// Makes the key optional: left out when it is given no value at launch,
+    /// or when no kit of the sandbox declares its service, instead of
+    /// failing the launch.
+    ///
+    /// ```
+    /// use docker_sandbox_blueprint::prelude::*;
+    ///
+    /// // Whichever of these keys the environment holds goes to the agent.
+    /// let spec = SandboxSpec::agent(Agent::OpenCode)
+    ///     .with_key(KeySpec::for_service("ANTHROPIC_API_KEY", "anthropic").optional())
+    ///     .with_key(KeySpec::for_service("GROQ_API_KEY", "groq").optional());
+    /// assert!(spec.check_keys(&Keys::new()).is_ok());
+    /// ```
+    #[must_use]
+    pub fn optional(mut self) -> Self {
+        self.optional = true;
+        self
+    }
+
+    /// Whether the key is optional.
+    #[must_use]
+    pub fn is_optional(&self) -> bool {
+        self.optional
     }
 
     /// Variable of the sandbox holding the placeholder of the key.
@@ -138,14 +201,20 @@ impl TryFrom<KeyForm> for KeySpec {
 
     /// Reads a key from its JSON form, with its service or its hosts.
     fn try_from(form: KeyForm) -> Result<Self, Self::Error> {
-        match (form.service, form.hosts) {
-            (Some(service), None) => Ok(Self::for_service(form.env, service)),
-            (None, Some(hosts)) => Ok(Self::for_hosts(form.env, hosts)),
-            _ => Err(format!(
-                "the key {} takes either a service or hosts",
-                form.env
-            )),
-        }
+        let key = match (form.service, form.hosts) {
+            (Some(service), None) => Self::for_service(form.env, service),
+            (None, Some(hosts)) => Self::for_hosts(form.env, hosts),
+            _ => {
+                return Err(format!(
+                    "the key {} takes either a service or hosts",
+                    form.env
+                ));
+            }
+        };
+        Ok(Self {
+            optional: form.optional,
+            ..key
+        })
     }
 }
 
@@ -157,6 +226,7 @@ impl From<KeySpec> for KeyForm {
             env: key.env,
             service: key.service,
             hosts,
+            optional: key.optional,
         }
     }
 }
@@ -199,9 +269,9 @@ impl SandboxSpec {
         self
     }
 
-    /// Checks that `keys` gives a value to every key of the spec, and to no
-    /// other variable: a key without a value cannot be pushed, and a value
-    /// no key reads is most likely a misspelt variable.
+    /// Checks that `keys` gives a value to every key of the spec that is not
+    /// optional, and to no other variable: a key without a value cannot be
+    /// pushed, and a value no key reads is most likely a misspelt variable.
     ///
     /// ```
     /// use docker_sandbox_blueprint::{KeySpec, Keys, SandboxSpec};
@@ -216,9 +286,14 @@ impl SandboxSpec {
     /// # Errors
     ///
     /// Returns [`Error::InvalidSpec`](crate::Error::InvalidSpec) for a key
-    /// without a value, or a value for a variable no key reads.
+    /// without a value that is not optional, or a value for a variable no
+    /// key reads.
     pub fn check_keys(&self, keys: &Keys) -> Result<()> {
-        if let Some(key) = self.keys.iter().find(|key| !keys.contains(key.env())) {
+        if let Some(key) = self
+            .keys
+            .iter()
+            .find(|key| !key.optional && !keys.contains(key.env()))
+        {
             return Err(invalid(format!(
                 "keys: the key {} is given no value at launch",
                 key.env()
@@ -258,13 +333,14 @@ impl SandboxSpec {
 
     /// A `ProxiedKey` for each key, with the value `keys` gives it, its
     /// hosts those the kits of `package` declare for its service when it
-    /// names one. A refusal of the spec that covers one of those hosts is
-    /// refused, as it would keep the key from its host.
+    /// names one, and the optional keys left out. A refusal of the spec that
+    /// covers one of those hosts is refused, as it would keep the key from
+    /// its host.
     pub(crate) fn proxied_keys(
         &self,
         package: &KitPackage,
         keys: &Keys,
-    ) -> Result<Vec<ProxiedKey>> {
+    ) -> Result<(Vec<ProxiedKey>, Vec<LeftOutKey>)> {
         // `check` read every refusal as a host pattern.
         let deny: Vec<HostPattern> = self
             .network
@@ -273,14 +349,30 @@ impl SandboxSpec {
             .filter_map(|host| HostPattern::parse(host.as_str()).ok())
             .collect();
         let mut proxied = Vec::new();
-        // `check_keys` gave every key its value.
-        for (key, value) in self
-            .keys
-            .iter()
-            .filter_map(|key| keys.get(key.env()).map(|value| (key, value.clone())))
-        {
+        let mut left_out = Vec::new();
+        for key in &self.keys {
+            let leave_out = |reason| LeftOutKey {
+                env: key.env().to_owned(),
+                service: key.service().map(str::to_owned),
+                reason,
+            };
+            // `check_keys` let only an optional key go without a value.
+            let Some(value) = keys.get(key.env()).cloned() else {
+                left_out.push(leave_out(LeftOutReason::NoValue));
+                continue;
+            };
             let made = match key.service() {
-                Some(service) => ProxiedKey::for_service(package, service, key.env(), value)?,
+                Some(service) => {
+                    match ProxiedKey::for_service(package, service, key.env(), value) {
+                        Ok(made) => made,
+                        // The only refusal left: no kit declares the service.
+                        Err(_) if key.optional => {
+                            left_out.push(leave_out(LeftOutReason::UndeclaredService));
+                            continue;
+                        }
+                        Err(error) => return Err(error.into()),
+                    }
+                }
                 None => ProxiedKey::new(key.env(), key.hosts().iter().cloned(), value)?,
             };
             if let Some((pattern, host)) = deny.iter().find_map(|pattern| {
@@ -297,7 +389,7 @@ impl SandboxSpec {
             }
             proxied.push(made);
         }
-        Ok(proxied)
+        Ok((proxied, left_out))
     }
 }
 
@@ -345,7 +437,13 @@ mod tests {
             serde_json::to_value(&hosts).unwrap(),
             json!({ "env": "B", "hosts": ["api.example.com"] })
         );
-        for key in [service, hosts] {
+        let optional = KeySpec::for_service("C", "groq").optional();
+        assert!(optional.is_optional() && !KeySpec::for_service("C", "groq").is_optional());
+        assert_eq!(
+            serde_json::to_value(&optional).unwrap(),
+            json!({ "env": "C", "service": "groq", "optional": true })
+        );
+        for key in [service, hosts, optional] {
             let json = serde_json::to_value(&key).unwrap();
             assert_eq!(serde_json::from_value::<KeySpec>(json).unwrap(), key);
         }
@@ -389,6 +487,13 @@ mod tests {
             .with_key("ANTHROPIC_KEY", "a dummy key");
         assert!(message(&extra).contains("a value is given for ANTHROPIC_KEY"));
         spec.check_keys(&Keys::new().with_key("ANTHROPIC_API_KEY", "a dummy key"))
+            .unwrap();
+        // An optional key may go without a value, and take one.
+        let optional = SandboxSpec::agent(Agent::Claude)
+            .with_key(KeySpec::for_service("GROQ_API_KEY", "groq").optional());
+        optional.check_keys(&Keys::new()).unwrap();
+        optional
+            .check_keys(&Keys::new().with_key("GROQ_API_KEY", "a dummy key"))
             .unwrap();
     }
 }

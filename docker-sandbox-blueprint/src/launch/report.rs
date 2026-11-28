@@ -11,7 +11,7 @@ use docker_sandbox::kit::KitPackage;
 use docker_sandbox::sandbox::{Created, ProxiedKey};
 use serde::Serialize;
 
-use crate::key::{KeyReport, key_reports};
+use crate::key::{KeyReport, LeftOutKey, key_reports};
 use crate::mcp::ServerReport;
 use crate::network::NetworkReport;
 use crate::spec::SandboxSpec;
@@ -27,6 +27,8 @@ pub struct Report {
     pub network: NetworkReport,
     /// Where each key goes.
     pub keys: Vec<KeyReport>,
+    /// The optional keys left out, and why: never their value.
+    pub keys_left_out: Vec<LeftOutKey>,
     /// The MCP servers registered in the agent.
     pub mcp: Vec<ServerReport>,
     /// Services whose credential, declared by a kit, the daemon withholds:
@@ -43,12 +45,14 @@ impl SandboxSpec {
         package: &KitPackage,
         created: &Created,
         proxied: &[ProxiedKey],
+        left_out: Vec<LeftOutKey>,
         network: NetworkReport,
     ) -> Report {
         Report {
             kits: package.kit_refs(),
             network,
             keys: key_reports(proxied),
+            keys_left_out: left_out,
             mcp: self.server_reports(&package.agent().map(|agent| agent.name).unwrap_or_default()),
             withheld: created.withheld.clone(),
         }

@@ -77,7 +77,12 @@ async fn a_spec_launches_its_sandbox_and_the_lease_removes_it() -> Result<()> {
             ))
             .with_env("DOCKER_SANDBOX_LOG", "debug");
         spec.check(&client).await?;
-        let keys = Keys::new().with_key("DOCKER_SANDBOX_KEY", DUMMY_KEY);
+        // A key of a service the shell kit does not declare, optional: left
+        // out rather than refused.
+        let spec = spec.with_key(KeySpec::for_service("DOCKER_SANDBOX_GROQ", "groq").optional());
+        let keys = Keys::new()
+            .with_key("DOCKER_SANDBOX_KEY", DUMMY_KEY)
+            .with_key("DOCKER_SANDBOX_GROQ", DUMMY_KEY);
         let lease = spec.launch(&client, &name, &keys).await?;
         let sandbox = lease.sandbox();
         assert_eq!(
@@ -111,6 +116,7 @@ async fn a_spec_launches_its_sandbox_and_the_lease_removes_it() -> Result<()> {
                 .any(|kit| kit == "/kits/docker-sandbox-network")
         );
         assert_eq!(report.keys[0].hosts, ["postman-echo.com"]);
+        assert_eq!(report.keys_left_out[0].env, "DOCKER_SANDBOX_GROQ");
 
         lease.shutdown().await?;
         assert!(!client.sandbox(&name).exists().await?);

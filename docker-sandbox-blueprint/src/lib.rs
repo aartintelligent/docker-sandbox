@@ -94,7 +94,7 @@ pub mod prelude;
 mod spec;
 
 pub use self::error::{Error, LaunchStep, Result};
-pub use self::key::{KeyReport, KeySpec, Keys};
+pub use self::key::{KeyReport, KeySpec, Keys, LeftOutKey, LeftOutReason};
 pub use self::launch::{Lease, Report};
 pub use self::mcp::ServerReport;
 pub use self::network::NetworkReport;
