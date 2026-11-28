@@ -9,7 +9,8 @@
 //! A prompt given on the command line replaces the default task. It exits
 //! with an error when the tests still fail.
 //!
-//! The command comes from the [documentation of the agent][docs]; the
+//! The command is the profile of the agent in `docker-sandbox-kit`
+//! (`Agent::headless`), from the [documentation of the agent][docs]; the
 //! program and its run options come from the kit itself.
 //!
 //! Credentials, required since nobody can log in: `FACTORY_API_KEY`.
@@ -23,29 +24,7 @@
 //!
 //! [docs]: https://docs.factory.ai/cli/droid-exec/overview
 
-use docker_sandbox::kit::KitAgent;
-use example_common::automation::{self, Headless, Output, program};
-
-/// The non-interactive command of Droid for `prompt`.
-fn command(agent: &KitAgent, prompt: &str) -> Vec<String> {
-    // `exec` runs one prompt and exits; it is read-only by default, `--auto
-    // high` lets it edit and run commands, and `stream-json` reports every step.
-    vec![
-        program(agent, "droid"),
-        "exec".to_owned(),
-        "--auto".to_owned(),
-        "high".to_owned(),
-        "-o".to_owned(),
-        "stream-json".to_owned(),
-        prompt.to_owned(),
-    ]
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let headless = Headless {
-        command,
-        output: Output::JsonLines,
-    };
-    automation::run(&example_common::agent::DROID, headless).await
+    example_common::automation::run(&example_common::agent::DROID).await
 }

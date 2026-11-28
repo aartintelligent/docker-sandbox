@@ -17,7 +17,7 @@
 //! assert_eq!(Agent::Claude.reference(), "docker.io/sbx/claude:latest");
 //! ```
 
-pub use crate::{Agent, KitRef};
+pub use crate::{Agent, AgentKey, Headless, HeadlessOutput, KitRef};
 #[cfg(feature = "compiler")]
 #[cfg_attr(docsrs, doc(cfg(feature = "compiler")))]
 pub use crate::{CompileJob, KitCompiler};

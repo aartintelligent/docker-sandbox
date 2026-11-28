@@ -9,7 +9,8 @@
 //! A prompt given on the command line replaces the default task. It exits
 //! with an error when the tests still fail.
 //!
-//! The command comes from the [documentation of the agent][docs]; the
+//! The command is the profile of the agent in `docker-sandbox-kit`
+//! (`Agent::headless`), from the [documentation of the agent][docs]; the
 //! program and its run options come from the kit itself.
 //!
 //! Credentials, required since nobody can log in: `OPENAI_API_KEY` or
@@ -24,28 +25,7 @@
 //!
 //! [docs]: https://learn.chatgpt.com/docs/non-interactive-mode
 
-use docker_sandbox::kit::KitAgent;
-use example_common::automation::{self, Headless, Output, program};
-
-/// The non-interactive command of Codex for `prompt`.
-fn command(agent: &KitAgent, prompt: &str) -> Vec<String> {
-    // `exec` runs one prompt and exits; the approvals and the sandbox of Codex
-    // are off, the Docker sandbox isolates it, and `--json` reports every step.
-    vec![
-        program(agent, "codex"),
-        "exec".to_owned(),
-        "--dangerously-bypass-approvals-and-sandbox".to_owned(),
-        "--skip-git-repo-check".to_owned(),
-        "--json".to_owned(),
-        prompt.to_owned(),
-    ]
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let headless = Headless {
-        command,
-        output: Output::JsonLines,
-    };
-    automation::run(&example_common::agent::CODEX, headless).await
+    example_common::automation::run(&example_common::agent::CODEX).await
 }

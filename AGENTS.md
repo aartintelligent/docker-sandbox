@@ -15,8 +15,12 @@ the secret store and the other files of the CLI stay out of both. `docker-sandbo
 describes a whole sandbox as data and applies it through the two other crates, owning the result in
 a `Lease`: one sandbox at a time, nothing kept outside the daemon. Runners, queues, scheduling and retries stay in
 another repository.
-**Nothing else belongs here**: runners, operators, orchestration, agent management and any HTTP API
-built on top of the library live in another repository (project rule).
+**Nothing else belongs here**: runners, operators, orchestration, the management of agents (their
+sessions, prompts and results) and any HTTP API built on top of the library live in another
+repository (project rule). The profile of each agent `sbx` knows is data, kept in
+`docker-sandbox-kit` beside `Agent`: the variables of its keys and how it runs a prompt without a
+terminal, as its documentation says and neither the daemon nor its kit does. A profile changes
+only once the agent ran with it.
 
 The repository is laid out as axum is: a virtual workspace at the root, one directory per crate,
 and the examples in a workspace of their own:
@@ -46,6 +50,8 @@ and the examples in a workspace of their own:
     compiles too with the `compiler` feature);
   - `compiler/` (feature `compiler`): `KitCompiler`, packages compiled once by the CLI behind a
     capturing proxy;
+  - `agent/`: `Agent`, the agents `sbx` knows, and `profile.rs`, the profile of each (`keys`,
+    `forwarded_env`, `headless`);
   - `reference.rs`: references read from their name as the CLI reads them, `KitRef` (a kit, as
     `sbx create <kit>` and `--kit <kit>` read it);
   - `error.rs`: its `Error`, whose `Client` variant keeps the errors of `docker-sandbox`;

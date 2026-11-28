@@ -19,12 +19,13 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use docker_sandbox::exec::{AttachSpec, ExecOutput, ExecSpec, OutputStream};
-use docker_sandbox::kit::KitAgent;
 use docker_sandbox::sandbox::{CreateRequest, Sandbox, Workspace};
 use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
-use crate::agent::Agent;
+use docker_sandbox_kit::HeadlessOutput;
+
+use crate::agent::{self, Agent};
 use crate::{connect, credentials, kit, sandbox};
 
 /// Files of the default task, written on the host.
@@ -52,33 +53,6 @@ const SUMMARY_CHARS: usize = 300;
 /// examples.
 const RESULTS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/automation");
 
-/// How an agent runs one prompt without a terminal.
-#[derive(Debug, Clone, Copy)]
-pub struct Headless {
-    /// The command running `prompt`, built from the program of the agent and
-    /// the run options its kit declares.
-    pub command: fn(agent: &KitAgent, prompt: &str) -> Vec<String>,
-    /// What the command prints on its standard output.
-    pub output: Output,
-}
-
-/// The program of `agent`, or `fallback` when its kit declares none: the
-/// start of a command that puts a subcommand before its options.
-#[must_use]
-pub fn program(agent: &KitAgent, fallback: &str) -> String {
-    agent.binary.clone().unwrap_or_else(|| fallback.to_owned())
-}
-
-/// Format of the standard output of an agent run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Output {
-    /// Text, relayed as it comes.
-    Text,
-    /// One JSON event per line, summarized as it comes: the step, the text of
-    /// a message, the tool called, the final result.
-    JsonLines,
-}
-
 /// Runs `agent` unattended on the default task, or on the prompt given on the
 /// command line.
 ///
@@ -89,25 +63,25 @@ pub enum Output {
 /// in), or the
 /// tests of the task still fail afterwards. The sandbox is removed in every
 /// case; the task stays on the host.
-pub async fn run(agent: &Agent, headless: Headless) -> Result<()> {
+pub async fn run(agent: &Agent) -> Result<()> {
     let prompt = prompt_from_args();
-    let forwarded = agent.forwarded_values();
-    if credentials::find_in_env(agent.credentials).is_empty() && forwarded.is_empty() {
+    let forwarded = agent::forwarded_values(*agent);
+    if credentials::find_in_env(agent.keys()).is_empty() && forwarded.is_empty() {
         eprintln!(
             "no key in the environment ({}): the agent relies on the credential the daemon \
              holds for its kit, a subscription for instance; unattended, it cannot log in",
-            env_names(agent)
+            env_names(*agent)
         );
     }
     let client = connect().await?;
-    let package = kit::forged(&client, agent.kit).await?;
+    let package = kit::forged(&client, agent.name()).await?;
     let described = package
         .agent()
         .context("the kit declares no agent program")?;
-    let name = sandbox::unique_name(&format!("{}-auto", agent.kit));
+    let name = sandbox::unique_name(&format!("{}-auto", agent.name()));
 
     let (project, original) = write_project(&name)?;
-    let keys = credentials::proxied_keys(&package, agent.credentials);
+    let keys = credentials::proxied_keys(&package, agent.keys());
     let request = keys.iter().fold(
         package
             .request(&name)?
@@ -130,9 +104,13 @@ pub async fn run(agent: &Agent, headless: Headless) -> Result<()> {
         let before = tests(&sandbox, &project).await?;
         eprintln!("tests before the agent: exit code {}", before.exit_code);
 
-        let command = (headless.command)(&described, &prompt);
-        eprintln!("running {} without a terminal", command.join(" "));
-        let spec = AttachSpec::new(command)
+        // The command of the profile of the agent, its program and the
+        // options of its sessions taken from its kit.
+        let headless = agent
+            .headless(&described, &prompt)
+            .context("the agent runs no prompt without a terminal")?;
+        eprintln!("running {} without a terminal", headless.command.join(" "));
+        let spec = AttachSpec::new(headless.command)
             .with_working_dir(&project)
             .with_envs(forwarded);
         let code =
@@ -225,7 +203,11 @@ pub async fn tests(sandbox: &Sandbox, project: &str) -> Result<ExecOutput> {
 /// # Errors
 ///
 /// Fails when the command cannot be attached or its output breaks off.
-pub async fn run_agent(sandbox: &Sandbox, spec: &AttachSpec, format: Output) -> Result<i32> {
+pub async fn run_agent(
+    sandbox: &Sandbox,
+    spec: &AttachSpec,
+    format: HeadlessOutput,
+) -> Result<i32> {
     let (mut input, mut output, control) = sandbox.attach(spec).await?.split();
     // Nothing is typed: closing the input keeps the agent from waiting for it.
     input.shutdown().await?;
@@ -234,8 +216,7 @@ pub async fn run_agent(sandbox: &Sandbox, spec: &AttachSpec, format: Output) -> 
     while let Some(chunk) = output.next().await {
         let chunk = chunk?;
         match (chunk.stream, format) {
-            (OutputStream::Stdout, Output::Text) => stdout.write_all(&chunk.data).await?,
-            (OutputStream::Stdout, Output::JsonLines) => {
+            (OutputStream::Stdout, HeadlessOutput::JsonLines) => {
                 pending.extend_from_slice(&chunk.data);
                 while let Some(end) = pending.iter().position(|&b| b == b'\n') {
                     let line: Vec<u8> = pending.drain(..=end).collect();
@@ -244,6 +225,9 @@ pub async fn run_agent(sandbox: &Sandbox, spec: &AttachSpec, format: Output) -> 
                     }
                 }
             }
+            // Text, and any format the profile may name later, relayed as
+            // it comes.
+            (OutputStream::Stdout, _) => stdout.write_all(&chunk.data).await?,
             (OutputStream::Stderr, _) => stderr.write_all(&chunk.data).await?,
         }
         stdout.flush().await?;
@@ -327,12 +311,12 @@ pub async fn report_network(sandbox: &Sandbox) -> Result<()> {
 
 /// Every environment variable an agent can take a credential from, for an
 /// error message.
-fn env_names(agent: &Agent) -> String {
+fn env_names(agent: Agent) -> String {
     agent
-        .credentials
+        .keys()
         .iter()
-        .flat_map(|credential| credential.env.iter().copied())
-        .chain(agent.forwarded_env.iter().copied())
+        .flat_map(|key| key.env.iter().copied())
+        .chain(agent.forwarded_env().iter().copied())
         .collect::<Vec<_>>()
         .join(", ")
 }
