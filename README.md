@@ -12,10 +12,11 @@ Rust tooling to drive [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/)
 (`sbx`) through the private `sandboxd` Unix socket, without the `sbx` CLI.
 
 ```text
-docker-sandbox/       the library: a typed async client of the socket
-docker-sandbox-kit/   the kit packages it replays, forged or compiled
-examples/             complete programs, one crate each, in a workspace of their own
-audit/                the audit of the daemon API, a tool that is never published
+docker-sandbox/            the library: a typed async client of the socket
+docker-sandbox-kit/        the kit packages it replays, forged or compiled
+docker-sandbox-blueprint/  a whole sandbox described as data, checked and applied
+examples/                  complete programs, one crate each, in a workspace of their own
+audit/                     the audit of the daemon API, a tool that is never published
 ```
 
 - **[`docker-sandbox`](docker-sandbox/README.md)** creates sandboxes from kit
@@ -28,6 +29,11 @@ audit/                the audit of the daemon API, a tool that is never publishe
   resolve kits by itself. It forges them through the socket alone, the base
   kit rebuilt from its published image with its arguments and mixins described
   in Rust or in JSON, or compiles them once with the CLI.
+- **[`docker-sandbox-blueprint`](docker-sandbox-blueprint/README.md)** describes
+  a whole sandbox as data, in Rust or in the JSON a program in another language
+  writes: its kit, workspace, network rules, API keys, MCP servers, variables
+  and resources. It checks a spec against the rules of a launch and the kit
+  policy of the daemon, then applies it through the two other crates.
 - **[`examples`](examples/README.md)** are runnable programs: the basics, shell
   sandboxes (commands, files, network policy, ports, interactive shell,
   events), the MCP gateway checked from inside a sandbox with an `rmcp` client

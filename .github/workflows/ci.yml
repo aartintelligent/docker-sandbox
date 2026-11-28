@@ -78,18 +78,18 @@ jobs:
           # What every crate is built with: the root manifest and lockfile, the
           # toolchain, the lint configuration, and this workflow.
           shared='^(Cargo\.(toml|lock)|rust-toolchain\.toml|clippy\.toml|\.github/workflows/ci\.yml)$'
-          # What the two published crates build and test from; their READMEs
+          # What the three published crates build and test from; their READMEs
           # hold doctests, their changelogs nothing that compiles.
-          library="$shared|^docker-sandbox(-kit)?/(Cargo\.toml|README\.md)$|^docker-sandbox(-kit)?/(src|tests)/"
+          library="$shared|^docker-sandbox(-kit|-blueprint)?/(Cargo\.toml|README\.md)$|^docker-sandbox(-kit|-blueprint)?/(src|tests)/"
           area library "$library"
-          # What Codecov reports on: the two crates, and its own configuration,
+          # What Codecov reports on: the three crates, and its own configuration,
           # applied to the upload of the pull request that changes it.
           area coverage "$library|^codecov\.yml$"
           area rust "$library|^audit/Cargo\.toml$|^audit/(src|assets)/"
-          area examples "$shared|^examples/|^docker-sandbox(-kit)?/Cargo\.toml$|^docker-sandbox(-kit)?/src/"
+          area examples "$shared|^examples/|^docker-sandbox(-kit|-blueprint)?/Cargo\.toml$|^docker-sandbox(-kit|-blueprint)?/src/"
           # What the privacy check reads: the audit data, and the files of the
           # published crates.
-          area audit-data "$shared|^audit/Cargo\.toml$|^audit/(src|snapshots)/|^docker-sandbox/tests/fixtures/|^docker-sandbox(-kit)?/(Cargo\.toml|README\.md|CHANGELOG\.md|LICENSE-[A-Z]+)$|^docker-sandbox(-kit)?/src/"
+          area audit-data "$shared|^audit/Cargo\.toml$|^audit/(src|snapshots)/|^docker-sandbox/tests/fixtures/|^docker-sandbox(-kit|-blueprint)?/(Cargo\.toml|README\.md|CHANGELOG\.md|LICENSE-[A-Z]+)$|^docker-sandbox(-kit|-blueprint)?/src/"
           area dependencies '(^|/)Cargo\.(toml|lock)$|^deny\.toml$|^\.github/workflows/ci\.yml$'
           # macOS runners are the slowest and the dearest: the tests run there
           # when the crates change, the only code that depends on the platform.
@@ -184,8 +184,9 @@ jobs:
       - run: cargo nextest run --locked --workspace --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge
       - run: cargo test --locked --workspace --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge --doc
 
-  # Guards the coverage of the published crates: every line of `docker-sandbox`
-  # and `docker-sandbox-kit` must run under their tests — unit, fake daemon,
+  # Guards the coverage of the published crates: every line of `docker-sandbox`,
+  # `docker-sandbox-kit` and `docker-sandbox-blueprint` must run under their
+  # tests — unit, fake daemon,
   # fixtures. The gate is enforced here,
   # after the upload, so that Codecov still annotates the uncovered lines of a
   # failing pull request and an outage of the service blocks nothing.
@@ -214,7 +215,7 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-llvm-cov,cargo-nextest
-      - run: cargo llvm-cov nextest --locked -p docker-sandbox -p docker-sandbox-kit --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge --lcov --output-path target/lcov.info
+      - run: cargo llvm-cov nextest --locked -p docker-sandbox -p docker-sandbox-kit -p docker-sandbox-blueprint --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge --lcov --output-path target/lcov.info
       # Merge-queue commits are temporary: Codecov tracks `main` and the pull
       # requests.
       - uses: codecov/codecov-action@v7
@@ -228,7 +229,7 @@ jobs:
       # The line percentage of the `llvm-cov` table is no gate: for each
       # function, it keeps the best-covered build (unit or integration tests),
       # not their union.
-      - run: cargo llvm-cov report -p docker-sandbox -p docker-sandbox-kit --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
+      - run: cargo llvm-cov report -p docker-sandbox -p docker-sandbox-kit -p docker-sandbox-blueprint --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
 
   # Guards the documentation: builds with the docs.rs flags, warnings as errors.
   docs:
@@ -252,7 +253,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: cargo doc --locked -p docker-sandbox -p docker-sandbox-kit --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge --no-deps
+      - run: cargo doc --locked -p docker-sandbox -p docker-sandbox-kit -p docker-sandbox-blueprint --features docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge --no-deps
 
   # Guards the MSRV: the main workspace compiles on exactly the `rust-version`
   # of Cargo.toml.
@@ -299,7 +300,7 @@ jobs:
       # Without `--no-dev-deps`, which rewrites the manifest and so the lockfile
       # that `--locked` guards: resolver 3 already keeps the features of the
       # dev-dependencies out of a check of the library.
-      - run: cargo hack check --locked -p docker-sandbox -p docker-sandbox-kit --feature-powerset
+      - run: cargo hack check --locked -p docker-sandbox -p docker-sandbox-kit -p docker-sandbox-blueprint --feature-powerset
 
   # Guards the supply chain (deny.toml) when a manifest, a lockfile or the
   # policy changes: everything for the main workspace; licenses and sources for

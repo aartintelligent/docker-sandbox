@@ -175,8 +175,8 @@ are in [`AGENTS.md`](AGENTS.md).
   decoding of every recorded daemon response (`fixtures.rs`); refresh the
   fixtures with `just fixtures <version>`. The fake daemon serves canned
   replies, in turn when a route gets several, and plays slow, truncated or
-  hung-up connections. The tests of `docker-sandbox-kit` include it by path
-  rather than copy it.
+  hung-up connections. The tests of `docker-sandbox-kit` and
+  `docker-sandbox-blueprint` include it by path rather than copy it.
 - What a test cannot do in its own process (change the environment, run the
   `sbx` CLI) it does in a helper process: the test binary re-executes itself
   to run one test, as Go's `os/exec` tests do. `compiler.rs`, in
@@ -187,9 +187,9 @@ are in [`AGENTS.md`](AGENTS.md).
 
 ### Coverage
 
-Every line of `docker-sandbox` and `docker-sandbox-kit` runs under the tests
-above, without a daemon: `just coverage` fails on the first line none of them
-runs, and lists it. CI runs the same gate when a crate or `codecov.yml` changes,
+Every line of `docker-sandbox`, `docker-sandbox-kit` and
+`docker-sandbox-blueprint` runs under the tests above, without a daemon:
+`just coverage` fails on the first line none of them runs, and lists it. CI runs the same gate when a crate or `codecov.yml` changes,
 and uploads the report to
 [Codecov](https://codecov.io) (`codecov.yml`), which annotates the uncovered
 lines of a pull request. The doctests, the live tests and the examples do not count; the test
@@ -225,8 +225,8 @@ formatting checks, clippy and the privacy check; `commit-msg` runs `committed`.
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 `<type>(<scope>): <description>`, lowercase, at most 100 columns, the body
-wrapped at 100 columns. Scopes are `sandbox` (the library), `audit` or
-`workspace`.
+wrapped at 100 columns. Scopes are `sandbox` (the library), `kit`,
+`blueprint`, `audit` or `workspace`.
 
 | Type | Use for | Changelog |
 |---|---|---|
@@ -256,10 +256,11 @@ the squash commit). Fill in the template; `CI OK` must be green.
 [release-plz](https://release-plz.dev) opens a release pull request from the
 Conventional Commits on `main`; merging it publishes `docker-sandbox` to
 crates.io, tags the version (`v<version>`) and creates the GitHub release.
-`docker-sandbox-kit` shares that version: both crates inherit the version of
-the workspace, and release-plz gives them one (`version_group`), so that a
-release of either is a release of both, the kit crate tagged
-`docker-sandbox-kit-v<version>`. The other members are never published
+`docker-sandbox-kit` and `docker-sandbox-blueprint` share that version: the
+crates inherit the version of the workspace, and release-plz gives them one
+(`version_group`), so that a release of one is a release of all, the kit crate
+tagged `docker-sandbox-kit-v<version>` and the blueprint crate
+`docker-sandbox-blueprint-v<version>`. The other members are never published
 (`publish = false`). The release workflow
 also carries the new version into `examples/Cargo.lock`, the lockfile of the
 examples workspace, which release-plz does not know, with a commit of its own

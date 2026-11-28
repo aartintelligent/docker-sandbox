@@ -1,0 +1,50 @@
+# ------------------------------------------------------------------------------
+# docker-sandbox-blueprint — a whole sandbox of Docker Sandboxes described as
+# data, checked against the daemon and applied through the `sandboxd` socket.
+#
+# The declarative layer of the repository: a description and its checks, built
+# on `docker-sandbox` and `docker-sandbox-kit` alone. It shares their version,
+# so that the three crates of a version go together; versions, shared metadata
+# and lints come from the workspace root `Cargo.toml`.
+# ------------------------------------------------------------------------------
+
+[package]
+name                   = "docker-sandbox-blueprint"
+description            = "A whole sandbox of Docker Sandboxes (sbx) described as data, checked and applied through the sandboxd socket"
+documentation          = "https://docs.rs/docker-sandbox-blueprint"
+authors.workspace      = true
+categories.workspace   = true
+edition.workspace      = true
+keywords.workspace     = true
+license.workspace      = true
+readme                 = "README.md"
+repository.workspace   = true
+rust-version.workspace = true
+version.workspace      = true
+# The published package is the library alone: its tests stay out of it.
+include = ["/src", "/README.md", "/CHANGELOG.md", "/LICENSE-APACHE", "/LICENSE-MIT"]
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
+
+# Quality gates are centralized in the workspace root `Cargo.toml`.
+[lints]
+workspace = true
+
+[dependencies]
+docker-sandbox = { workspace = true }
+# The kit of a spec is forged without the `sbx` CLI: its default `forge`
+# feature, never `compiler`.
+docker-sandbox-kit = { workspace = true }
+serde              = { workspace = true }
+serde_json         = { workspace = true }
+thiserror          = { workspace = true }
+
+[dev-dependencies]
+# The query strings the fake daemon of the tests decodes.
+percent-encoding = { workspace = true }
+tempfile         = { workspace = true }
+# The archives of file transfers the fake daemon of the tests reads and writes.
+tar = { workspace = true }
+# `#[tokio::test]` on a multi-threaded runtime, and the in-memory fake daemon.
+tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread", "sync"] }
