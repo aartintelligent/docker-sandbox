@@ -348,6 +348,7 @@ async fn keys_and_the_hosts_of_their_service_are_checked_before_the_creation() {
         .await
         .unwrap();
     assert_eq!(lease.report().keys[0].hosts, ["api.agent.example"]);
+    assert!(lease.report().keys_left_out.is_empty());
     assert_eq!(lease.report().network.warning, None);
     assert!(lease.report().mcp.is_empty());
     assert!(
@@ -569,4 +570,59 @@ async fn a_launch_given_up_once_its_sandbox_exists_removes_it() {
         assert_eq!(deleted.len(), 1, "the sandbox of the launch is removed");
         assert_eq!(deleted[0].query()["expected_id"], "11765de3");
     }
+}
+
+#[tokio::test]
+async fn optional_keys_are_left_out_without_a_value_or_a_kit_that_declares_them() {
+    let agent = image_export(
+        "sha256:a9e7",
+        &json!({
+            "schemaVersion": "3",
+            "kind": "workload",
+            "displayName": "Agent",
+            "capabilities": [
+                { "type": "com.docker.sandbox/credential@1", "config": { "service": "agent", "apiKey": {
+                    "inject": [{ "domain": "api.agent.example", "header": "x-api-key", "format": "%s" }] } } }
+            ]
+        }),
+        &json!(["agent"]),
+        &json!([]),
+    );
+    let daemon = launching(agent).start();
+    let client = connect(&daemon).await;
+    // Every key a program finds in its environment, optional: the one the kit
+    // declares goes to the proxy, the others are left out.
+    let spec = SandboxSpec::base("docker.io/acme/agent:2")
+        .with_key(KeySpec::for_service("AGENT_KEY", "agent").optional())
+        .with_key(KeySpec::for_service("GROQ_API_KEY", "groq").optional())
+        .with_key(KeySpec::for_hosts("ACME_TOKEN", ["api.acme.example"]).optional());
+    let keys = Keys::new()
+        .with_key("AGENT_KEY", "a dummy key")
+        .with_key("GROQ_API_KEY", "another dummy key");
+    let lease = spec.launch(&client, "job-42", &keys).await.unwrap();
+    let report = lease.report();
+    assert_eq!(report.keys.len(), 1);
+    assert_eq!(report.keys[0].env, "AGENT_KEY");
+    assert_eq!(
+        serde_json::to_value(&report.keys_left_out).unwrap(),
+        json!([
+            { "env": "GROQ_API_KEY", "service": "groq", "reason": "undeclared_service" },
+            { "env": "ACME_TOKEN", "service": null, "reason": "no_value" }
+        ])
+    );
+    let created = sent(&daemon, "POST", "/sandbox")[0].json();
+    assert!(created["environment"].get("GROQ_API_KEY").is_none());
+    assert!(!serde_json::to_string(report).unwrap().contains("dummy"));
+    lease.shutdown().await.unwrap();
+    // A key that is not optional still fails the launch.
+    let error = SandboxSpec::base("docker.io/acme/agent:2")
+        .with_key(KeySpec::for_service("GROQ_API_KEY", "groq"))
+        .launch(
+            &client,
+            "job-42",
+            &Keys::new().with_key("GROQ_API_KEY", "x"),
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error, Error::Client(_)), "{error}");
 }

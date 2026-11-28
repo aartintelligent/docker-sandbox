@@ -47,7 +47,7 @@ crate adds no call to the daemon of its own:
 | `with_workspace`, `with_cloned_workspace` | `with_workspace`, `with_cloned_workspace` |
 | `with_mount` | `with_additional_workspace` |
 | `with_network_allow`, `with_network_deny` | a generated `network-policy@1` mixin |
-| `with_key` | `ProxiedKey::for_service` or `ProxiedKey::new` |
+| `with_key` | `ProxiedKey::for_service` or `ProxiedKey::new`; an `optional()` key is left out without a value, or when no kit declares its service |
 | `with_mcp` | `Mixin::mcp` |
 | `with_env` | `with_envs`, in clear in the request: never a secret |
 | `with_cpus`, `with_memory` | `with_cpus`, `with_memory` |
@@ -170,7 +170,8 @@ The `Report` is serializable, for a program in another language, and never
 holds the value of a key or of a token: the kits of the sandbox, the hosts its
 rules allow and refuse (with a warning when the global policy of the daemon
 allows every host, so that the allowances restrict nothing), where each key
-goes, the name, kind and agent of each MCP server, and the services whose
+goes and which optional keys were left out and why, the name, kind and agent
+of each MCP server, and the services whose
 credential the daemon withholds.
 
 ## From another language

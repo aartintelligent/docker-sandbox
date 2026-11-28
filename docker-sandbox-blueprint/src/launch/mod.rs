@@ -136,7 +136,7 @@ impl SandboxSpec {
             (Kit::Forge(forge), None) => forge.build().await?,
         };
         let tokens = self.draw_tokens()?;
-        let proxied = self.proxied_keys(&package, keys)?;
+        let (proxied, left_out) = self.proxied_keys(&package, keys)?;
         let network = self.network_report(client).await?;
         let request = self.request(&package, &name, &tokens, &proxied)?;
         let created = package.create_with(client, &request).await?;
@@ -157,7 +157,7 @@ impl SandboxSpec {
             message: "the task of the launch ended without an answer".to_owned(),
         });
         let session = answered.await.unwrap_or(Err(gone))?;
-        let report = self.report(&package, &created, &proxied, network);
+        let report = self.report(&package, &created, &proxied, left_out, network);
         let tokens = tokens
             .into_iter()
             .map(|(server, (_, token))| (server, token))
