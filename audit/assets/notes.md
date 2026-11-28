@@ -204,7 +204,13 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   does not support, with the message "unsupported capability type
   com.docker.sandbox/dockerd@1" (`dockerd@1` of opencode), as it leaves out
   `agent-context@1`. The `KitForge` of `docker-sandbox-kit` writes that order
-  (`RESOLVED` in `docker-sandbox-kit/src/forge/artifact.rs`).
+  (`RESOLVED` in `docker-sandbox-kit/src/forge/artifact.rs`). The `claude` kit
+  declares an optional `open-url@1` since its version 2.1.332 (2026-11-28),
+  a type the binary of `sbx` v0.54.1 does not name: the CLI leaves it out the
+  same way ("unsupported capability type com.docker.sandbox/open-url@1",
+  `audit kit-compile --base claude`), and the package `KitForge` writes is
+  the one it compiles, field by field (`audit kit-forge --library
+  --compare`); `UNSUPPORTED` lists both types.
 - **A withheld credential stays withheld** (`assets/kits/audit-mixin-cred-echo`,
   a credential of a service no secret can be named after, injected into a
   header of the public echo service; `create-wc` … `probe-wc-after`): a

@@ -16,10 +16,10 @@
 //! parts it needs. The selection follows the two rules of the CLI the audit
 //! measured: `agent-context@1` is left out when the kit also declares
 //! `agent-context@2`, and an optional capability of a type the CLI does not
-//! support (`dockerd@1`) is left out. A capability of a type this crate does
-//! not know the CLI to resolve is refused: its place in the effective
-//! descriptor, which the daemon checks before it authorizes the credentials
-//! of the kit, would be a guess.
+//! support (`dockerd@1`, `open-url@1`) is left out. A capability of a type
+//! this crate does not know the CLI to resolve is refused: its place in the
+//! effective descriptor, which the daemon checks before it authorizes the
+//! credentials of the kit, would be a guess.
 
 use std::collections::BTreeMap;
 
@@ -824,24 +824,27 @@ mod tests {
                 .push(capability);
             base_kit(&reference("sbx/shell"), &facts, &BTreeMap::new())
         };
-        let artifact = with(json!({ "type": dockerd, "optional": true }))
-            .unwrap()
-            .artifact
-            .into_json();
-        let skipped = &artifact["v3Selection"]["skipped"][1];
-        assert_eq!(skipped["path"], "capabilities[3]");
-        assert_eq!(
-            skipped["decisions"][0]["message"],
-            "unsupported capability type com.docker.sandbox/dockerd@1"
-        );
-        let effective = artifact["v3Effective"]["capabilities"].as_array().unwrap();
-        assert!(
-            effective.iter().all(|c| c["type"] != dockerd),
-            "{effective:?}"
-        );
+        for unsupported in UNSUPPORTED {
+            let artifact = with(json!({ "type": unsupported, "optional": true }))
+                .unwrap()
+                .artifact
+                .into_json();
+            let skipped = &artifact["v3Selection"]["skipped"][1];
+            assert_eq!(skipped["path"], "capabilities[3]");
+            assert_eq!(
+                skipped["decisions"][0]["message"],
+                format!("unsupported capability type {unsupported}")
+            );
+            let effective = artifact["v3Effective"]["capabilities"].as_array().unwrap();
+            assert!(
+                effective.iter().all(|c| c["type"] != *unsupported),
+                "{effective:?}"
+            );
+        }
 
         for refused in [
             json!({ "type": dockerd }),
+            json!({ "type": "com.docker.sandbox/open-url@1" }),
             json!({ "type": "com.docker.sandbox/future@1", "optional": true }),
         ] {
             let error = with(refused).unwrap_err().to_string();

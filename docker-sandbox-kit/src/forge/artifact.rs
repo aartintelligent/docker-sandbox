@@ -44,8 +44,13 @@ pub(super) const RESOLVED: &[&str] = &[
 ];
 
 /// The capability types the CLI leaves out of a kit as unsupported, when the
-/// kit declares them optional.
-pub(super) const UNSUPPORTED: &[&str] = &["com.docker.sandbox/dockerd@1"];
+/// kit declares them optional. Measured by the audit: `dockerd@1`, and
+/// `open-url@1`, which the `claude` kit declares since its version 2.1.332
+/// and `sbx` v0.54.1 does not know.
+pub(super) const UNSUPPORTED: &[&str] = &[
+    "com.docker.sandbox/dockerd@1",
+    "com.docker.sandbox/open-url@1",
+];
 
 /// Variables every install command keeps from the environment of the
 /// sandbox, in the order the CLI writes them.
