@@ -354,6 +354,21 @@ enum Base {
     Package(KitPackage),
 }
 
+/// The base kit of a package, checked before it is forged.
+enum CheckedBase<'a> {
+    /// A compiled package.
+    Package(&'a KitPackage),
+    /// A published kit.
+    Published {
+        /// Its reference, as given or as the daemon names it for an agent.
+        requested: String,
+        /// That reference, read.
+        reference: base::Reference,
+        /// Its arguments, by their name in the kit.
+        args: BTreeMap<String, String>,
+    },
+}
+
 /// The base kit of a package being forged.
 struct ResolvedBase {
     /// Creation template, named `{{name}}`, without `kits` and
@@ -597,9 +612,40 @@ impl KitForge {
         KitPackage::in_memory(to_json(&request), to_json(&metadata), images).map_err(Error::from)
     }
 
-    /// The base kit, once the kit policy of the daemon is checked: taken from
-    /// its package, or rebuilt from its image.
-    async fn resolve_base(&self) -> Result<ResolvedBase> {
+    /// Checks what can be checked before forging, without pulling or writing
+    /// anything: a base kit is named, an agent resolves to a kit forging
+    /// takes, the arguments name the base kit, and the kit policy of the
+    /// daemon accepts the composition. [`KitForge::build`] checks the same
+    /// first; the arguments are checked against the descriptor of the base
+    /// kit only then, as it comes with its image.
+    ///
+    /// ```no_run
+    /// # async fn run(client: docker_sandbox::Client) -> docker_sandbox_kit::Result<()> {
+    /// use docker_sandbox_kit::{Agent, KitForge};
+    ///
+    /// let forge = KitForge::agent(client, Agent::Claude);
+    /// // Refused before any image is pulled when the daemon requires signed kits.
+    /// forge.check().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Forge`] when no base kit is named, the base kit is one
+    /// only the CLI builds, a compiled base package is given arguments or no
+    /// mixin, or the kit policy of the daemon refuses the composition;
+    /// [`Error::InvalidKit`] when an argument names a kit that is not the base
+    /// kit, or is given twice, or when the reference of the base kit cannot be
+    /// read; and [`Error::Client`] when the settings of the daemon cannot be
+    /// read.
+    pub async fn check(&self) -> Result<()> {
+        self.checked_base().await.map(drop)
+    }
+
+    /// The base kit, once the kit policy of the daemon is checked, as
+    /// [`KitForge::check`] checks it.
+    async fn checked_base(&self) -> Result<CheckedBase<'_>> {
         match &self.base {
             None => Err(Error::Forge(
                 "no base kit: give a published kit with `with_base` or a compiled package with \
@@ -620,22 +666,13 @@ impl KitForge {
                     ));
                 }
                 self.check_policy(None).await?;
-                Ok(ResolvedBase {
-                    request: package.request(NAME_PLACEHOLDER)?,
-                    reference: package.kit_refs().into_iter().next().unwrap_or_default(),
-                    artifact: package
-                        .kit_artifacts()
-                        .into_iter()
-                        .next()
-                        .unwrap_or_default(),
-                    image: None,
-                })
+                Ok(CheckedBase::Package(package))
             }
             Some(Base::Agent(agent)) => {
                 let requested = self.agent_kit(*agent).await?;
-                self.published(&requested).await
+                self.checked_published(requested).await
             }
-            Some(Base::Published(requested)) => self.published(requested).await,
+            Some(Base::Published(requested)) => self.checked_published(requested.clone()).await,
             Some(Base::Cli(kit)) => Err(Error::Forge(format!(
                 "{kit} is a kit the sbx CLI builds, from a directory, a ZIP file or a Git \
                  repository: compile it with KitCompiler, or take a published kit"
@@ -643,25 +680,53 @@ impl KitForge {
         }
     }
 
-    /// The published base kit `requested`, once the kit policy of the daemon
-    /// is checked, rebuilt from its image.
-    async fn published(&self, requested: &str) -> Result<ResolvedBase> {
-        let reference = base::Reference::parse(requested)?;
+    /// The published base kit `requested`, once its reference is read, the
+    /// kit policy of the daemon checked and its arguments named.
+    async fn checked_published(&self, requested: String) -> Result<CheckedBase<'_>> {
+        let reference = base::Reference::parse(&requested)?;
         self.check_policy(Some(&reference)).await?;
         let args = self.base_args(reference.name())?;
-        let kit = base::rebuild(&self.client, &reference, &args).await?;
-        let mut request = CreateRequest::for_agent(NAME_PLACEHOLDER, kit.name);
-        if !self.args.is_empty() {
-            request
-                .extra
-                .insert("kit_args".to_owned(), json!(self.args));
-        }
-        Ok(ResolvedBase {
-            request,
-            reference: kit.reference,
-            artifact: kit.artifact.into_json(),
-            image: Some(requested.to_owned()),
+        Ok(CheckedBase::Published {
+            requested,
+            reference,
+            args,
         })
+    }
+
+    /// The base kit, once it is checked: taken from its package, or rebuilt
+    /// from its image.
+    async fn resolve_base(&self) -> Result<ResolvedBase> {
+        match self.checked_base().await? {
+            CheckedBase::Package(package) => Ok(ResolvedBase {
+                request: package.request(NAME_PLACEHOLDER)?,
+                reference: package.kit_refs().into_iter().next().unwrap_or_default(),
+                artifact: package
+                    .kit_artifacts()
+                    .into_iter()
+                    .next()
+                    .unwrap_or_default(),
+                image: None,
+            }),
+            CheckedBase::Published {
+                requested,
+                reference,
+                args,
+            } => {
+                let kit = base::rebuild(&self.client, &reference, &args).await?;
+                let mut request = CreateRequest::for_agent(NAME_PLACEHOLDER, kit.name);
+                if !self.args.is_empty() {
+                    request
+                        .extra
+                        .insert("kit_args".to_owned(), json!(self.args));
+                }
+                Ok(ResolvedBase {
+                    request,
+                    reference: kit.reference,
+                    artifact: kit.artifact.into_json(),
+                    image: Some(requested),
+                })
+            }
+        }
     }
 
     /// The arguments of the base kit `base`, from the values given: one named

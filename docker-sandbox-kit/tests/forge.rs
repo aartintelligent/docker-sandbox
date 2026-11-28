@@ -393,6 +393,60 @@ async fn the_kit_policy_of_the_daemon_is_respected() {
 }
 
 #[tokio::test]
+async fn compositions_are_checked_before_anything_is_pulled() {
+    let dir = tempfile::tempdir().unwrap();
+    let pulled = |daemon: &FakeDaemon| {
+        daemon
+            .requests()
+            .iter()
+            .any(|r| r.path().starts_with("/docker/images"))
+    };
+    let daemon = serving(permissive(), shell_export()).start();
+    let client = connect(&daemon).await;
+    let agent = KitForge::agent(client.clone(), Agent::Shell);
+    agent.clone().with_mixin(tools()).check().await.unwrap();
+    KitForge::new(client.clone())
+        .with_base_package(base_package(&dir.path().join("shell")))
+        .with_mixin(tools())
+        .check()
+        .await
+        .unwrap();
+    // The arguments are named, but only forging reads what the kit declares.
+    agent
+        .clone()
+        .with_arg("shell.model", "m")
+        .check()
+        .await
+        .unwrap();
+    let error = agent.with_arg("acme.model", "m").check().await.unwrap_err();
+    assert!(matches!(error, Error::InvalidKit { .. }), "{error}");
+    let error = KitForge::new(client).check().await.unwrap_err();
+    assert!(
+        matches!(error, Error::Forge(ref m) if m.contains("no base kit")),
+        "{error}"
+    );
+    assert!(!pulled(&daemon), "nothing is pulled");
+
+    let signed = serving(permissive(), shell_export())
+        .route(
+            "GET",
+            "/daemon/settings/kit.requireSignature",
+            setting("kit.requireSignature", true),
+        )
+        .start();
+    let client = connect(&signed).await;
+    let error = KitForge::agent(client.clone(), Agent::Shell)
+        .check()
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(error, Error::Forge(ref m) if m.contains("kit.requireSignature is on")),
+        "{error}"
+    );
+    assert!(!pulled(&signed), "nothing is pulled");
+}
+
+#[tokio::test]
 async fn incomplete_compositions_are_refused() {
     let dir = tempfile::tempdir().unwrap();
     let daemon = permissive().start();
