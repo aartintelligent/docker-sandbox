@@ -97,7 +97,7 @@ pub use self::error::{Error, LaunchStep, Result};
 pub use self::key::{KeyReport, KeySpec, Keys, LeftOutKey, LeftOutReason};
 pub use self::launch::{Lease, Report};
 pub use self::mcp::ServerReport;
-pub use self::network::NetworkReport;
+pub use self::network::{HttpRuleReport, NetworkReport};
 pub use self::spec::SandboxSpec;
 
 /// Compiles the examples of the README as doctests.

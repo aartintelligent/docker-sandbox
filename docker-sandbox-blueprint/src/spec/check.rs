@@ -67,7 +67,8 @@ impl SandboxSpec {
     /// - MCP servers for an agent `Mixin::mcp` takes them for: claude,
     ///   copilot or opencode, named by `agent` or declared by the package;
     /// - every host of `network` a host pattern, which the daemon would
-    ///   otherwise store and never apply;
+    ///   otherwise store and never apply, and every HTTP rule given methods
+    ///   and a path;
     /// - no refusal of `network` covering a host a key goes to or an MCP
     ///   server is reached at, as a refusal wins over any allowance;
     /// - the variables of `keys`, of `env` and of the tokens of the servers
@@ -157,6 +158,7 @@ impl SandboxSpec {
         self.check_key_targets()?;
         self.check_variables()?;
         self.check_reach()?;
+        self.check_http_rules()?;
         let mut mixins = Vec::new();
         for mixin in &self.mixins {
             mixins.push(mixin.read()?);

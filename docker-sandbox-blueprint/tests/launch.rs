@@ -626,3 +626,82 @@ async fn optional_keys_are_left_out_without_a_value_or_a_kit_that_declares_them(
         .unwrap_err();
     assert!(matches!(error, Error::Client(_)), "{error}");
 }
+
+#[tokio::test]
+async fn the_http_rules_of_a_spec_are_applied_once_it_runs() {
+    let applied = Reply::json(
+        200,
+        &json!({ "results": [
+            { "action": "http-allow", "resources": ["api.example.com"], "sandbox_id": "job-42", "created": [] },
+            { "action": "http-deny", "resources": ["api.example.com"], "sandbox_id": "job-42", "created": [] }
+        ] }),
+    );
+    let daemon = launching(shell_export())
+        .route("POST", "/policy/network/rules", applied)
+        .start();
+    let client = connect(&daemon).await;
+    let spec = SandboxSpec::agent(Agent::Shell)
+        .with_http_allow(["api.example.com"], ["GET"], "/v1/**")
+        .with_http_deny(["api.example.com"], ["POST"], "/admin/**");
+    let lease = spec.launch(&client, "job-42", &Keys::new()).await.unwrap();
+
+    // No mixin holds them: they go through the policy API, after the start.
+    assert_eq!(lease.report().kits.len(), 1);
+    let order: Vec<String> = daemon
+        .requests()
+        .iter()
+        .map(|r| format!("{} {}", r.method, r.path()))
+        .filter(|r| r.contains("/start") || r.contains("/policy/network/rules"))
+        .collect();
+    // The global policy is read before the creation, for the warning of the
+    // report; the rules of the sandbox are applied after its start.
+    assert_eq!(
+        order,
+        [
+            "GET /policy/network/rules",
+            "POST /sandbox/job-42/start",
+            "POST /policy/network/rules"
+        ]
+    );
+    let actions = &sent(&daemon, "POST", "/policy/network/rules")[0].json()["actions"];
+    assert_eq!(actions[0]["action"], "http-allow");
+    assert_eq!(actions[0]["methods"], json!(["GET"]));
+    assert_eq!(actions[0]["path"], "/v1/**");
+    assert_eq!(actions[1]["action"], "http-deny");
+    assert_eq!(actions[1]["sandbox_id"], "job-42");
+    let network = &lease.report().network;
+    assert_eq!(network.http_allow[0].path, "/v1/**");
+    assert_eq!(network.http_deny[0].methods, ["POST"]);
+    // An HTTP allowance restricts nothing under a global allowance.
+    assert!(network.warning.is_some());
+    lease.shutdown().await.unwrap();
+
+    // Rules the daemon refuses fail the launch, and the sandbox goes.
+    let daemon = launching(shell_export())
+        .route(
+            "POST",
+            "/policy/network/rules",
+            Reply::json(200, &json!({ "results": [{ "action": "http-allow", "error": "path must not be empty" }] })),
+        )
+        .start();
+    let error = spec
+        .launch(&connect(&daemon).await, "job-42", &Keys::new())
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(
+            error,
+            Error::Launch {
+                step: LaunchStep::Network,
+                kept: false,
+                ..
+            }
+        ),
+        "{error}"
+    );
+    assert!(
+        error.to_string().contains("when applying its http rules"),
+        "{error}"
+    );
+    assert_eq!(sent(&daemon, "DELETE", "/sandbox/job-42").len(), 1);
+}

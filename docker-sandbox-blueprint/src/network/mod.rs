@@ -10,8 +10,11 @@
 //! refused before the sandbox is created.
 
 mod host;
+mod http;
 
 pub(crate) use self::host::{authority, covers};
+use self::http::HttpRule;
+pub use self::http::HttpRuleReport;
 
 use docker_sandbox::Client;
 use docker_sandbox::policy::{Decision, HostPattern};
@@ -35,6 +38,12 @@ pub(crate) struct Network {
     /// Hosts refused, whatever else allows them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) deny: Vec<String>,
+    /// HTTP requests allowed, applied once the sandbox runs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) http_allow: Vec<HttpRule>,
+    /// HTTP requests refused, applied once the sandbox runs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) http_deny: Vec<HttpRule>,
 }
 
 /// The network rules of a launch, as its report shows them.
@@ -45,6 +54,10 @@ pub struct NetworkReport {
     pub allow: Vec<String>,
     /// Hosts the spec refuses.
     pub deny: Vec<String>,
+    /// HTTP requests the spec allows.
+    pub http_allow: Vec<HttpRuleReport>,
+    /// HTTP requests the spec refuses.
+    pub http_deny: Vec<HttpRuleReport>,
     /// Why the allowances restrict nothing, when the global policy of the
     /// daemon allows every host, as it does by default: a refusal is what
     /// keeps a sandbox from a host.
@@ -55,7 +68,10 @@ pub struct NetworkReport {
 impl Network {
     /// Whether the spec names no rule.
     pub(crate) fn is_empty(&self) -> bool {
-        self.allow.is_empty() && self.deny.is_empty()
+        self.allow.is_empty()
+            && self.deny.is_empty()
+            && self.http_allow.is_empty()
+            && self.http_deny.is_empty()
     }
 }
 
@@ -84,7 +100,8 @@ impl SandboxSpec {
     /// rules apply from the creation of the sandbox, install commands
     /// included, and go with it.
     pub(crate) fn network_mixin(&self) -> Result<Option<Mixin>> {
-        if self.network.is_empty() {
+        // The HTTP rules are applied by the launch, not by the mixin.
+        if self.network.allow.is_empty() && self.network.deny.is_empty() {
             return Ok(None);
         }
         let mut descriptor = KitDescriptor::mixin("Network rules")
@@ -158,7 +175,7 @@ impl SandboxSpec {
     /// of the daemon allows every host: the allowances of the spec then
     /// restrict nothing. The policy is read only when the spec allows hosts.
     pub(crate) async fn network_report(&self, client: &Client) -> Result<NetworkReport> {
-        let warning = if self.network.allow.is_empty() {
+        let warning = if self.network.allow.is_empty() && self.network.http_allow.is_empty() {
             None
         } else {
             let rules = client.policy().rules().await?;
@@ -183,6 +200,18 @@ impl SandboxSpec {
         Ok(NetworkReport {
             allow: self.network.allow.clone(),
             deny: self.network.deny.clone(),
+            http_allow: self
+                .network
+                .http_allow
+                .iter()
+                .map(HttpRule::report)
+                .collect(),
+            http_deny: self
+                .network
+                .http_deny
+                .iter()
+                .map(HttpRule::report)
+                .collect(),
             warning,
         })
     }
