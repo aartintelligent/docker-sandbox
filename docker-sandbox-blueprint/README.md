@@ -49,6 +49,7 @@ crate adds no call to the daemon of its own:
 | `with_network_allow`, `with_network_deny` | a generated `network-policy@1` mixin |
 | `with_http_allow`, `with_http_deny` | sandbox rules of the policy API on methods and paths, applied once it runs |
 | `with_key` | `ProxiedKey::for_service` or `ProxiedKey::new`; an `optional()` key is left out without a value, or when no kit declares its service |
+| `with_agent_keys` | an optional key for each variable the agent reads a key from, as its profile says (`Agent::keys`); `Keys::from_env(&spec)` reads their values |
 | `with_mcp` | `Mixin::mcp` |
 | `with_env` | `with_envs`, in clear in the request: never a secret |
 | `with_cpus`, `with_memory` | `with_cpus`, `with_memory` |
