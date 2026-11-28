@@ -7,7 +7,9 @@
 
 use std::collections::BTreeSet;
 use std::fmt;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bytes::Bytes;
@@ -17,6 +19,15 @@ use super::KitAgent;
 use crate::client::Client;
 use crate::error::{Error, Result};
 use crate::sandbox::{CreateRequest, Created, Sandbox, SwapOutcome, SwapRequest};
+
+/// How many times a save renames its package into place while other
+/// writers of the same directory put theirs there, between its removal of
+/// the directory and its rename: the last writer wins.
+const PLACE_ATTEMPTS: usize = 16;
+
+/// The saves of this process, counted so that each stages its package under
+/// a name of its own.
+static SAVES: AtomicU64 = AtomicU64::new(0);
 
 /// An image shipped with a kit package.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -200,25 +211,50 @@ impl KitPackage {
     }
 
     /// Writes the package to `dir`, replacing a package already there, and
-    /// returns it as read from there. It is written beside `dir` under
-    /// another name, then renamed: a package is never found half written.
+    /// returns it as written there. It is written beside `dir`, under a name
+    /// no other save shares (`<name of dir>.staging-<process>-<save>`), then
+    /// renamed: a package is never found half written, and saves to
+    /// different directories, or to the same one, at once, from one process
+    /// or several, never mix their files. When several put a package in the
+    /// same directory at once, the last one wins, and a reader may find no
+    /// package there while one replaces another. A save that fails leaves
+    /// nothing beside `dir`.
     ///
     /// # Errors
     ///
     /// Returns [`Error::Package`] when the package cannot be written, an
-    /// archive of its own directory included.
+    /// archive of its own directory included, or `dir` has no name of its
+    /// own (`/`, a path ending in `..`).
     pub fn save(&self, dir: impl Into<PathBuf>) -> Result<Self> {
         self.save_to(dir.into())
     }
 
     /// [`KitPackage::save`], compiled once whatever the type of path.
     fn save_to(&self, output: PathBuf) -> Result<Self> {
-        let staging = output.with_extension("staging");
-        let failed = |error: std::io::Error| package_error(&staging, &error.to_string());
-        let _ = std::fs::remove_dir_all(&staging);
+        let staging = Staging::beside(&output)?;
+        let (metadata, images) = self.write_to(staging.path(), &output)?;
+        staging.place(&output)?;
+        Ok(Self::assembled(
+            Some(output),
+            self.template.clone(),
+            metadata,
+            images,
+        ))
+    }
+
+    /// Writes the files of the package into `staging`, and returns its
+    /// metadata and its images as they are once `staging` is renamed to
+    /// `output`.
+    fn write_to(
+        &self,
+        staging: &Path,
+        output: &Path,
+    ) -> Result<(Map<String, Value>, Vec<PackageImage>)> {
+        let failed = |error: std::io::Error| package_error(staging, &error.to_string());
         std::fs::create_dir_all(staging.join("images")).map_err(failed)?;
         let recorded = self.metadata.get("images").and_then(Value::as_array);
         let mut entries = Vec::new();
+        let mut images = Vec::new();
         for (index, image) in self.images.iter().enumerate() {
             let file = format!("images/{index:02}.oci.tar");
             let target = staging.join(&file);
@@ -233,25 +269,30 @@ impl KitPackage {
                 .and_then(Value::as_object)
                 .cloned()
                 .unwrap_or_default();
-            entry.insert("file".to_owned(), Value::String(file));
             if let Some(reference) = &image.reference {
                 entry.insert("ref".to_owned(), Value::String(reference.clone()));
             }
+            // The image as `KitPackage::open` reads it from the entry.
+            images.push(PackageImage {
+                archive: ImageArchive::File(output.join(&file)),
+                reference: recorded_reference(entry.get("ref")),
+            });
+            entry.insert("file".to_owned(), Value::String(file));
             entries.push(Value::Object(entry));
         }
         let mut metadata = self.metadata.clone();
         metadata.insert("images".to_owned(), Value::Array(entries));
-        // Serializing a `Value` cannot fail: its map keys are strings.
-        let pretty = |value: &Value| serde_json::to_vec_pretty(value).unwrap_or_default();
-        for (file, value) in [
-            ("create-body.json", self.template.clone()),
-            ("kit.json", Value::Object(metadata)),
+        // Serializing JSON values cannot fail: their map keys are strings.
+        for (file, json) in [
+            (
+                "create-body.json",
+                serde_json::to_vec_pretty(&self.template),
+            ),
+            ("kit.json", serde_json::to_vec_pretty(&metadata)),
         ] {
-            std::fs::write(staging.join(file), pretty(&value)).map_err(failed)?;
+            std::fs::write(staging.join(file), json.unwrap_or_default()).map_err(failed)?;
         }
-        let _ = std::fs::remove_dir_all(&output);
-        std::fs::rename(&staging, &output).map_err(|e| package_error(&output, &e.to_string()))?;
-        Self::open(output)
+        Ok((metadata, images))
     }
 
     /// `sbx` version the package was compiled with, if recorded.
@@ -440,6 +481,82 @@ impl KitPackage {
 }
 
 /// `docker.io/library/name:tag` and `name:tag` designate the same image.
+/// The directory a package is written to before it is renamed into place:
+/// beside the directory it is saved to, under a name no other save shares,
+/// and removed with what it holds unless it was put in place.
+struct Staging {
+    /// Its path.
+    path: PathBuf,
+    /// Whether it was renamed into place.
+    placed: bool,
+}
+
+impl Staging {
+    /// The staging directory of a save to `output`: the name of `output`
+    /// followed by `.staging-<process>-<save>`, in the same directory, so
+    /// that the rename stays on one file system.
+    fn beside(output: &Path) -> Result<Self> {
+        let Some(name) = output.file_name() else {
+            return Err(package_error(
+                output,
+                "a kit package is saved to a directory of a name of its own",
+            ));
+        };
+        let mut staged = name.to_os_string();
+        staged.push(format!(
+            ".staging-{}-{}",
+            std::process::id(),
+            SAVES.fetch_add(1, Ordering::Relaxed)
+        ));
+        let path = output.with_file_name(staged);
+        // Only a process that ended under the same identifier can have left
+        // a directory of that name.
+        let _ = std::fs::remove_dir_all(&path);
+        Ok(Self {
+            path,
+            placed: false,
+        })
+    }
+
+    /// Its path.
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Renames the staging directory to `output`, replacing what is there.
+    /// A writer that puts its package in `output` between the removal and
+    /// the rename makes the rename fail: the package is removed again, so
+    /// that the last writer wins.
+    fn place(mut self, output: &Path) -> Result<()> {
+        let mut attempts = 0;
+        loop {
+            attempts += 1;
+            let _ = std::fs::remove_dir_all(output);
+            match std::fs::rename(&self.path, output) {
+                Ok(()) => {
+                    self.placed = true;
+                    return Ok(());
+                }
+                Err(error)
+                    if attempts < PLACE_ATTEMPTS
+                        && matches!(
+                            error.kind(),
+                            ErrorKind::DirectoryNotEmpty | ErrorKind::AlreadyExists
+                        ) => {}
+                Err(error) => return Err(package_error(output, &error.to_string())),
+            }
+        }
+    }
+}
+
+impl Drop for Staging {
+    fn drop(&mut self) {
+        if !self.placed {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+}
+
 fn normalize_reference(reference: &str) -> String {
     reference
         .strip_prefix("docker.io/library/")
@@ -461,6 +578,15 @@ fn read_json(path: &Path) -> Result<Value> {
     serde_json::from_str(&text).map_err(|e| package_error(path, &format!("invalid JSON: {e}")))
 }
 
+/// The reference an image entry of `kit.json` records, from its `ref`: none
+/// when it is missing, empty or not a string.
+fn recorded_reference(reference: Option<&Value>) -> Option<String> {
+    reference
+        .and_then(Value::as_str)
+        .filter(|r| !r.is_empty())
+        .map(str::to_owned)
+}
+
 /// Image archives listed in `kit.json`.
 fn images_from_metadata(dir: &Path, entries: &[Value]) -> Result<Vec<PackageImage>> {
     entries
@@ -477,14 +603,9 @@ fn images_from_metadata(dir: &Path, entries: &[Value]) -> Result<Vec<PackageImag
                     "image archive listed in kit.json is missing",
                 ));
             }
-            let reference = entry
-                .get("ref")
-                .and_then(Value::as_str)
-                .filter(|r| !r.is_empty())
-                .map(str::to_owned);
             Ok(PackageImage {
                 archive: ImageArchive::File(path),
-                reference,
+                reference: recorded_reference(entry.get("ref")),
             })
         })
         .collect()
@@ -696,7 +817,7 @@ mod tests {
             !output.join("old").exists(),
             "the previous package is replaced"
         );
-        assert!(!output.with_extension("staging").exists());
+        assert_no_staging(dir.path());
         let metadata = read_json(&output.join("kit.json")).unwrap();
         assert_eq!(metadata["forged_by"]["name"], "test");
         assert_eq!(
@@ -747,16 +868,41 @@ mod tests {
             "{error}"
         );
 
-        // A staging directory left read-only by another user cannot be
-        // emptied nor written to; the tests do not run as root.
-        let output = dir.path().join("locked");
-        let staging = output.with_extension("staging");
-        std::fs::create_dir_all(staging.join("images")).unwrap();
-        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o555)).unwrap();
+        // A directory the tests cannot write to holds no staging directory;
+        // the tests do not run as root.
+        let locked = dir.path().join("locked");
+        std::fs::create_dir(&locked).unwrap();
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).unwrap();
+        let output = locked.join("pkg");
         let error = refusal(&output);
-        std::fs::set_permissions(&staging, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
         assert!(
-            error.starts_with(&format!("invalid kit package at {}:", staging.display())),
+            error.starts_with(&format!(
+                "invalid kit package at {}.staging-",
+                output.display()
+            )),
+            "{error}"
+        );
+
+        // A package that cannot be removed is not replaced, and the staging
+        // directory goes.
+        let stuck = dir.path().join("stuck");
+        std::fs::create_dir_all(stuck.join("kept")).unwrap();
+        std::fs::write(stuck.join("kept/file"), "x").unwrap();
+        std::fs::set_permissions(stuck.join("kept"), std::fs::Permissions::from_mode(0o555))
+            .unwrap();
+        let error = refusal(&stuck);
+        std::fs::set_permissions(stuck.join("kept"), std::fs::Permissions::from_mode(0o755))
+            .unwrap();
+        assert!(
+            error.starts_with(&format!("invalid kit package at {}:", stuck.display())),
+            "{error}"
+        );
+
+        // A directory without a name of its own is refused before anything.
+        let error = refusal(&dir.path().join("sub/.."));
+        assert!(
+            error.ends_with("a directory of a name of its own"),
             "{error}"
         );
 
@@ -769,6 +915,96 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.starts_with("invalid kit package at "), "{error}");
+        assert_no_staging(dir.path());
+    }
+
+    /// Checks that no staging directory is left in `dir`.
+    fn assert_no_staging(dir: &Path) {
+        let left: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| name.contains(".staging-"))
+            .collect();
+        assert!(left.is_empty(), "staging directories left: {left:?}");
+    }
+
+    /// A package of one image holding `content`.
+    fn holding(content: u8) -> KitPackage {
+        let template = serde_json::json!({ "name": "{{name}}" });
+        KitPackage::in_memory(
+            template,
+            Value::Null,
+            [PackageImage::in_memory("ref", vec![content])],
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn packages_are_saved_to_directories_whatever_their_name() {
+        let dir = tempfile::tempdir().unwrap();
+        for (content, name) in (*b"abcd").into_iter().zip([
+            "pkg-1.2",
+            "pkg-1.3",
+            "pkg.staging",
+            "shell-1.2-86d50519f269",
+        ]) {
+            let output = dir.path().join(name);
+            holding(content).save(&output).unwrap();
+            assert_eq!(
+                std::fs::read(output.join("images/00.oci.tar")).unwrap(),
+                [content]
+            );
+        }
+        assert_no_staging(dir.path());
+
+        // Two saves of a directory, and saves of directories that differ
+        // after their last dot, stage under names of their own.
+        let output = dir.path().join("a-1.2");
+        let first = Staging::beside(&output).unwrap();
+        let second = Staging::beside(&output).unwrap();
+        let other = Staging::beside(&dir.path().join("a-1.3")).unwrap();
+        let names = [first.path(), second.path(), other.path()];
+        assert!(names[0] != names[1] && names[0] != names[2] && names[1] != names[2]);
+        assert!(
+            names[0]
+                .to_string_lossy()
+                .starts_with(&format!("{}.staging-", output.display()))
+        );
+    }
+
+    #[test]
+    fn saves_at_once_keep_their_own_packages() {
+        let dir = tempfile::tempdir().unwrap();
+        // Directories that differ after their last dot, saved at once.
+        std::thread::scope(|scope| {
+            for content in 0..6 {
+                let output = dir.path().join(format!("pkg-1.{content}"));
+                scope.spawn(move || holding(content).save(output).unwrap());
+            }
+        });
+        for content in 0..6 {
+            let image = dir
+                .path()
+                .join(format!("pkg-1.{content}/images/00.oci.tar"));
+            assert_eq!(std::fs::read(image).unwrap(), [content]);
+        }
+
+        // One directory saved at once by six writers: every save succeeds,
+        // and the package of one of them is there.
+        let shared = dir.path().join("shared");
+        let saved: Vec<KitPackage> = std::thread::scope(|scope| {
+            let writers: Vec<_> = (0..6)
+                .map(|content| {
+                    let output = shared.clone();
+                    scope.spawn(move || holding(content).save(output).unwrap())
+                })
+                .collect();
+            writers.into_iter().map(|w| w.join().unwrap()).collect()
+        });
+        assert!(saved.iter().all(|p| p.dir() == Some(shared.as_path())));
+        let image = std::fs::read(shared.join("images/00.oci.tar")).unwrap();
+        assert!(image.len() == 1 && image[0] < 6, "{image:?}");
+        assert_no_staging(dir.path());
     }
 
     #[test]

@@ -29,7 +29,7 @@ use tokio::process::Command;
 
 use self::proxy::{CaptureProxy, CaptureRules, CapturedRequest};
 use crate::error::{Error, Result};
-use docker_sandbox::kit::KitPackage;
+use docker_sandbox::kit::{KitPackage, PackageImage};
 use docker_sandbox::{Client, SOCKET_ENV};
 
 /// Requests of the CLI kept in the package: the creation request and the kit
@@ -142,7 +142,8 @@ impl KitCompiler {
         self
     }
 
-    /// Compiles `job` into `job.output` and opens the package.
+    /// Compiles `job` and saves the package to `job.output`, as
+    /// [`KitPackage::save`] saves any package, replacing one already there.
     ///
     /// The throw-away sandbox is removed whatever happens. The kit images the
     /// CLI built are kept: they are the cache that sandboxes of this
@@ -179,12 +180,12 @@ impl KitCompiler {
         ran?;
 
         let health = self.client.health();
-        write_package(
+        let package = build_package(
             job,
             &captured,
             &json!({ "sbx": health.version, "api_version": health.api_version }),
         )?;
-        KitPackage::open(&job.output).map_err(Error::from)
+        package.save(&job.output).map_err(Error::from)
     }
 
     /// Runs `sbx create` for `job` on the throw-away `sandbox`, pointed at the
@@ -225,13 +226,13 @@ impl KitCompiler {
     }
 }
 
-/// Writes the package of `job` from the captured requests, through a staging
-/// directory renamed into place at the end.
-fn write_package(
+/// The package of `job`, built in memory from the captured requests: it is
+/// saved as any package is ([`KitPackage::save`]).
+fn build_package(
     job: &CompileJob,
     captured: &[CapturedRequest],
     compiled_with: &Value,
-) -> Result<()> {
+) -> Result<KitPackage> {
     let create = captured
         .iter()
         .rev()
@@ -248,20 +249,16 @@ fn write_package(
         object.remove("bindings_path");
     }
 
-    let staging = job.output.with_extension("staging");
-    let _ = std::fs::remove_dir_all(&staging);
-    std::fs::create_dir_all(staging.join("images")).map_err(|e| package_error(&staging, e))?;
-
     let mut images = Vec::new();
+    let mut entries = Vec::new();
     let mut seen = BTreeSet::new();
     for load in captured.iter().filter(|c| c.path == "/docker/images/load") {
         let (reference, manifest_digest) = oci_reference(&load.body).unwrap_or_default();
         if !seen.insert(manifest_digest.clone()) {
             continue;
         }
-        let file = format!("images/{:02}.oci.tar", images.len());
-        std::fs::write(staging.join(&file), &load.body).map_err(|e| package_error(&staging, e))?;
-        images.push(json!({ "file": file, "ref": reference, "manifest_digest": manifest_digest, "bytes": load.body.len() }));
+        entries.push(json!({ "manifest_digest": manifest_digest, "bytes": load.body.len() }));
+        images.push(PackageImage::in_memory(reference, load.body.clone()));
     }
 
     let metadata = json!({
@@ -269,15 +266,9 @@ fn write_package(
         "base": job.base,
         "mixins": job.mixins,
         "kit_args": job.args,
-        "images": images,
+        "images": entries,
     });
-    for (file, value) in [("create-body.json", &template), ("kit.json", &metadata)] {
-        let bytes = serde_json::to_vec_pretty(value).map_err(|e| package_error(&staging, e))?;
-        std::fs::write(staging.join(file), bytes).map_err(|e| package_error(&staging, e))?;
-    }
-
-    let _ = std::fs::remove_dir_all(&job.output);
-    std::fs::rename(&staging, &job.output).map_err(|e| package_error(&job.output, e))
+    Ok(KitPackage::in_memory(template, metadata, images)?)
 }
 
 /// `(reference name, manifest digest)` read from the `index.json` of an OCI
@@ -350,7 +341,9 @@ mod tests {
     #[test]
     fn packages_are_written_from_captured_requests() {
         let dir = tempfile::tempdir().unwrap();
-        let job = CompileJob::new("shell", dir.path().join("pkg")).with_mixin("/kits/m");
+        // A name the staging directory of the package once took for itself.
+        let job =
+            CompileJob::new("shell", dir.path().join("pkg-1.2.staging")).with_mixin("/kits/m");
         let create = json!({ "name": "sbx-kit-compile-1", "agent": "shell", "kits": ["a", "b"], "kit_artifacts": [{}, {}], "ssh_agent_socket_path": "/run/x",
                               "bindings_path": "/home/agent/.config/sbx/credentials.yaml" });
         let archive = oci_layout("sbx-kit-src:spec-abc", "sha256:1");
@@ -369,7 +362,8 @@ mod tests {
             },
         ];
 
-        write_package(&job, &captured, &json!({ "sbx": "v0.54.0" })).unwrap();
+        let built = build_package(&job, &captured, &json!({ "sbx": "v0.54.0" })).unwrap();
+        built.save(&job.output).unwrap();
 
         let package = KitPackage::open(&job.output).unwrap();
         assert_eq!(package.compiled_with(), Some("v0.54.0"));
@@ -391,7 +385,7 @@ mod tests {
     fn a_capture_without_creation_is_an_error() {
         let dir = tempfile::tempdir().unwrap();
         let job = CompileJob::new("shell", dir.path().join("pkg"));
-        let error = write_package(&job, &[], &json!({})).unwrap_err();
+        let error = build_package(&job, &[], &json!({})).unwrap_err();
         assert!(matches!(error, Error::Compile(_)), "{error}");
     }
 }
