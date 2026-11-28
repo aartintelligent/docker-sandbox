@@ -210,7 +210,15 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   same way ("unsupported capability type com.docker.sandbox/open-url@1",
   `audit kit-compile --base claude`), and the package `KitForge` writes is
   the one it compiles, field by field (`audit kit-forge --library
-  --compare`); `UNSUPPORTED` lists both types.
+  --compare`); `UNSUPPORTED` lists both types. The kits declared the type
+  ahead of the CLI that enforces it: it comes from sandbox-kit-spec
+  v3.0.0-m.13, a permission without configuration to open an http or https
+  URL in the browser of the host, and the kits declare it optional, as they
+  can print the URL instead. The binaries of `sbx` v0.55.0-rc5 (2026-11-24)
+  and of its nightly of 2026-11-27 name it, with the `browser.enabled`
+  setting that gates the host browser, and five other types v0.54.1 does not
+  name: `auto-restart@1`, `fuse@1`, `kvm@1`, `network-proxy@1` and `slot@1`.
+  The upgrade to v0.55 measures where its CLI places each of them.
 - **A withheld credential stays withheld** (`assets/kits/audit-mixin-cred-echo`,
   a credential of a service no secret can be named after, injected into a
   header of the public echo service; `create-wc` … `probe-wc-after`): a
