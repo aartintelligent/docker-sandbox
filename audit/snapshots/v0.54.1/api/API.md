@@ -146,6 +146,43 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   sentinel token name (`assets/kits/audit-mixin-mcp`). Startup commands run on
   `POST /sandbox/{name}/start`: a sandbox created through the socket runs them
   once it is started, as `Sandbox::ensure_running` does.
+- **MCP servers registered in the agent** (measured by hand on the kits
+  `claude` 2.1.332, `copilot` 1.0.117 and `opencode` 2.4.2, dummy tokens: a
+  mixin registers, at install time and as `agent`, a server of the host on its
+  loopback and a stdio server in the sandbox; the `copilot` and `opencode`
+  sessions were started by the maintainer, with no prompt). Each kit registers
+  its gateway in the configuration of its agent at each start, and keeps the
+  servers a mixin registered beside it:
+  - `claude`: `claude mcp add <name> <url> --transport http --scope user
+    --header …` and `claude mcp add --scope user --transport stdio <name> -e
+    VAR=value -- <command> <args>…` write `mcpServers` of `~/.claude.json`
+    (`type` `http` or `stdio`). `claude mcp get <name>` connects to that
+    server alone.
+  - `copilot`: `mcpServers` of `~/.copilot/mcp-config.json`, `{type: "http",
+    url, headers, tools: ["*"]}` or `{type: "local", command, args, env,
+    tools}`. The kit merges its gateway with `jq`, under a `flock` of
+    `.mcp-config.lock`. `copilot mcp list` and `get` read the file but connect
+    to nothing; the session connects.
+  - `opencode`: `mcp` of `~/.config/opencode/opencode.json`, `{type: "remote",
+    url, enabled, headers}` or `{type: "local", command: […], enabled,
+    environment}`. The kit merges its gateway with `jq -s '.[0] * .[1]'`.
+    `opencode mcp list` answers "No MCP servers configured", the gateway of
+    the kit included, unless `OPENCODE_CONFIG` names that file; the session
+    connects. Sessions share a service (`opencode serve --service`) that
+    outlives them: a server that failed is not started again until it stops.
+    Its requests carry `?codemode=false`.
+  - A header reads a variable of the sandbox when the agent connects:
+    `${VAR}` for `claude` and `copilot`, `{env:VAR}` for `opencode`. The token
+    is then written in no file.
+  - A stdio server is started as `agent`, in the workspace, with the variables
+    its registration gives and the whole environment of the sandbox. It is to
+    answer each line as it arrives: `mawk` reads by blocks without `-W
+    interactive`, and the agent waits (`copilot` gives up after 60 s).
+  - The three agents send `server/discover` first, then `initialize` once the
+    server answers `-32601`. A server of the host receives `Host:
+    localhost:<port>` and the bearer intact.
+  - `claude` ships `python3`; `copilot` and `opencode` ship neither `python3`
+    nor `node`, but `jq` and `flock`.
 - **An install command that fails** (`assets/kits/audit-mixin-install-fail`,
   `exit 3`; `create-if-install-fail`): the creation fails with `failed to
   apply kit to sandbox`, which names neither the command nor its exit code, and

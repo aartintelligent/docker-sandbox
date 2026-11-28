@@ -18,11 +18,16 @@
 //! (`claude mcp add`, inside the sandbox): no file is written on the host and
 //! nothing is registered with the daemon. Its bearer token, random and
 //! different at every run, is given at creation in the variable the server
-//! names. The example then sends, from inside the sandbox, the `initialize`
-//! request Claude Code sends, to the URL and with the header it registered,
-//! and checks that the server received the token. The mixin also registers a
-//! remote server, whose bearer is read from a variable of the sandbox: the
-//! example only reads its registration, and never calls it.
+//! names; Claude Code keeps a reference to that variable, which it reads when
+//! it connects. The example then sends, from inside the sandbox, the
+//! `initialize` request Claude Code sends, to the URL and with the header it
+//! registered, and checks that the server received the token. The mixin also
+//! registers a remote server, whose bearer is read from a variable of the
+//! sandbox, and a stdio server, a Python program Claude Code would start in
+//! the sandbox: the example reads the registration of the first, never calls
+//! it, and starts the second as Claude Code would. The servers are plain
+//! data: the example prints them in the JSON form a program in another
+//! language declares them in.
 //!
 //! The kit is resolved as the CLI resolves it, the order of its effective
 //! capabilities included: the daemon authorizes the credential it declares,
@@ -65,25 +70,59 @@ const REMOTE: &str = "https://mcp.example.com/mcp";
 const REMOTE_TOKEN: &str = "EXAMPLE_DOCS_TOKEN";
 
 /// Prints the type and URL Claude Code registered for the server named in
-/// its first argument, and whether its bearer is the content of the variable
+/// its first argument, and whether its bearer is a reference to the variable
 /// named in the second.
 const REGISTERED: &str = r#"
-import json, os, sys
+import json, sys
 server = json.load(open("/home/agent/.claude.json"))["mcpServers"][sys.argv[1]]
-bearer = server.get("headers", {}).get("Authorization") == "Bearer " + os.environ[sys.argv[2]]
+bearer = server.get("headers", {}).get("Authorization") == "Bearer ${%s}" % sys.argv[2]
 print(server["type"], server["url"], bearer)
+"#;
+
+/// The name Claude Code knows the stdio server of the example under.
+const STDIO: &str = "example-files";
+
+/// A stdio MCP server, run by `python3 -c`: it answers `initialize`, and
+/// `-32601` to anything else.
+const STDIO_SERVER: &str = r#"
+import json, sys
+for line in sys.stdin:
+    message = json.loads(line)
+    if "id" not in message:
+        continue
+    if message.get("method") == "initialize":
+        answer = {"result": {"protocolVersion": "2025-03-26", "capabilities": {},
+                             "serverInfo": {"name": "example-files", "version": "0.0.0"}}}
+    else:
+        answer = {"error": {"code": -32601, "message": "method not found"}}
+    print(json.dumps({"jsonrpc": "2.0", "id": message["id"], **answer}), flush=True)
+"#;
+
+/// Starts the stdio server named in its argument with the command Claude
+/// Code registered for it, as Claude Code would, sends it `initialize`, and
+/// prints the type of the registration and the name the server answers with.
+const START_STDIO: &str = r#"
+import json, subprocess, sys
+server = json.load(open("/home/agent/.claude.json"))["mcpServers"][sys.argv[1]]
+request = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+    "protocolVersion": "2025-03-26", "capabilities": {},
+    "clientInfo": {"name": "agent-kit-forge", "version": "0.0.0"}}}
+process = subprocess.run([server["command"], *server["args"]], input=json.dumps(request) + "\n",
+                         capture_output=True, text=True, timeout=30)
+print(server["type"], json.loads(process.stdout)["result"]["serverInfo"]["name"])
 "#;
 
 /// Sends, from inside the sandbox, the `initialize` request of an MCP client
 /// to the URL and with the headers Claude Code registered for the server
-/// named in its argument, and prints the status of the answer.
+/// named in its argument, their references to variables read as Claude Code
+/// reads them, and prints the status of the answer.
 const INITIALIZE: &str = r#"
-import json, sys, urllib.request
+import json, os, sys, urllib.request
 server = json.load(open("/home/agent/.claude.json"))["mcpServers"][sys.argv[1]]
 body = {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
     "protocolVersion": "2025-03-26", "capabilities": {},
     "clientInfo": {"name": "agent-kit-forge", "version": "0.0.0"}}}
-headers = dict(server.get("headers", {}))
+headers = {k: os.path.expandvars(v) for k, v in server.get("headers", {}).items()}
 headers.update({"Content-Type": "application/json", "Accept": "application/json, text/event-stream"})
 request = urllib.request.Request(server["url"], json.dumps(body).encode(), headers)
 print(server["type"], server["url"], urllib.request.urlopen(request, timeout=30).status)
@@ -102,12 +141,18 @@ async fn main() -> Result<()> {
         "MCP server listening on {}, given to Claude Code as {} at {}",
         http.url(),
         tools.name(),
-        tools.url()
+        tools.url().unwrap_or_default()
     );
     // A remote server, called by the agent itself. A dummy bearer here; for a
     // real key, the placeholder of a `ProxiedKey` for its host, so that the
     // sandbox never holds the key.
     let docs = McpServer::remote("example-docs", REMOTE).with_bearer_env(REMOTE_TOKEN);
+    // A server Claude Code starts in the sandbox, here a program given to
+    // `python3 -c`.
+    let files = McpServer::stdio(STDIO, "python3").with_args(["-c", STDIO_SERVER]);
+    for server in [&tools, &docs] {
+        println!("declared as JSON: {}", serde_json::to_string(server)?);
+    }
     // The published kit of the claude agent, rebuilt from its image.
     let agent = Agent::Claude;
     eprintln!(
@@ -117,7 +162,7 @@ async fn main() -> Result<()> {
     let package = KitForge::agent(client.clone(), agent)
         .with_arg("model", MODEL)
         .with_arg("reasoningEffort", EFFORT)
-        .with_mixin(Mixin::mcp(agent, [tools.clone(), docs.clone()])?)
+        .with_mixin(Mixin::mcp(agent, [tools.clone(), docs.clone(), files])?)
         .forge(OUTPUT)
         .await?;
     let artifact = package
@@ -170,27 +215,7 @@ async fn main() -> Result<()> {
         );
         println!("~/.claude/settings.json: model {MODEL}, effortLevel {EFFORT}");
         check_server(&sandbox, &http).await?;
-        let registered = sandbox
-            .exec(&ExecSpec::new([
-                "python3",
-                "-c",
-                REGISTERED,
-                docs.name(),
-                REMOTE_TOKEN,
-            ]))
-            .await?
-            .check()?
-            .stdout;
-        ensure!(
-            registered.trim() == format!("http {REMOTE} True"),
-            "unexpected registration of {}: {}",
-            docs.name(),
-            registered.trim()
-        );
-        println!(
-            "~/.claude.json registers {} at {REMOTE}, its bearer read from {REMOTE_TOKEN}",
-            docs.name()
-        );
+        check_registrations(&sandbox, &docs).await?;
         Ok(())
     })
     .await
@@ -223,6 +248,44 @@ async fn check_server(sandbox: &Sandbox, http: &HttpServer) -> Result<()> {
         "the server received the token given at creation ({} request)",
         http.authorized()
     );
+    Ok(())
+}
+
+/// Checks the registrations of the remote server, never called, and of the
+/// stdio server, started as Claude Code would start it.
+async fn check_registrations(sandbox: &Sandbox, docs: &McpServer) -> Result<()> {
+    let registered = sandbox
+        .exec(&ExecSpec::new([
+            "python3",
+            "-c",
+            REGISTERED,
+            docs.name(),
+            REMOTE_TOKEN,
+        ]))
+        .await?
+        .check()?
+        .stdout;
+    ensure!(
+        registered.trim() == format!("http {REMOTE} True"),
+        "unexpected registration of {}: {}",
+        docs.name(),
+        registered.trim()
+    );
+    println!(
+        "~/.claude.json registers {} at {REMOTE}, its bearer read from {REMOTE_TOKEN}",
+        docs.name()
+    );
+    let started = sandbox
+        .exec(&ExecSpec::new(["python3", "-c", START_STDIO, STDIO]))
+        .await?
+        .check()?
+        .stdout;
+    ensure!(
+        started.trim() == format!("stdio {STDIO}"),
+        "unexpected stdio server: {}",
+        started.trim()
+    );
+    println!("~/.claude.json registers {STDIO}, started as Claude Code would: it answers");
     Ok(())
 }
 
