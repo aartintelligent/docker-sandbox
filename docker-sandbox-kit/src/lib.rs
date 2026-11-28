@@ -52,8 +52,9 @@
 //! anything: it creates sandboxes as it is, and
 //! [`KitPackage::save`](docker_sandbox::kit::KitPackage::save) writes it when it
 //! is to be kept. A package on disk is taken again by [`KitPackage::open`] for
-//! the next sandboxes, and [`KitForge::with_base_package`] takes its base kit
-//! for another composition.
+//! the next sandboxes, while it suits the daemon
+//! ([`KitPackage::suits`](docker_sandbox::kit::KitPackage::suits)), and
+//! [`KitForge::with_base_package`] takes its base kit for another composition.
 //!
 //! [`Mixin::mcp`] gives the agent of a sandbox its MCP servers ([`McpServer`]),
 //! served by a process of the host or remote, with nothing written on the

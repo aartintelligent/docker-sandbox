@@ -109,11 +109,12 @@ pub async fn package_with_args(
     cached(client, &label, job).await
 }
 
-/// The package of `job`, from the cache when it was compiled for the `sbx`
-/// version the daemon runs, else compiled with the CLI.
+/// The package of `job`, from the cache while it suits the daemon (compiled
+/// for the `sbx` version it runs, `KitPackage::suits`), else compiled with
+/// the CLI.
 async fn cached(client: &Client, label: &str, job: CompileJob) -> Result<KitPackage> {
     if let Ok(package) = KitPackage::open(&job.output)
-        && package.compiled_with() == Some(client.health().version.as_str())
+        && package.suits(client.health())
     {
         return Ok(package);
     }
