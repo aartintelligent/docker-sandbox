@@ -68,6 +68,18 @@ git_tag_name     = "docker-sandbox-kit-v{{ version }}"
 git_release_name = "docker-sandbox-kit v{{ version }}"
 version_group    = "docker-sandbox"
 
+# The blueprint crate shares the version too, with tags, a changelog and GitHub
+# releases of its own. Trusted publishing cannot publish a new crate: its first
+# version is published by hand (CONTRIBUTING.md), and `release = false` keeps
+# release-plz away from it until then.
+[[package]]
+name             = "docker-sandbox-blueprint"
+changelog_update = true
+git_tag_name     = "docker-sandbox-blueprint-v{{ version }}"
+git_release_name = "docker-sandbox-blueprint v{{ version }}"
+release          = false
+version_group    = "docker-sandbox"
+
 # The audit tool is a member that is never published, versioned or tagged.
 # `publish = false` is repeated here: release-plz checks every member's
 # manifest against its configuration before it honours `release`.

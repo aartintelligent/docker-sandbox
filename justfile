@@ -10,7 +10,7 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # Target of the programs run inside sandboxes: Linux, static, on the architecture of the host.
 live_target := `uname -m | sed 's/arm64/aarch64/'` + "-unknown-linux-musl"
 
-# Every feature of the two published crates but `live`, which needs a real daemon.
+# Every feature of the published crates but `live`, which needs a real daemon.
 features := "docker-sandbox/secrecy,docker-sandbox-kit/compiler,docker-sandbox-kit/forge"
 
 # List the available recipes.
@@ -58,17 +58,17 @@ test:
 doctest:
     cargo test --workspace --features {{features}} --doc
 
-# Check that the tests run every line of the two published crates and at least 95 % of their
+# Check that the tests run every line of the three published crates and at least 95 % of their
 # regions, as CI does, and list the lines they miss.
 # Needs `cargo-llvm-cov` and `rustup component add llvm-tools`; `just coverage-html` browses the
 # report. The line percentage of the table can stay under 100 % with every line run: for each
 # function, `llvm-cov` keeps its best-covered build (unit or integration tests), not their union.
 coverage:
-    cargo llvm-cov nextest -p docker-sandbox -p docker-sandbox-kit --features {{features}} --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
+    cargo llvm-cov nextest -p docker-sandbox -p docker-sandbox-kit -p docker-sandbox-blueprint --features {{features}} --show-missing-lines --fail-uncovered-lines 0 --fail-under-regions 95
 
-# Write the coverage report of the two published crates as HTML and open it.
+# Write the coverage report of the three published crates as HTML and open it.
 coverage-html:
-    cargo llvm-cov nextest -p docker-sandbox -p docker-sandbox-kit --features {{features}} --html --open
+    cargo llvm-cov nextest -p docker-sandbox -p docker-sandbox-kit -p docker-sandbox-blueprint --features {{features}} --html --open
 
 # Run the integration tests against the real daemon and sbx CLI of the current user. They create
 # and remove their own sandboxes and images; the state of the daemon is recorded before and
@@ -85,7 +85,7 @@ test-live:
 # locally, any nightly at or before that date works.
 # Build the API docs exactly as docs.rs would.
 doc:
-    RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly-2026-10-14 doc -p docker-sandbox -p docker-sandbox-kit --features {{features}} --no-deps
+    RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly-2026-10-14 doc -p docker-sandbox -p docker-sandbox-kit -p docker-sandbox-blueprint --features {{features}} --no-deps
 
 # ------------------------------------------------------------------------------
 # Supply chain & compatibility — dependency policy, feature combinations, MSRV.
@@ -101,9 +101,9 @@ deny:
 deny-examples:
     cargo deny --manifest-path examples/Cargo.toml check advisories
 
-# Check that every feature combination of the two published crates compiles on its own.
+# Check that every feature combination of the three published crates compiles on its own.
 hack:
-    cargo hack check -p docker-sandbox -p docker-sandbox-kit --feature-powerset --no-dev-deps
+    cargo hack check -p docker-sandbox -p docker-sandbox-kit -p docker-sandbox-blueprint --feature-powerset --no-dev-deps
 
 # Verify the crates build on the MSRV declared in Cargo.toml.
 msrv:

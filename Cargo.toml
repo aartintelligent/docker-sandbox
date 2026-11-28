@@ -5,7 +5,8 @@
 #
 # `docker-sandbox` is the typed client of the `sandboxd` socket of Docker
 # Sandboxes, and `docker-sandbox-kit` writes the kit packages it replays, what
-# the `sbx` CLI does on the client side. `audit` is the tool that maps the
+# the `sbx` CLI does on the client side. `docker-sandbox-blueprint` describes a
+# whole sandbox as data and applies it through the two. `audit` is the tool that maps the
 # daemon API and produces the library's test fixtures, a member that is never
 # published, as is `docker-sandbox/tests/live-probe`, the program the live tests
 # of the library run inside sandboxes. `examples/` is a workspace of its own,
@@ -13,7 +14,13 @@
 # ------------------------------------------------------------------------------
 
 [workspace]
-members = ["audit", "docker-sandbox", "docker-sandbox-kit", "docker-sandbox/tests/live-probe"]
+members = [
+    "audit",
+    "docker-sandbox",
+    "docker-sandbox-blueprint",
+    "docker-sandbox-kit",
+    "docker-sandbox/tests/live-probe",
+]
 # The examples form their own workspace, with their own lockfile.
 exclude = ["examples"]
 # Pinned explicitly so that the resolver does not change with the edition of a
@@ -52,8 +59,9 @@ docker-sandbox = { version = "0.3.1", path = "docker-sandbox" }
 # with each release of the two crates.
 docker-sandbox-kit = { version = "0.3.1", path = "docker-sandbox-kit" }
 
-# Serialization of the daemon payloads in the library, and of the captures and
-# snapshots of the audit.
+# Serialization of the daemon payloads in the library, of the kit bricks of
+# `docker-sandbox-kit` and the sandbox specs of `docker-sandbox-blueprint`, and
+# of the captures and snapshots of the audit.
 serde = { version = "1", features = ["derive"] }
 
 # JSON encoding of the same payloads, and the opaque `serde_json::Value` fields
@@ -106,7 +114,8 @@ futures-core = "0.3"
 # Query string encoding of the daemon routes in the library.
 percent-encoding = "2"
 
-# Error enums of the library and of `docker-sandbox-kit`.
+# Error enums of the library, of `docker-sandbox-kit` and of
+# `docker-sandbox-blueprint`.
 thiserror = "2"
 
 # Request logging in the library, and kit compilation logging in

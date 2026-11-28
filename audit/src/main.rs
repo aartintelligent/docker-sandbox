@@ -78,7 +78,11 @@ const OUTPUT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../target/audit");
 /// Root of the workspace.
 const WORKSPACE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
 /// The crates the workspace publishes, whose files the privacy check covers.
-const PUBLISHED_CRATES: &[&str] = &["docker-sandbox", "docker-sandbox-kit"];
+const PUBLISHED_CRATES: &[&str] = &[
+    "docker-sandbox",
+    "docker-sandbox-blueprint",
+    "docker-sandbox-kit",
+];
 /// Test fixtures of `docker-sandbox`.
 const LIBRARY_FIXTURES: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
