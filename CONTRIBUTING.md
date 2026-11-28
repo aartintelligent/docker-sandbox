@@ -261,8 +261,10 @@ crates.io, tags the version (`v<version>`) and creates the GitHub release.
 crates inherit the version of the workspace, and release-plz gives them one
 (`version_group`), so that a release of one is a release of all, the kit crate
 tagged `docker-sandbox-kit-v<version>` and the blueprint crate
-`docker-sandbox-blueprint-v<version>`. The other members are never published
-(`publish = false`). The release workflow
+`docker-sandbox-blueprint-v<version>`. They require one another at that exact
+version (`=` in `[workspace.dependencies]`), which release-plz keeps as it
+raises it, so that no build mixes two of their versions. The other members are
+never published (`publish = false`). The release workflow
 also carries the new version into `examples/Cargo.lock`, the lockfile of the
 examples workspace, which release-plz does not know, with a commit of its own
 on the branch of the release pull request.

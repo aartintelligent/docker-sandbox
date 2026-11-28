@@ -318,8 +318,9 @@ impl KitPackage {
     /// suits the daemon of the same `sbx` version; one `docker-sandbox-kit`
     /// forged suits a daemon of the same API, forged by the version of
     /// `docker-sandbox-kit` that goes with this crate (the two crates share
-    /// one version), since another may write its kits otherwise. A package
-    /// that records neither suits no daemon: a cache makes it again.
+    /// one version, and require each other at that exact version), since
+    /// another may write its kits otherwise. A package that records neither
+    /// suits no daemon: a cache makes it again.
     ///
     /// ```no_run
     /// # async fn run(client: docker_sandbox::Client) -> docker_sandbox::Result<()> {
