@@ -16,7 +16,8 @@
 //!   behind a proxy that captures what the CLI sends.
 //!
 //! It shares the version of `docker-sandbox`: use the two crates at the same
-//! version.
+//! version. [`prelude`] imports its types, beside the prelude of
+//! `docker-sandbox`.
 //!
 //! # Example
 //!
@@ -27,8 +28,8 @@
 //! ```no_run
 //! # #[cfg(feature = "forge")]
 //! # async fn run() -> docker_sandbox_kit::Result<()> {
-//! use docker_sandbox::Client;
-//! use docker_sandbox_kit::{KitDescriptor, KitForge, LifecycleStep, Mixin};
+//! use docker_sandbox::prelude::*;
+//! use docker_sandbox_kit::prelude::*;
 //!
 //! let client = Client::connect().await?;
 //! let tools = KitDescriptor::mixin("Project tools")
@@ -93,6 +94,7 @@ mod compiler;
 mod error;
 #[cfg(feature = "forge")]
 mod forge;
+pub mod prelude;
 mod reference;
 
 pub use self::agent::Agent;
