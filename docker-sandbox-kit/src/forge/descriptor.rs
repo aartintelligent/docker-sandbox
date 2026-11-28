@@ -18,7 +18,7 @@
 
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
 use super::to_json;
@@ -41,6 +41,9 @@ pub(super) const NETWORK: &str = "com.docker.sandbox/network-policy@1";
 /// commands of the kits (`audit-mixin-mcp`).
 const GATEWAY_ENV: [&str; 2] = ["MCP_GATEWAY_URL", "MCP_SENTINEL_TOKEN_NAME"];
 /// A v3 kit descriptor (feature `forge`), read from JSON or built in Rust.
+///
+/// Its JSON form (serde) is the descriptor itself, the JSON of a `spec.yaml`,
+/// read and checked as [`KitDescriptor::from_json`] reads it.
 ///
 /// ```
 /// use docker_sandbox_kit::{KitDescriptor, LifecycleStep};
@@ -408,6 +411,22 @@ impl KitDescriptor {
             kit: self.display_name().unwrap_or("descriptor").to_owned(),
             message,
         })
+    }
+}
+
+impl Serialize for KitDescriptor {
+    /// Writes the descriptor as its JSON form, [`KitDescriptor::to_json`].
+    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        self.spec.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for KitDescriptor {
+    /// Reads a descriptor as [`KitDescriptor::from_json`] does, checked as
+    /// it checks it.
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Self, D::Error> {
+        Value::deserialize(deserializer)
+            .and_then(|value| Self::from_json(value).map_err(serde::de::Error::custom))
     }
 }
 
