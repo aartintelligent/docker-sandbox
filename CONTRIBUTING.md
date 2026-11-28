@@ -183,7 +183,8 @@ are in [`AGENTS.md`](AGENTS.md).
   `docker-sandbox-kit`, plays the CLI that way.
 - Live tests (feature `live`, `tests/live.rs` of each crate) create and remove
   their own sandboxes and images; those of `docker-sandbox-kit` create them
-  from packages forged without the CLI. `just test-live` runs both.
+  from packages forged without the CLI, and those of `docker-sandbox-blueprint`
+  launch them from their spec. `just test-live` runs the three.
 
 ### Coverage
 

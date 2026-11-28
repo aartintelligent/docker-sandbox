@@ -24,12 +24,18 @@ version.workspace      = true
 # The published package is the library alone: its tests stay out of it.
 include = ["/src", "/README.md", "/CHANGELOG.md", "/LICENSE-APACHE", "/LICENSE-MIT"]
 
+# Every feature but `live`, which only gates the live integration tests.
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
 
 # Quality gates are centralized in the workspace root `Cargo.toml`.
 [lints]
 workspace = true
+
+[features]
+# Runs the integration tests against the real daemon of the current user
+# (`tests/live.rs`); it adds no code to the library.
+live = []
 
 [dependencies]
 docker-sandbox = { workspace = true }
@@ -39,6 +45,8 @@ docker-sandbox-kit = { workspace = true }
 serde              = { workspace = true }
 serde_json         = { workspace = true }
 thiserror          = { workspace = true }
+# The warning of a lease dropped without being shut down.
+tracing = { workspace = true }
 
 [dev-dependencies]
 # The query strings the fake daemon of the tests decodes.

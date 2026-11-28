@@ -12,8 +12,8 @@ by itself); `docker-sandbox-blueprint`, which describes a whole sandbox as data;
 and `audit`, the tool that maps that socket. `docker-sandbox` holds what the daemon API offers,
 and `docker-sandbox-kit` the client-side work of the CLI without which the daemon cannot be used;
 the secret store and the other files of the CLI stay out of both. `docker-sandbox-blueprint`
-describes a whole sandbox as data, checks it and applies it through the two other crates: one
-sandbox at a time, nothing kept outside the daemon. Runners, queues, scheduling and retries stay in
+describes a whole sandbox as data and applies it through the two other crates, owning the result in
+a `Lease`: one sandbox at a time, nothing kept outside the daemon. Runners, queues, scheduling and retries stay in
 another repository.
 **Nothing else belongs here**: runners, operators, orchestration, agent management and any HTTP API
 built on top of the library live in another repository (project rule).
@@ -57,14 +57,24 @@ and the examples in a workspace of their own:
   - `spec/`: `SandboxSpec`, its JSON form and the fields of the sandbox itself (kit, workspace,
     mounts, variables, resources), the mixins of the program (`mixin.rs`), and `check.rs`, the
     rules that span the domains and the kit a spec forges;
-  - `network/`: the allowed and refused hosts, their generated `network-policy@1` mixin and the
-    refusals that would cut a key or a server off, `host.rs` (private) matching the patterns;
-  - `key.rs`: `KeySpec`, where an API key goes, and `Keys`, the values given at launch;
-  - `mcp/`: the MCP servers of the agent, their mixin and the variables of their tokens;
-  - `error.rs`: its `Error`, which keeps the errors of the two other crates;
-  - `prelude.rs`: what a spec is written with, the types of the two other crates included.
+  - `network/`: the allowed and refused hosts, their generated `network-policy@1` mixin, the
+    refusals that would cut a key or a server off and `NetworkReport`, `host.rs` (private)
+    matching the patterns;
+  - `key.rs`: `KeySpec`, where an API key goes, `Keys`, the values given at launch, the
+    `ProxiedKey`s of a launch and `KeyReport`;
+  - `mcp/`: the MCP servers of the agent, their mixin, the variables of their tokens and
+    `ServerReport`, `token.rs` drawing the token of a server of the host at each launch;
+  - `launch/`: `SandboxSpec::launch`, its seven steps and the removal of a failed launch,
+    `lease.rs` (`Lease`, which owns the sandbox and its session) and `report.rs` (`Report`, which
+    puts the parts of the domains together, never a secret value);
+  - `error.rs`: its `Error`, which keeps the errors of the two other crates, and `LaunchStep`.
+  - `prelude.rs`: what a spec is written with and the lease that runs it, the types of the two
+    other crates included.
 
-  `tests/spec.rs` checks specs against the fake daemon of `docker-sandbox/tests/support/`.
+  `tests/spec.rs` and `tests/launch.rs` run against the fake daemon of
+  `docker-sandbox/tests/support/` and the kit images of `docker-sandbox-kit/tests/images/`, and
+  `live.rs` (feature `live`) shares the plumbing of `docker-sandbox-kit/tests/live_support/`, all
+  included by path.
 - `audit/`: the `audit` binary, never published. Suites, kits and
   inputs are embedded from `assets/`; each audited `sbx` version gets a snapshot in
   `snapshots/<version>/`. Its README is the upgrade workflow.
