@@ -98,6 +98,12 @@ compares them field by field with those of the CLI at each `sbx` version.
   daemon that refuses it (`kit.requireSignature`, `kit.allowLocalKits`,
   `kit.allowedSources`), read from its settings.
 
+`KitForge::check` runs the checks of the composition and of its base kit
+reference before anything is pulled: a program refuses a composition the
+daemon would reject without waiting for an image. The arguments are checked
+against the descriptor of the base kit only when it is forged, as the
+descriptor comes with its image.
+
 ## Kits named as the CLI names them
 
 `KitRef::base(text)` and `KitRef::mixin(text)` read a kit as `sbx create <kit>`
