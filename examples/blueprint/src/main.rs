@@ -59,7 +59,7 @@ use anyhow::{Context, Result, anyhow, ensure};
 // crate and those of the two other crates a spec is written with. The
 // `Result` of `anyhow`, imported by name, wins over the one of the glob.
 use docker_sandbox_blueprint::prelude::*;
-use example_common::automation::{self, AGENT_DEADLINE, Output};
+use example_common::automation::{self, AGENT_DEADLINE};
 use example_common::mcp::{HttpServer, dummy_token};
 use example_common::{connect, sandbox};
 
@@ -175,18 +175,18 @@ async fn work(lease: &Lease, tools: &HttpServer, project: &str, original: &str) 
 /// Step 4, the task: the agent of the kit, run without a terminal on the
 /// project.
 async fn run_agent(lease: &Lease, project: &str) -> Result<()> {
-    // The program of the agent and the options its sessions start it with
-    // come from its kit (`claude --dangerously-skip-permissions`): the
-    // example adds the prompt and asks for every step as a JSON event.
-    let command = lease
-        .agent()
-        .context("the kit declares no agent")?
-        .command(["-p", PROMPT, "--output-format", "stream-json", "--verbose"]);
+    // The command comes from the profile of the agent: its program and the
+    // options its sessions start it with, from its kit
+    // (`claude --dangerously-skip-permissions`), then the prompt and every
+    // step as a JSON event, as the documentation of Claude Code says.
+    let headless = Agent::Claude
+        .headless(lease.agent().context("the kit declares no agent")?, PROMPT)
+        .context("the agent runs no prompt without a terminal")?;
     eprintln!("step 4: the agent works on the task");
-    let spec = AttachSpec::new(command).with_working_dir(project);
+    let spec = AttachSpec::new(headless.command).with_working_dir(project);
     let code = tokio::time::timeout(
         AGENT_DEADLINE,
-        automation::run_agent(lease.sandbox(), &spec, Output::JsonLines),
+        automation::run_agent(lease.sandbox(), &spec, headless.output),
     )
     .await
     .context("the agent did not finish within its deadline")??;

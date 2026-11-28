@@ -2,7 +2,14 @@
 //!
 //! The kit of an agent is the image `docker.io/sbx/<name>:latest`, as the CLI
 //! resolves `sbx create <name>`: naming an agent rather than writing its
-//! reference keeps a typo from reaching the daemon.
+//! reference keeps a typo from reaching the daemon. Its profile
+//! (`profile.rs`) says what the documentation of the agent says and neither
+//! the daemon nor the kit does: the variables of its keys, and how it runs a
+//! prompt without a terminal.
+
+mod profile;
+
+pub use self::profile::{AgentKey, Headless, HeadlessOutput};
 
 use std::fmt;
 use std::str::FromStr;

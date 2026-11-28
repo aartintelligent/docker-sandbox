@@ -116,6 +116,33 @@ directory as a mixin when it exists. `KitForge::with_kit` and
 `Mixin::from_ref` take what forging covers, and refuse what only the CLI
 builds.
 
+## Agents run unattended
+
+An `Agent` knows its profile, what its documentation says and neither the
+daemon nor its kit does: the API keys it takes (`keys()`, a service of the
+kits and the variables it reads the key from), the variables it reads a key
+from that `sbx` knows no service for (`forwarded_env()`), and how it runs one
+prompt without a terminal (`headless`), its program and the options of its
+sessions taken from the agent its kit declares:
+
+```rust
+use docker_sandbox::kit::KitAgent;
+use docker_sandbox_kit::{Agent, HeadlessOutput};
+
+// The agent the claude kit declares, as `KitPackage::agent` reads it.
+let kit = KitAgent::from_artifact(&serde_json::json!({ "manifest": {
+    "name": "claude", "binary": "claude", "runOptions": ["--dangerously-skip-permissions"]
+} }))
+.unwrap();
+let headless = Agent::Claude.headless(&kit, "Fix the tests").unwrap();
+assert_eq!(headless.command[..2], ["claude", "--dangerously-skip-permissions"]);
+assert_eq!(headless.output, HeadlessOutput::JsonLines);
+assert_eq!(Agent::Claude.keys()[0].env, ["ANTHROPIC_API_KEY"]);
+```
+
+The `agent-*-automation` examples of the repository run each agent so, on a
+task its tests check.
+
 ## Compiling with the CLI
 
 When a kit needs what forging does not cover, `KitCompiler` (feature

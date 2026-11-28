@@ -9,7 +9,8 @@
 //! A prompt given on the command line replaces the default task. It exits
 //! with an error when the tests still fail.
 //!
-//! The command comes from the [documentation of the agent][docs]; the
+//! The command is the profile of the agent in `docker-sandbox-kit`
+//! (`Agent::headless`), from the [documentation of the agent][docs]; the
 //! program and its run options come from the kit itself.
 //!
 //! Credentials, required since nobody can log in: `KIRO_API_KEY` (paid plans),
@@ -23,21 +24,7 @@
 //!
 //! [docs]: https://kiro.dev/docs/cli/headless
 
-use docker_sandbox::kit::KitAgent;
-use example_common::automation::{self, Headless, Output};
-
-/// The non-interactive command of Kiro for `prompt`.
-fn command(agent: &KitAgent, prompt: &str) -> Vec<String> {
-    // `--no-interactive` runs one prompt and exits; the run options of the kit
-    // (`chat --trust-all-tools`) let it use every tool.
-    agent.command(["--no-interactive", prompt])
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let headless = Headless {
-        command,
-        output: Output::Text,
-    };
-    automation::run(&example_common::agent::KIRO, headless).await
+    example_common::automation::run(&example_common::agent::KIRO).await
 }

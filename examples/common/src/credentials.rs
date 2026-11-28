@@ -14,17 +14,7 @@
 
 use docker_sandbox::kit::KitPackage;
 use docker_sandbox::sandbox::ProxiedKey;
-
-/// A credential an agent can use: an `sbx` service and the environment
-/// variables it is read from, first match wins.
-#[derive(Debug, Clone, Copy)]
-pub struct Credential {
-    /// Service known to `sbx`, as listed by `sbx secret set --help`.
-    pub service: &'static str,
-    /// Environment variables holding the value, in order of preference. The
-    /// one found keeps its name inside the sandbox.
-    pub env: &'static [&'static str],
-}
+use docker_sandbox_kit::AgentKey;
 
 /// A key found in the environment.
 #[derive(Debug)]
@@ -37,11 +27,11 @@ pub struct Found {
     value: String,
 }
 
-/// The credentials of `credentials` found in the environment.
+/// The keys of `keys` found in the environment, the first variable set of
+/// each, which keeps its name inside the sandbox.
 #[must_use]
-pub fn find_in_env(credentials: &[Credential]) -> Vec<Found> {
-    credentials
-        .iter()
+pub fn find_in_env(keys: &[AgentKey]) -> Vec<Found> {
+    keys.iter()
         .filter_map(|credential| {
             credential.env.iter().find_map(|&env| {
                 std::env::var(env)
@@ -57,20 +47,20 @@ pub fn find_in_env(credentials: &[Credential]) -> Vec<Found> {
         .collect()
 }
 
-/// The keys of `credentials` found in the environment, each for the hosts the
+/// The keys of `keys` found in the environment, each for the hosts the
 /// kits of `package` inject the key of its service into
 /// (`ProxiedKey::for_service`). A key whose service no kit declares is left
 /// out, with the reason: it would have nowhere to go.
 #[must_use]
-pub fn proxied_keys(package: &KitPackage, credentials: &[Credential]) -> Vec<ProxiedKey> {
-    let mut keys = Vec::new();
-    for found in find_in_env(credentials) {
+pub fn proxied_keys(package: &KitPackage, keys: &[AgentKey]) -> Vec<ProxiedKey> {
+    let mut proxied = Vec::new();
+    for found in find_in_env(keys) {
         match ProxiedKey::for_service(package, found.service, found.env, found.value) {
-            Ok(key) => keys.push(key),
+            Ok(key) => proxied.push(key),
             Err(error) => eprintln!("{} is left out: {error}", found.env),
         }
     }
-    keys
+    proxied
 }
 
 /// A line naming `keys` and their hosts, for the terminal.

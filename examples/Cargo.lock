@@ -364,7 +364,6 @@ name = "example-agent-claude-automation"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "docker-sandbox",
  "example-common",
  "tokio",
 ]
@@ -392,7 +391,6 @@ name = "example-agent-codex-automation"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "docker-sandbox",
  "example-common",
  "tokio",
 ]
@@ -420,7 +418,6 @@ name = "example-agent-copilot-automation"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "docker-sandbox",
  "example-common",
  "tokio",
 ]
@@ -448,7 +445,6 @@ name = "example-agent-cursor-automation"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "docker-sandbox",
  "example-common",
  "tokio",
 ]
@@ -476,7 +472,6 @@ name = "example-agent-devin-automation"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "docker-sandbox",
  "example-common",
  "tokio",
 ]
@@ -504,7 +499,6 @@ name = "example-agent-docker-agent-automation"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "docker-sandbox",
  "example-common",
  "tokio",
 ]
@@ -532,7 +526,6 @@ name = "example-agent-droid-automation"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "docker-sandbox",
  "example-common",
  "tokio",
 ]
@@ -560,7 +553,6 @@ name = "example-agent-kiro-automation"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "docker-sandbox",
  "example-common",
  "tokio",
 ]
@@ -611,7 +603,6 @@ name = "example-agent-opencode-automation"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "docker-sandbox",
  "example-common",
  "tokio",
 ]

@@ -97,7 +97,7 @@ mod forge;
 pub mod prelude;
 mod reference;
 
-pub use self::agent::Agent;
+pub use self::agent::{Agent, AgentKey, Headless, HeadlessOutput};
 #[cfg(feature = "compiler")]
 #[cfg_attr(docsrs, doc(cfg(feature = "compiler")))]
 pub use self::compiler::{CompileJob, KitCompiler};

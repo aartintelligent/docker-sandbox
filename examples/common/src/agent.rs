@@ -13,157 +13,54 @@
 
 use anyhow::{Context, Result, bail};
 
-use crate::credentials::{self, Credential};
+use crate::credentials;
 use crate::{connect, host, kit, mcp, sandbox, terminal};
 
-/// A coding agent known to `sbx create`.
-#[derive(Debug, Clone, Copy)]
-pub struct Agent {
-    /// Kit of the agent, as accepted by `sbx create`.
-    pub kit: &'static str,
-    /// Credentials the agent can use, read from the environment and written
-    /// by the proxy of the sandbox in place of their placeholders.
-    pub credentials: &'static [Credential],
-    /// Environment variables passed as they are to the agent process when set,
-    /// for an agent `sbx` knows no service secret for. Their values are
-    /// visible inside the sandbox.
-    pub forwarded_env: &'static [&'static str],
-}
+/// A coding agent known to `sbx create`, with its profile: the keys it takes
+/// and how it runs a prompt without a terminal (`docker-sandbox-kit`).
+pub use docker_sandbox_kit::Agent;
 
-/// Keys of the model providers that the multi-provider agents can use.
-const PROVIDERS: &[Credential] = &[
-    Credential {
-        service: "anthropic",
-        env: &["ANTHROPIC_API_KEY"],
-    },
-    Credential {
-        service: "openai",
-        env: &["OPENAI_API_KEY"],
-    },
-    Credential {
-        service: "google",
-        env: &["GEMINI_API_KEY", "GOOGLE_API_KEY"],
-    },
-    Credential {
-        service: "openrouter",
-        env: &["OPENROUTER_API_KEY"],
-    },
-    Credential {
-        service: "groq",
-        env: &["GROQ_API_KEY"],
-    },
-    Credential {
-        service: "mistral",
-        env: &["MISTRAL_API_KEY"],
-    },
-    Credential {
-        service: "nebius",
-        env: &["NEBIUS_API_KEY"],
-    },
-    Credential {
-        service: "xai",
-        env: &["XAI_API_KEY"],
-    },
-];
+/// Claude Code, as `sbx create claude` names it.
+pub const CLAUDE: Agent = Agent::Claude;
 
-/// Claude Code, with an Anthropic key.
-pub const CLAUDE: Agent = Agent {
-    kit: "claude",
-    credentials: &[Credential {
-        service: "anthropic",
-        env: &["ANTHROPIC_API_KEY"],
-    }],
-    forwarded_env: &[],
-};
+/// Codex, as `sbx create codex` names it.
+pub const CODEX: Agent = Agent::Codex;
 
-/// Codex, with an OpenAI key.
-pub const CODEX: Agent = Agent {
-    kit: "codex",
-    credentials: &[Credential {
-        service: "openai",
-        env: &["OPENAI_API_KEY", "CODEX_API_KEY"],
-    }],
-    forwarded_env: &[],
-};
+/// GitHub Copilot, as `sbx create copilot` names it.
+pub const COPILOT: Agent = Agent::Copilot;
 
-/// GitHub Copilot, with a GitHub token.
-pub const COPILOT: Agent = Agent {
-    kit: "copilot",
-    credentials: &[Credential {
-        service: "copilot",
-        env: &["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"],
-    }],
-    forwarded_env: &[],
-};
+/// Cursor, as `sbx create cursor` names it.
+pub const CURSOR: Agent = Agent::Cursor;
 
-/// Cursor, with a Cursor key.
-pub const CURSOR: Agent = Agent {
-    kit: "cursor",
-    credentials: &[Credential {
-        service: "cursor",
-        env: &["CURSOR_API_KEY"],
-    }],
-    forwarded_env: &[],
-};
+/// Devin, as `sbx create devin` names it.
+pub const DEVIN: Agent = Agent::Devin;
 
-/// Devin, with a Devin key.
-pub const DEVIN: Agent = Agent {
-    kit: "devin",
-    credentials: &[Credential {
-        service: "devin",
-        env: &["DEVIN_API_KEY"],
-    }],
-    forwarded_env: &[],
-};
+/// Docker Agent, as `sbx create docker-agent` names it.
+pub const DOCKER_AGENT: Agent = Agent::DockerAgent;
 
-/// Docker Agent, with the key of any model provider.
-pub const DOCKER_AGENT: Agent = Agent {
-    kit: "docker-agent",
-    credentials: PROVIDERS,
-    forwarded_env: &[],
-};
+/// Droid, as `sbx create droid` names it.
+pub const DROID: Agent = Agent::Droid;
 
-/// Droid, with a Factory key.
-pub const DROID: Agent = Agent {
-    kit: "droid",
-    credentials: &[Credential {
-        service: "droid",
-        env: &["FACTORY_API_KEY"],
-    }],
-    forwarded_env: &[],
-};
+/// Kiro, as `sbx create kiro` names it.
+pub const KIRO: Agent = Agent::Kiro;
 
-/// Kiro, which `sbx` knows no service secret for: sign in with the device flow
-/// the agent offers on first run, or set `KIRO_API_KEY`, given to the agent
-/// process as is.
-pub const KIRO: Agent = Agent {
-    kit: "kiro",
-    credentials: &[],
-    forwarded_env: &["KIRO_API_KEY"],
-};
+/// OpenCode, as `sbx create opencode` names it.
+pub const OPENCODE: Agent = Agent::OpenCode;
 
-/// OpenCode, with the key of any model provider.
-pub const OPENCODE: Agent = Agent {
-    kit: "opencode",
-    credentials: PROVIDERS,
-    forwarded_env: &[],
-};
-
-impl Agent {
-    /// The variables of [`Agent::forwarded_env`] set in the environment, as
-    /// `(name, value)` pairs.
-    #[must_use]
-    pub fn forwarded_values(&self) -> Vec<(String, String)> {
-        self.forwarded_env
-            .iter()
-            .filter_map(|name| {
-                std::env::var(name)
-                    .ok()
-                    .filter(|value| !value.is_empty())
-                    .map(|value| ((*name).to_owned(), value))
-            })
-            .collect()
-    }
+/// The variables of [`Agent::forwarded_env`] set in the environment, as
+/// `(name, value)` pairs.
+#[must_use]
+pub fn forwarded_values(agent: Agent) -> Vec<(String, String)> {
+    agent
+        .forwarded_env()
+        .iter()
+        .filter_map(|name| {
+            std::env::var(name)
+                .ok()
+                .filter(|value| !value.is_empty())
+                .map(|value| ((*name).to_owned(), value))
+        })
+        .collect()
 }
 
 /// Runs `agent` in a throw-away sandbox, with the MCP server of the examples
@@ -183,8 +80,8 @@ pub async fn run(agent: &Agent, with_mcp: bool) -> Result<()> {
     }
     let launch = Launch::parse(std::env::args().skip(1))?;
     let client = connect().await?;
-    let package = kit::forged(&client, agent.kit).await?;
-    let name = sandbox::unique_name(agent.kit);
+    let package = kit::forged(&client, agent.name()).await?;
+    let name = sandbox::unique_name(agent.name());
     let registration = if with_mcp {
         Some(mcp::Registration::add(&client, &format!("{name}-tools")).await?)
     } else {
@@ -193,7 +90,7 @@ pub async fn run(agent: &Agent, with_mcp: bool) -> Result<()> {
     let server = registration.as_ref().map(|r| r.name().to_owned());
     // What `sbx run` adds from the host: the SSH agent of the sandbox, and
     // the terminal, time zone and desktop session of the agent session.
-    let keys = credentials::proxied_keys(&package, agent.credentials);
+    let keys = credentials::proxied_keys(&package, agent.keys());
     let mut request = package.request(&name)?;
     for key in &keys {
         request = request.with_proxied_key(key);
@@ -207,7 +104,7 @@ pub async fn run(agent: &Agent, with_mcp: bool) -> Result<()> {
     }
     let session = host::agent_session(&client, terminal::size())
         .await
-        .with_envs(agent.forwarded_values())
+        .with_envs(forwarded_values(*agent))
         .with_args(launch.args);
 
     let outcome = sandbox::with_sandbox_from(&client, &package, &request, |sandbox| async move {
