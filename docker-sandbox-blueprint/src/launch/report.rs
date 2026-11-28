@@ -49,7 +49,7 @@ impl SandboxSpec {
             kits: package.kit_refs(),
             network,
             keys: key_reports(proxied),
-            mcp: self.server_reports(),
+            mcp: self.server_reports(&package.agent().map(|agent| agent.name).unwrap_or_default()),
             withheld: created.withheld.clone(),
         }
     }

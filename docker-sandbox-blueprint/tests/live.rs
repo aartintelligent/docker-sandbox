@@ -9,7 +9,10 @@
 //!
 //! The tests launch `shell` with a mixin, a network refusal, a key and a
 //! variable, then shut it down; `claude` with an MCP server of the host, its
-//! token drawn at launch; and `shell` again, its lease dropped. No agent is
+//! token drawn at launch; `shell` again, its lease dropped; `shell` twice
+//! from one cache of kit packages; and, when `DOCKER_SANDBOX_LIVE_PACKAGE`
+//! names it, a package the `sbx` CLI compiled, launched as it is (`just
+//! test-live` compiles the test mixin of `audit` for it). No agent is
 //! ever started, and nothing serves the MCP server: the tests read what the
 //! sandbox holds. The key is a dummy one, sent to the public echo service
 //! `postman-echo.com`.
@@ -29,8 +32,9 @@
 mod live_support;
 
 use docker_sandbox::Client;
+use docker_sandbox::kit::KitPackage;
 use docker_sandbox_blueprint::{KeySpec, Keys, Result, SandboxSpec};
-use docker_sandbox_kit::{Agent, KitDescriptor, LifecycleStep, McpServer, Mixin};
+use docker_sandbox_kit::{Agent, KitCache, KitDescriptor, LifecycleStep, McpServer, Mixin};
 use live_support::{run, shell};
 
 /// File the install command of the mixin writes.
@@ -166,6 +170,52 @@ async fn a_dropped_lease_leaves_its_sandbox() -> Result<()> {
             .await?;
         drop(lease);
         assert!(client.sandbox(&name).exists().await?, "the sandbox stays");
+        Ok(())
+    })
+    .await
+}
+
+/// Two sandboxes of one spec, launched one after the other from one cache:
+/// the second takes the kit the first forged.
+#[tokio::test]
+async fn the_sandboxes_of_a_spec_share_the_kit_of_a_cache() -> Result<()> {
+    run("blueprint-cache", |client, name, _dir| async move {
+        let cache = KitCache::new();
+        let spec = SandboxSpec::agent(Agent::Shell).with_network_deny([DENIED]);
+        for _ in 0..2 {
+            let lease = spec
+                .launch_with(&client, &name, &Keys::new(), &cache)
+                .await?;
+            assert!(
+                has_rule(&client, &name, DENIED).await?,
+                "the rule of the spec"
+            );
+            lease.shutdown().await?;
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// A package the `sbx` CLI compiled, launched as it is: the test mixin of
+/// `audit`, whose install command writes a file.
+#[tokio::test]
+async fn a_compiled_package_is_launched_as_it_is() -> Result<()> {
+    let Ok(dir) = std::env::var("DOCKER_SANDBOX_LIVE_PACKAGE") else {
+        eprintln!("skipped: DOCKER_SANDBOX_LIVE_PACKAGE names no compiled package");
+        return Ok(());
+    };
+    run("blueprint-package", |client, name, _dir| async move {
+        let package = KitPackage::open(&dir)?;
+        let lease = SandboxSpec::package(&dir)
+            .launch(&client, &name, &Keys::new())
+            .await?;
+        assert_eq!(lease.report().kits, package.kit_refs());
+        assert_eq!(
+            shell(lease.sandbox(), "cat /home/agent/audit-mixin.txt").await?,
+            "audit-mixin-v3 installed\n"
+        );
+        lease.shutdown().await?;
         Ok(())
     })
     .await

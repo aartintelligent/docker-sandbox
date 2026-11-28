@@ -66,7 +66,8 @@ and the examples in a workspace of their own:
     `ProxiedKey`s of a launch and `KeyReport`;
   - `mcp/`: the MCP servers of the agent, their mixin, the variables of their tokens and
     `ServerReport`, `token.rs` drawing the token of a server of the host at each launch;
-  - `launch/`: `SandboxSpec::launch`, its seven steps and the removal of a failed launch,
+  - `launch/`: `SandboxSpec::launch` and `launch_with` (its kit from a `KitCache`), its seven
+    steps and the removal of a failed launch,
     `lease.rs` (`Lease`, which owns the sandbox and its session) and `report.rs` (`Report`, which
     puts the parts of the domains together, never a secret value);
   - `error.rs`: its `Error`, which keeps the errors of the two other crates, and `LaunchStep`.

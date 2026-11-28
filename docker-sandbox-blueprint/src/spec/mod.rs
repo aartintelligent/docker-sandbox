@@ -15,12 +15,13 @@
 mod check;
 mod mixin;
 
-pub(crate) use self::check::Owners;
 #[cfg(test)]
 pub(crate) use self::check::broken;
+pub(crate) use self::check::{Kit, Owners};
 pub(crate) use self::mixin::MixinSpec;
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
 use docker_sandbox::sandbox::Workspace;
 use docker_sandbox_kit::{Agent, McpServer};
@@ -32,8 +33,8 @@ use crate::network::Network;
 /// A whole sandbox described as data: everything it receives but its name
 /// and the values of its keys.
 ///
-/// It is written with chained methods, from [`SandboxSpec::agent`] or
-/// [`SandboxSpec::base`]:
+/// It is written with chained methods, from [`SandboxSpec::agent`],
+/// [`SandboxSpec::base`] or [`SandboxSpec::package`]:
 ///
 /// ```
 /// use docker_sandbox_blueprint::prelude::*;
@@ -51,7 +52,7 @@ use crate::network::Network;
 ///
 /// | Field | Form | Becomes |
 /// |---|---|---|
-/// | `agent` or `base` | an agent (`"claude"`) or a published kit reference | `KitForge::agent` or `KitForge::with_base` |
+/// | `agent`, `base` or `package` | an agent (`"claude"`), a published kit reference, or the directory of a compiled package | `KitForge::agent`, `KitForge::with_base`, or the package itself (`KitForge::with_base_package` with mixins) |
 /// | `args` | name → value | `KitForge::with_arg` |
 /// | `mixins` | `{"dir"}` or `{"reference", "descriptor"}` | `Mixin::read` or `Mixin::new` |
 /// | `workspace` | `{"mount": dir}` or `{"clone": repository}` | `with_workspace` or `with_cloned_workspace` |
@@ -92,6 +93,9 @@ pub struct SandboxSpec {
     /// Published base kit, by its reference.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) base: Option<String>,
+    /// Compiled package of the base kit, by its directory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) package: Option<PathBuf>,
     /// Arguments of the base kit.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub(crate) args: BTreeMap<String, String>,
@@ -186,11 +190,28 @@ impl SandboxSpec {
         }
     }
 
+    /// A sandbox of the kit package of the directory `dir`, compiled by the
+    /// `sbx` CLI (`KitCompiler`) or forged and saved before. Without mixins,
+    /// network rules or MCP servers in the spec, the package is launched as
+    /// it is; with them, they are composed on its base kit, which then has to
+    /// be the only kit of the package. It keeps the arguments it was compiled
+    /// with, and its agent is the one its base kit declares. The package is
+    /// read when the spec is checked or launched, and must suit the daemon
+    /// (`KitPackage::suits`).
+    #[must_use]
+    pub fn package(dir: impl Into<PathBuf>) -> Self {
+        Self {
+            package: Some(dir.into()),
+            ..Self::empty()
+        }
+    }
+
     /// A spec of no kit, which the constructors complete.
     fn empty() -> Self {
         Self {
             agent: None,
             base: None,
+            package: None,
             args: BTreeMap::new(),
             mixins: Vec::new(),
             workspace: None,
@@ -348,6 +369,14 @@ mod tests {
             json!({ "base": "docker.io/sbx/shell:latest", "workspace": { "mount": "/srv/project" } })
         );
         assert_eq!(serde_json::from_value::<SandboxSpec>(json).unwrap(), base);
+
+        let package = SandboxSpec::package("/var/lib/kits/shell");
+        let json = serde_json::to_value(&package).unwrap();
+        assert_eq!(json, json!({ "package": "/var/lib/kits/shell" }));
+        assert_eq!(
+            serde_json::from_value::<SandboxSpec>(json).unwrap(),
+            package
+        );
     }
 
     #[test]

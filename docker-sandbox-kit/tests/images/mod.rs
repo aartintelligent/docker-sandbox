@@ -17,6 +17,7 @@
 
 use std::path::Path;
 
+use docker_sandbox::kit::KitPackage;
 use serde_json::{Value, json};
 
 use crate::support::{FakeDaemonBuilder, Reply};
@@ -122,4 +123,23 @@ pub(crate) fn shell_export() -> Vec<u8> {
         entrypoint,
         &json!(cmd),
     )
+}
+
+/// Writes to `dir` a package of the kit `kit` and a mixin, as `sbx` at
+/// `sbx` compiles it, and opens it.
+pub(crate) fn compiled_package(dir: &Path, kit: &str, sbx: &str) -> KitPackage {
+    std::fs::create_dir_all(dir.join("images")).unwrap();
+    std::fs::write(dir.join("images/00.oci.tar"), b"mixin source").unwrap();
+    let template = json!({
+        "name": "{{name}}", "agent": kit, "pull_policy": "missing", "enable_virtiofs_cache": true,
+        "kits": [format!("docker.io/sbx/{kit}@sha256:f3"), "/kits/compiled"],
+        "kit_artifacts": [{ "manifest": { "name": kit, "kind": "sandbox" } }, { "manifest": { "name": "compiled" } }]
+    });
+    std::fs::write(dir.join("create-body.json"), template.to_string()).unwrap();
+    std::fs::write(
+        dir.join("kit.json"),
+        json!({ "compiled_with": { "sbx": sbx, "api_version": "0.52.0" }, "images": [{ "file": "images/00.oci.tar", "ref": "sbx-kit-src:spec-old" }] }).to_string(),
+    )
+    .unwrap();
+    KitPackage::open(dir).unwrap()
 }

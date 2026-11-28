@@ -15,6 +15,7 @@ use std::collections::btree_map::Entry;
 use std::path::Path;
 
 use docker_sandbox::Client;
+use docker_sandbox::kit::KitPackage;
 use docker_sandbox_kit::{Agent, KitForge, Mixin};
 
 use super::{SandboxSpec, WorkspaceSpec};
@@ -30,12 +31,23 @@ pub(crate) struct Prepared<'a> {
 }
 
 /// The base kit of a spec.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 enum BaseKit<'a> {
     /// The kit of an agent.
     Agent(Agent),
     /// A published kit, by its reference.
     Published(&'a str),
+    /// A compiled package, read from its directory.
+    Package(KitPackage),
+}
+
+/// The kit of a spec: a package launched as it is, or a forge.
+#[derive(Debug)]
+pub(crate) enum Kit {
+    /// A compiled package and no mixin: the package itself.
+    Package(KitPackage),
+    /// A composition to forge.
+    Forge(KitForge),
 }
 
 /// The variables a spec sets, with what sets each.
@@ -48,9 +60,12 @@ impl SandboxSpec {
     ///
     /// The rules:
     ///
-    /// - exactly one of `agent` and `base`;
+    /// - exactly one of `agent`, `base` and `package`;
+    /// - a package that suits the daemon, given no `args`, and holding no
+    ///   mixin of its own when the spec adds some, as the forge takes its
+    ///   base kit alone;
     /// - MCP servers for an agent `Mixin::mcp` takes them for: claude,
-    ///   copilot or opencode, named by `agent`;
+    ///   copilot or opencode, named by `agent` or declared by the package;
     /// - every host of `network` a host pattern, which the daemon would
     ///   otherwise store and never apply;
     /// - no refusal of `network` covering a host a key goes to or an MCP
@@ -80,18 +95,50 @@ impl SandboxSpec {
     /// and [`Error::Client`](crate::Error::Client) when the daemon cannot be
     /// read.
     pub async fn check(&self, client: &Client) -> Result<()> {
-        self.forge(client)?.check().await?;
+        if let Kit::Forge(forge) = self.kit(client)? {
+            forge.check().await?;
+        }
         Ok(())
     }
 
-    /// The forge of the kit of the spec, once the spec meets the rules of a
-    /// launch: its base kit and its arguments, the mixins of the program,
-    /// then those of the network rules and of the MCP servers.
-    pub(crate) fn forge(&self, client: &Client) -> Result<KitForge> {
+    /// The kit of the spec, once the spec meets the rules of a launch: a
+    /// compiled package without mixins as it is, or the forge of its base
+    /// kit and its arguments, the mixins of the program, then those of the
+    /// network rules and of the MCP servers.
+    pub(crate) fn kit(&self, client: &Client) -> Result<Kit> {
         let prepared = self.prepare()?;
         let mut forge = match prepared.base {
             BaseKit::Agent(agent) => KitForge::agent(client.clone(), agent),
             BaseKit::Published(reference) => KitForge::new(client.clone()).with_base(reference),
+            BaseKit::Package(package) => {
+                if !package.suits(client.health()) {
+                    return Err(invalid(format!(
+                        "package: the package was made for another daemon ({}), not sbx {} of \
+                         API {}: make it again",
+                        package
+                            .compiled_with()
+                            .or(package.compiled_api())
+                            .unwrap_or("unrecorded"),
+                        client.health().version,
+                        client.health().api_version
+                    )));
+                }
+                if prepared.mixins.is_empty() {
+                    return Ok(Kit::Package(package));
+                }
+                // The forge takes the base kit of a package alone: the mixins
+                // compiled into it would be dropped without a word.
+                let kits = package.kit_refs();
+                if kits.len() > 1 {
+                    return Err(invalid(format!(
+                        "package: the package composes mixins of its own ({}), and the spec \
+                         adds others: launch it as it is, or give the package of its base kit \
+                         alone",
+                        kits[1..].join(", ")
+                    )));
+                }
+                KitForge::new(client.clone()).with_base_package(package)
+            }
         };
         for (name, value) in &self.args {
             forge = forge.with_arg(name, value);
@@ -99,7 +146,7 @@ impl SandboxSpec {
         for mixin in prepared.mixins {
             forge = forge.with_mixin(mixin);
         }
-        Ok(forge)
+        Ok(Kit::Forge(forge))
     }
 
     /// Checks the rules of a launch that need no daemon, and reads or
@@ -114,23 +161,53 @@ impl SandboxSpec {
         for mixin in &self.mixins {
             mixins.push(mixin.read()?);
         }
-        for generated in [self.network_mixin(), self.mcp_mixin()] {
+        let agent = match &base {
+            BaseKit::Agent(agent) => Some(*agent),
+            BaseKit::Published(_) => None,
+            BaseKit::Package(package) => package
+                .agent()
+                .and_then(|agent| agent.name.parse::<Agent>().ok()),
+        };
+        for generated in [self.network_mixin(), self.mcp_mixin(agent)] {
             mixins.extend(generated?);
         }
         Ok(Prepared { base, mixins })
     }
 
-    /// The base kit of the spec, named once.
+    /// The base kit of the spec, named once, its package read.
     fn base_kit(&self) -> Result<BaseKit<'_>> {
-        match (self.agent, self.base.as_deref()) {
-            (Some(agent), None) => Ok(BaseKit::Agent(agent)),
-            (None, Some(reference)) => Ok(BaseKit::Published(reference)),
-            (Some(_), Some(_)) => Err(invalid(
-                "agent and base: a spec names its base kit once, by its agent or by its \
-                 reference",
-            )),
-            (None, None) => Err(invalid("no base kit: name an agent or a published kit")),
+        let named = [
+            self.agent.is_some(),
+            self.base.is_some(),
+            self.package.is_some(),
+        ];
+        match named.iter().filter(|named| **named).count() {
+            0 => {
+                return Err(invalid(
+                    "no base kit: name an agent, a published kit or a package",
+                ));
+            }
+            1 => {}
+            _ => {
+                return Err(invalid(
+                    "agent, base and package: a spec names its base kit once, by its agent, its \
+                     reference or its package",
+                ));
+            }
         }
+        if let Some(agent) = self.agent {
+            return Ok(BaseKit::Agent(agent));
+        }
+        if let Some(reference) = self.base.as_deref() {
+            return Ok(BaseKit::Published(reference));
+        }
+        if !self.args.is_empty() {
+            return Err(invalid(
+                "args: a compiled package keeps the arguments it was compiled with",
+            ));
+        }
+        let dir = self.package.clone().unwrap_or_default();
+        Ok(BaseKit::Package(KitPackage::open(dir)?))
     }
 
     /// Checks that the variables of the keys, of `env` and of the tokens of
@@ -236,10 +313,18 @@ mod tests {
     fn a_spec_names_one_base_kit_and_composes_its_mixins() {
         let mut both = claude();
         both.base = Some("docker.io/sbx/claude:latest".to_owned());
-        assert!(broken(&both).starts_with("agent and base"));
+        assert!(broken(&both).starts_with("agent, base and package"));
         let mut none = claude();
         none.agent = None;
         assert!(broken(&none).starts_with("no base kit"));
+        let args = SandboxSpec::package("/var/lib/kits/shell").with_arg("model", "m");
+        assert!(broken(&args).starts_with("args: a compiled package keeps"));
+        let missing = SandboxSpec::package("/nonexistent/docker-sandbox-blueprint/package");
+        let error = missing.prepare().unwrap_err().to_string();
+        assert!(
+            error.contains("/nonexistent/docker-sandbox-blueprint/package"),
+            "{error}"
+        );
         let missing = claude().with_mixin_dir("/nonexistent/docker-sandbox-blueprint/mixin");
         let error = missing.prepare().unwrap_err().to_string();
         assert!(

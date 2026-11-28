@@ -22,26 +22,13 @@ use docker_sandbox::kit::KitPackage;
 use docker_sandbox_kit::{
     Agent, Error, KitCache, KitDescriptor, KitForge, KitRef, LifecycleStep, Mixin,
 };
-use images::{captured_shell, image_export, serving, shell_export};
+use images::{captured_shell, compiled_package, image_export, serving, shell_export};
 use serde_json::{Value, json};
 use support::{FakeDaemon, FakeDaemonBuilder, Reply, connect};
 
 /// Writes a compiled package of the shell kit and a mixin to `dir`.
 fn base_package(dir: &Path) -> KitPackage {
-    std::fs::create_dir_all(dir.join("images")).unwrap();
-    std::fs::write(dir.join("images/00.oci.tar"), b"mixin source").unwrap();
-    let template = json!({
-        "name": "{{name}}", "agent": "shell", "pull_policy": "missing", "enable_virtiofs_cache": true,
-        "kits": ["docker.io/sbx/shell@sha256:f3", "/kits/compiled"],
-        "kit_artifacts": [{ "manifest": { "name": "shell", "kind": "sandbox" } }, { "manifest": { "name": "compiled" } }]
-    });
-    std::fs::write(dir.join("create-body.json"), template.to_string()).unwrap();
-    std::fs::write(
-        dir.join("kit.json"),
-        json!({ "compiled_with": { "sbx": "v0.54.1", "api_version": "0.52.0" }, "images": [{ "file": "images/00.oci.tar", "ref": "sbx-kit-src:spec-old" }] }).to_string(),
-    )
-    .unwrap();
-    KitPackage::open(dir).unwrap()
+    compiled_package(dir, "shell", "v0.54.1")
 }
 
 /// A daemon setting answer of `key` with `value`.

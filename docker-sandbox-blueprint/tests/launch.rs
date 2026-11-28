@@ -17,8 +17,9 @@ mod images;
 
 use docker_sandbox::sandbox::Workspace;
 use docker_sandbox_blueprint::{Error, KeySpec, Keys, LaunchStep, SandboxSpec};
+use docker_sandbox_kit::KitCache;
 use docker_sandbox_kit::{Agent, McpServer};
-use images::{image_export, serving, shell_export};
+use images::{compiled_package, image_export, serving, shell_export};
 use serde_json::{Value, json};
 use support::{FakeDaemon, FakeDaemonBuilder, Recorded, Reply, connect, sandbox_json};
 
@@ -394,4 +395,122 @@ async fn a_lease_is_detached_or_dropped_without_removing_its_sandbox() {
         .await
         .unwrap();
     assert!(matches!(lease.shutdown().await, Err(Error::Client(_))));
+}
+
+/// Writes to `dir` a package of the kit `kit` alone, compiled by the `sbx`
+/// version of the fake daemon.
+fn base_package(dir: &std::path::Path, kit: &str) {
+    compiled_package(dir, kit, "v0.54.0");
+    let template = json!({
+        "name": "{{name}}", "agent": kit,
+        "kits": [format!("docker.io/sbx/{kit}@sha256:f3")],
+        "kit_artifacts": [{ "manifest": { "name": kit, "kind": "sandbox" } }]
+    });
+    std::fs::write(dir.join("create-body.json"), template.to_string()).unwrap();
+    std::fs::write(
+        dir.join("kit.json"),
+        json!({ "compiled_with": { "sbx": "v0.54.0", "api_version": "0.52.0" } }).to_string(),
+    )
+    .unwrap();
+}
+
+#[tokio::test]
+async fn a_cache_forges_the_kit_of_a_spec_once_for_all_its_sandboxes() {
+    let daemon = launching(shell_export()).start();
+    let client = connect(&daemon).await;
+    let cache = KitCache::new();
+    let spec = SandboxSpec::agent(Agent::Shell).with_network_deny(["*.pastebin.com"]);
+    for _ in 0..2 {
+        let lease = spec
+            .launch_with(&client, "job-42", &Keys::new(), &cache)
+            .await
+            .unwrap();
+        lease.shutdown().await.unwrap();
+    }
+    assert_eq!(
+        sent(&daemon, "GET", "/docker/images/export").len(),
+        1,
+        "forged once"
+    );
+    assert_eq!(sent(&daemon, "POST", "/sandbox").len(), 2);
+}
+
+#[tokio::test]
+async fn a_compiled_package_is_launched_as_it_is_or_under_the_mixins_of_the_spec() {
+    let dir = tempfile::tempdir().unwrap();
+    let daemon = launching(shell_export()).start();
+    let client = connect(&daemon).await;
+
+    // As it is: no forge, the kits of the package, its images loaded.
+    let compiled = compiled_package(&dir.path().join("compiled"), "shell", "v0.54.0");
+    let spec = SandboxSpec::package(dir.path().join("compiled"));
+    spec.check(&client).await.unwrap();
+    let lease = spec.launch(&client, "job-42", &Keys::new()).await.unwrap();
+    assert_eq!(lease.report().kits, compiled.kit_refs());
+    assert_eq!(
+        sent(&daemon, "POST", "/sandbox")[0].json()["kits"],
+        json!(compiled.kit_refs())
+    );
+    assert_eq!(sent(&daemon, "POST", "/docker/images/load").len(), 1);
+    lease.shutdown().await.unwrap();
+
+    // Under the mixins of the spec: forged on its base kit, whose image is
+    // never exported again.
+    base_package(&dir.path().join("claude"), "claude");
+    let lease = SandboxSpec::package(dir.path().join("claude"))
+        .with_network_deny(["*.pastebin.com"])
+        .with_mcp(McpServer::host("tools", 47813))
+        .launch(&client, "job-42", &Keys::new())
+        .await
+        .unwrap();
+    assert_eq!(
+        lease.report().kits[1..],
+        [
+            "/kits/docker-sandbox-network",
+            "/kits/docker-sandbox-mcp-claude"
+        ]
+    );
+    // The agent of the MCP servers is the one the package declares.
+    assert_eq!(lease.report().mcp[0].agent, "claude");
+    assert!(lease.mcp_token("tools").is_some());
+    assert!(sent(&daemon, "GET", "/docker/images/export").is_empty());
+    lease.shutdown().await.unwrap();
+
+    // A package with mixins of its own takes none of the spec.
+    let error = SandboxSpec::package(dir.path().join("compiled"))
+        .with_network_deny(["*.pastebin.com"])
+        .check(&client)
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("composes mixins of its own (/kits/compiled)"),
+        "{error}"
+    );
+    // A package whose agent has no MCP adapter takes no MCP server.
+    base_package(&dir.path().join("shell"), "shell");
+    let error = SandboxSpec::package(dir.path().join("shell"))
+        .with_mcp(McpServer::host("tools", 47813))
+        .check(&client)
+        .await
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("shell has no MCP adapter"),
+        "{error}"
+    );
+    // A package made for another daemon is refused before anything is
+    // created.
+    compiled_package(&dir.path().join("old"), "shell", "v0.54.1");
+    let error = SandboxSpec::package(dir.path().join("old"))
+        .launch(&client, "job-42", &Keys::new())
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("package: the package was made for another daemon (v0.54.1)"),
+        "{error}"
+    );
+    assert_eq!(sent(&daemon, "POST", "/sandbox").len(), 2);
 }
