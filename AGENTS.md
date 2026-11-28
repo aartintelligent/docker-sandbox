@@ -81,8 +81,10 @@ and the examples in a workspace of their own:
 - `examples/`: a separate workspace (`examples/Cargo.toml`, its own `Cargo.lock`), one binary crate
   `example-<directory>` per example: `base`, `daemon`, `images`, `shell-*`, `mcp-*`,
   `agent-<agent>`, `agent-<agent>-mcp` and `agent-<agent>-automation` for every agent `sbx` knows,
-  `agent-kit-args`, and `agent-kit-forge` and `shell-forge`. The agent examples, `agent-kit-forge`
-  and `shell-forge` forge their packages without the CLI; the others compile theirs once with it. Together they call every public function of the two published crates. Programs run
+  `agent-kit-args`, `agent-kit-forge` and `shell-forge`, and `blueprint`, an agentic task launched
+  from a `SandboxSpec`. The agent examples, `agent-kit-forge`, `shell-forge` and `blueprint` forge
+  their packages without the CLI; the others compile theirs once with it. Together they call the
+  public functions of the published crates. Programs run
   inside a sandbox are static musl binaries of the workspace, built and installed by
   `common/src/program.rs`: `mcp-client` (the gateway checked from inside by the `mcp-*` examples)
   and `sandbox-tools` (the web server and HTTP client of `shell-ports` and `shell-secrets`).

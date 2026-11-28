@@ -100,7 +100,7 @@ jobs:
         run: |
           git fetch --no-tags origin "refs/heads/$BRANCH"
           git switch --discard-changes --detach FETCH_HEAD
-          cargo update --manifest-path examples/Cargo.toml --package docker-sandbox --package docker-sandbox-kit
+          cargo update --manifest-path examples/Cargo.toml --package docker-sandbox --package docker-sandbox-kit --package docker-sandbox-blueprint
           if git diff --quiet -- examples/Cargo.lock; then
             exit 0
           fi

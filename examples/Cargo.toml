@@ -35,6 +35,10 @@ docker-sandbox = { path = "../docker-sandbox", features = ["secrecy"] }
 # agent examples forge theirs without the CLI.
 docker-sandbox-kit = { path = "../docker-sandbox-kit", features = ["compiler", "forge"] }
 
+# A whole sandbox described as data, launched in one call and owned by a
+# lease: the `blueprint` example.
+docker-sandbox-blueprint = { path = "../docker-sandbox-blueprint" }
+
 # What the examples share: kit cache, throw-away sandboxes, terminal relay,
 # agent credentials, and the MCP servers and in-sandbox client of the MCP
 # examples.
