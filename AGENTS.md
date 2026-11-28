@@ -61,7 +61,7 @@ and the examples in a workspace of their own:
     rules that span the domains and the kit a spec forges;
   - `network/`: the allowed and refused hosts, their generated `network-policy@1` mixin, the
     refusals that would cut a key or a server off and `NetworkReport`, `host.rs` (private)
-    matching the patterns;
+    matching the patterns, `http.rs` the HTTP rules a launch applies once the sandbox runs;
   - `key.rs`: `KeySpec`, where an API key goes, `Keys`, the values given at launch, the
     `ProxiedKey`s of a launch and `KeyReport`;
   - `mcp/`: the MCP servers of the agent, their mixin, the variables of their tokens and

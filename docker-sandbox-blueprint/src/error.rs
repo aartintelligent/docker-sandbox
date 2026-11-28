@@ -55,6 +55,8 @@ pub enum Error {
 pub enum LaunchStep {
     /// Starting the sandbox, its startup commands included.
     Start,
+    /// Applying its HTTP rules.
+    Network,
     /// Pushing its keys to the proxy.
     Keys,
 }
@@ -64,6 +66,7 @@ impl std::fmt::Display for LaunchStep {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Self::Start => "when starting it",
+            Self::Network => "when applying its http rules",
             Self::Keys => "when pushing its keys",
         })
     }

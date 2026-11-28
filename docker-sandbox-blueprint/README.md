@@ -47,6 +47,7 @@ crate adds no call to the daemon of its own:
 | `with_workspace`, `with_cloned_workspace` | `with_workspace`, `with_cloned_workspace` |
 | `with_mount` | `with_additional_workspace` |
 | `with_network_allow`, `with_network_deny` | a generated `network-policy@1` mixin |
+| `with_http_allow`, `with_http_deny` | sandbox rules of the policy API on methods and paths, applied once it runs |
 | `with_key` | `ProxiedKey::for_service` or `ProxiedKey::new`; an `optional()` key is left out without a value, or when no kit declares its service |
 | `with_mcp` | `Mixin::mcp` |
 | `with_env` | `with_envs`, in clear in the request: never a secret |
@@ -54,7 +55,10 @@ crate adds no call to the daemon of its own:
 | `keep_on_failure` | whether a failed launch keeps the sandbox |
 
 The network rules are those of a mixin: they apply from the creation of the
-sandbox, its install commands included, and go with it. A refusal wins over
+sandbox, its install commands included, and go with it. A mixin holds hosts
+only: the HTTP rules, on methods and paths, are applied through the policy API
+once the sandbox runs, scoped to it, and go with it too; they do not cover the
+install commands. A refusal wins over
 any allowance, and the global policy of the daemon allows every host by
 default: an allowance restricts nothing.
 
@@ -199,7 +203,9 @@ are those of the methods, and an unknown one is refused:
 A mixin is `{"dir"}` or `{"reference", "descriptor"}`, the workspace
 `{"mount"}` or `{"clone"}`, a key `{"env", "service"}` or `{"env", "hosts"}`,
 an MCP server its JSON form by kind. A compiled package as base kit is
-`{"package": dir}`, in place of `agent` or `base`.
+`{"package": dir}`, in place of `agent` or `base`. The HTTP rules are
+`network.http_allow` and `network.http_deny`, each `[{"hosts", "methods",
+"path"?}]`, the path `/**` when none is given.
 
 ## Scope
 

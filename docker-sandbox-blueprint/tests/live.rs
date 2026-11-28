@@ -11,7 +11,8 @@
 //! variable, then shut it down; `claude` with an MCP server of the host, its
 //! token drawn at launch; `shell` again, its lease dropped; `shell` twice
 //! from one cache of kit packages; `shell` given up three seconds into its
-//! launch, which leaves no sandbox; and, when `DOCKER_SANDBOX_LIVE_PACKAGE`
+//! launch, which leaves no sandbox; `shell` with an HTTP rule refusing one
+//! path of the echo service; and, when `DOCKER_SANDBOX_LIVE_PACKAGE`
 //! names it, a package the `sbx` CLI compiled, launched as it is (`just
 //! test-live` compiles the test mixin of `audit` for it). No agent is
 //! ever started, and nothing serves the MCP server: the tests read what the
@@ -252,6 +253,33 @@ async fn a_launch_given_up_leaves_no_sandbox() -> Result<()> {
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
         assert!(!sandbox.exists().await?, "the launch left its sandbox");
+        Ok(())
+    })
+    .await
+}
+
+/// An HTTP rule of the spec, applied once the sandbox runs: the proxy
+/// refuses the path it names and lets the others through, and the rule goes
+/// with the sandbox.
+#[tokio::test]
+async fn the_http_rules_of_a_spec_apply_to_its_sandbox() -> Result<()> {
+    run("blueprint-http", |client, name, _dir| async move {
+        let lease = SandboxSpec::agent(Agent::Shell)
+            .with_http_deny(["postman-echo.com"], ["GET"], "/status/**")
+            .launch(&client, &name, &Keys::new())
+            .await?;
+        let status = |path: &str| {
+            format!("curl -s -o /dev/null -w '%{{http_code}}' http://postman-echo.com{path}")
+        };
+        assert_eq!(shell(lease.sandbox(), &status("/status/200")).await?, "403");
+        assert_eq!(shell(lease.sandbox(), &status("/get")).await?, "200");
+        assert_eq!(lease.report().network.http_deny[0].path, "/status/**");
+        lease.shutdown().await?;
+        let rules = client.policy().rules().await?.rules;
+        assert!(
+            !rules.iter().any(|rule| rule.is_for_sandbox(&name)),
+            "the rule outlived its sandbox"
+        );
         Ok(())
     })
     .await

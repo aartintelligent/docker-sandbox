@@ -26,6 +26,7 @@ pub use self::report::Report;
 
 use docker_sandbox::Client;
 use docker_sandbox::kit::KitPackage;
+use docker_sandbox::policy::RuleChange;
 use docker_sandbox::sandbox::{CreateRequest, DeleteOptions, ProxiedKey, Sandbox, SessionGuard};
 
 use docker_sandbox_kit::KitCache;
@@ -149,6 +150,7 @@ impl SandboxSpec {
             id: created.id.clone(),
             keep: self.keep_on_failure,
             proxied: proxied.clone(),
+            rules: self.http_changes(&name),
             answer,
         }));
         // Only a task that panicked, or a runtime shutting down, sends nothing.
@@ -217,6 +219,8 @@ struct Finish {
     keep: bool,
     /// The keys to push.
     proxied: Vec<ProxiedKey>,
+    /// The HTTP rules to apply.
+    rules: Vec<RuleChange>,
     /// Where the launch waits for the session, or for its error.
     answer: oneshot::Sender<Result<SessionGuard>>,
 }
@@ -231,9 +235,10 @@ async fn finish(task: Finish) {
         id,
         keep,
         proxied,
+        rules,
         answer,
     } = task;
-    match start(&sandbox, &proxied).await {
+    match start(&sandbox, &proxied, &rules).await {
         Ok(session) => {
             // Refused, the session comes back and closes as it is dropped.
             if answer.send(Ok(session)).is_err() {
@@ -263,15 +268,25 @@ async fn remove(sandbox: &Sandbox, id: &str) -> bool {
     sandbox.delete_with(&options).await.is_ok()
 }
 
-/// Starts `sandbox` and pushes its keys, holding its session.
+/// Starts `sandbox`, applies its HTTP rules `rules` and pushes its keys,
+/// holding its session.
 async fn start(
     sandbox: &Sandbox,
     proxied: &[ProxiedKey],
+    rules: &[RuleChange],
 ) -> std::result::Result<SessionGuard, (LaunchStep, docker_sandbox::Error)> {
     let session = sandbox
         .ensure_running()
         .await
         .map_err(|error| (LaunchStep::Start, error))?;
+    if !rules.is_empty() {
+        sandbox
+            .client()
+            .policy()
+            .apply_all(rules)
+            .await
+            .map_err(|error| (LaunchStep::Network, error))?;
+    }
     if !proxied.is_empty() {
         sandbox
             .push_proxied_keys(proxied)
