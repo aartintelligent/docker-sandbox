@@ -174,6 +174,20 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   `caps` can be left out. **Without `commands` the sandbox is created and no
   install command runs, without any error.** Startup commands run on `POST
   /sandbox/{name}/start`, as for a compiled package.
+- **The kit an agent resolves to** (`kit-compile-shortcut`, measured by hand
+  on more forms with `audit kit-compile --base`): `sbx create <agent>` uses
+  the kit the setting `kit.shortcuts.<agent>` names, when it names one, in
+  place of `docker.io/sbx/<agent>:latest`; the daemon lists one for every
+  agent, `claude-bedrock` and `claude-vertex` included, empty by default. The
+  CLI records a base reference the same way whether it comes from a shortcut
+  or `--base`: `kits` and `v3Reference` pin it by digest; `storageSource` is
+  `oci://` and the reference as written (`oci://sbx/shell`, an `oci://`
+  prefix kept once); the capability selection names it normalized, by digest
+  when pinned (`docker.io/sbx/shell@sha256:…`, a tag dropped), by its tag
+  when it names one, and by the version of the kit otherwise (`sbx/shell` is
+  `docker.io/sbx/shell:1.1.0`). `audit kit-forge --base-agent <agent>
+  --library` forges as `KitForge::agent` does, the shortcut followed: every
+  field of the base artifact is the one the CLI wrote (`kit-forge-shortcut`).
 - **A base kit rebuilt without the CLI** (`audit kit-forge --base-image
   docker.io/sbx/shell:latest`): the image is pulled and exported through the
   socket (`GET /docker/images/export`, an OCI image layout); its image index

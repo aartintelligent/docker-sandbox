@@ -282,7 +282,7 @@ cargo run -p audit -- scrub <in> <out>         # clean an external capture
 | `requests <capture>` | What each scenario of a capture sent, bodies included (`just requests`) |
 | `state` | Records the state of the daemon (`--save`), checks it against the record (`--check`) |
 | `kit-compile <dir>…` | Kit package replayable through the socket alone, compiled by the `KitCompiler` of `docker-sandbox-kit` |
-| `kit-forge <dir> --base-package <pkg>` or `--base-image <ref>` | Experiment: the package of a v3 mixin written without the CLI, its base kit taken from a compiled package or rebuilt from its image through the socket (`--base-arg name=value` for its arguments, `--omit`, `--omit-base` fields, `--compare` with the CLI); `--library` forges it with the `KitForge` of `docker-sandbox-kit` instead |
+| `kit-forge <dir> --base-package <pkg>` or `--base-image <ref>` | Experiment: the package of a v3 mixin written without the CLI, its base kit taken from a compiled package or rebuilt from its image through the socket (`--base-arg name=value` for its arguments, `--omit`, `--omit-base` fields, `--compare` with the CLI); `--library` forges it with the `KitForge` of `docker-sandbox-kit` instead, and `--base-agent <agent>` with it takes the kit of an agent as `KitForge::agent` resolves it, its shortcut on the daemon followed |
 | `raw`, `replay` | Arbitrary or captured requests |
 
 Destructive daemon routes (`/daemon/reset`, `/daemon/shutdown`) and the global

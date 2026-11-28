@@ -736,13 +736,17 @@ struct KitForgeArgs {
     /// Package compiled by `kit-compile` whose base kit is reused
     #[arg(
         long,
-        required_unless_present = "base_image",
-        conflicts_with = "base_image"
+        required_unless_present_any = ["base_image", "base_agent"],
+        conflicts_with_all = ["base_image", "base_agent"]
     )]
     base_package: Option<PathBuf>,
     /// Published base kit rebuilt through the socket, e.g. `docker.io/sbx/shell:latest`
-    #[arg(long)]
+    #[arg(long, conflicts_with = "base_agent")]
     base_image: Option<String>,
+    /// Agent whose kit is the base, resolved as the CLI resolves `sbx create <agent>`, its
+    /// shortcut on the daemon included (`kit.shortcuts.<agent>`; with `--library`)
+    #[arg(long, requires = "library")]
+    base_agent: Option<String>,
     /// Output directory (default: `target/audit/kits/<kit name>-forged`)
     #[arg(long)]
     out: Option<PathBuf>,
@@ -769,14 +773,17 @@ impl KitForgeArgs {
             .out
             .clone()
             .unwrap_or_else(|| kitforge::default_out(Path::new(OUTPUT), &self.kit));
-        let base = match (&self.base_package, &self.base_image) {
-            (Some(package), _) => kitforge::BaseSource::Package(package),
-            (None, Some(reference)) => kitforge::BaseSource::Image {
+        let base = match (&self.base_package, &self.base_image, &self.base_agent) {
+            (Some(package), _, _) => kitforge::BaseSource::Package(package),
+            (None, Some(reference), _) => kitforge::BaseSource::Image {
                 reference,
                 socket: sock,
                 args: kitc::parse_kit_args(&self.base_args)?,
             },
-            (None, None) => bail!("--base-package or --base-image is required"),
+            (None, None, Some(agent)) => kitforge::BaseSource::Agent(agent),
+            (None, None, None) => {
+                bail!("--base-package, --base-image or --base-agent is required")
+            }
         };
         let opts = kitforge::ForgeOpts {
             kit: &self.kit,
