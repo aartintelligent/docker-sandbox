@@ -165,6 +165,16 @@ mixins, the text of their descriptors included, so a mixin changed is forged
 again. The cache does not ask the registry whether a published kit moved:
 `cache.refresh(&forge)` forges it again when asked.
 
+The same cache keeps the packages the CLI compiles (with the `compiler`
+feature): `cache.compiled(&compiler, &job)` compiles a `CompileJob` once, then
+hands its package back while the daemon runs the same `sbx` version. Its key
+is the base kit, the arguments and the mixins of the job, the text of the
+`spec.yaml` of a mixin given as a directory and the descriptor of one
+described in code included, so a mixin changed is compiled again; with a
+directory, the package is written there in place of the `output` of the job.
+`cache.recompile(&compiler, &job)` compiles again, for a kit of a Git
+repository or a registry that moved.
+
 ## MCP servers for the agent
 
 The daemon only loads into the gateway of a sandbox the MCP servers registered

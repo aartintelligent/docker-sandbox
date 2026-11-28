@@ -42,7 +42,8 @@ and the examples in a workspace of their own:
   - `forge/` (feature `forge`, default): `KitForge`, packages written without the CLI, the base
     kit rebuilt from its published image and mixins from kit descriptors (`KitDescriptor`,
     `LifecycleStep`, `Mixin`), MCP servers registered in the agent by a mixin (`McpServer`,
-    `Mixin::mcp`, claude, copilot and opencode), packages kept by composition (`KitCache`);
+    `Mixin::mcp`, claude, copilot and opencode), packages kept by composition (`KitCache`, which
+    compiles too with the `compiler` feature);
   - `compiler/` (feature `compiler`): `KitCompiler`, packages compiled once by the CLI behind a
     capturing proxy;
   - `reference.rs`: references read from their name as the CLI reads them, `KitRef` (a kit, as

@@ -152,6 +152,12 @@ pub struct KitCompiler {
 }
 
 impl KitCompiler {
+    /// The client of the daemon the compilations run against.
+    #[cfg(feature = "forge")]
+    pub(crate) fn client(&self) -> &Client {
+        &self.client
+    }
+
     /// Compiles with the `sbx` executable at `sbx` (looked up in `PATH` when
     /// relative), against the daemon of `client`, using `work_dir` for
     /// temporary sockets.
