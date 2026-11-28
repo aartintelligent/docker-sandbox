@@ -283,6 +283,9 @@ async fn packages_are_built_in_memory_and_create_sandboxes_from_there() {
         .unwrap();
     assert_eq!(package.dir(), None, "nothing was written");
     assert_eq!(package.images().len(), 1);
+    // Forged by the version of the crate that goes with docker-sandbox, for
+    // the API of this daemon.
+    assert!(package.suits(client.health()));
 
     package.create(&client, "job-42").await.unwrap();
     assert_eq!(

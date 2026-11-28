@@ -128,7 +128,9 @@ A package on disk is taken again by `KitPackage::open` for the next
 sandboxes, without forging it again. `KitForge::with_base_package` takes its
 base kit, forged or compiled, for another composition, without pulling the
 image again. A forged package is tied to the API of the daemon it was forged
-for, a compiled one to the `sbx` version that compiled it.
+for and to the version of the crate that forged it, a compiled one to the
+`sbx` version that compiled it: `KitPackage::suits` says whether a package
+still suits a daemon, or is to be made again.
 
 ## MCP servers for the agent
 

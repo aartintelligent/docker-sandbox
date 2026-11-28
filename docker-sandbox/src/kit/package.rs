@@ -17,6 +17,7 @@ use serde_json::{Map, Value};
 
 use super::KitAgent;
 use crate::client::Client;
+use crate::daemon::Health;
 use crate::error::{Error, Result};
 use crate::sandbox::{CreateRequest, Created, Sandbox, SwapOutcome, SwapRequest};
 
@@ -28,6 +29,10 @@ const PLACE_ATTEMPTS: usize = 16;
 /// The saves of this process, counted so that each stages its package under
 /// a name of its own.
 static SAVES: AtomicU64 = AtomicU64::new(0);
+
+/// The name the forge of `docker-sandbox-kit` records itself under in
+/// `kit.json` (`forged_by`).
+const FORGE: &str = "docker-sandbox-kit";
 
 /// An image shipped with a kit package.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -308,6 +313,37 @@ impl KitPackage {
         self.compiled_api.as_deref()
     }
 
+    /// Whether the package can still create sandboxes on the daemon of
+    /// `health`, as recorded when it was written: one the `sbx` CLI compiled
+    /// suits the daemon of the same `sbx` version; one `docker-sandbox-kit`
+    /// forged suits a daemon of the same API, forged by the version of
+    /// `docker-sandbox-kit` that goes with this crate (the two crates share
+    /// one version), since another may write its kits otherwise. A package
+    /// that records neither suits no daemon: a cache makes it again.
+    ///
+    /// ```no_run
+    /// # async fn run(client: docker_sandbox::Client) -> docker_sandbox::Result<()> {
+    /// use docker_sandbox::kit::KitPackage;
+    ///
+    /// let package = KitPackage::open("/var/lib/kits/shell-session")?;
+    /// if !package.suits(client.health()) {
+    ///     eprintln!("the package is to be made again for this daemon");
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn suits(&self, health: &Health) -> bool {
+        if let Some(compiled) = self.compiled_with.as_deref() {
+            return compiled == health.version;
+        }
+        let forger = self.metadata.get("forged_by");
+        let field = |key: &str| forger.and_then(|f| f.get(key)).and_then(Value::as_str);
+        field("name") == Some(FORGE)
+            && field("version") == Some(env!("CARGO_PKG_VERSION"))
+            && self.compiled_api.as_deref() == Some(health.api_version.as_str())
+    }
+
     /// Kit references of the package, base kit first.
     #[must_use]
     pub fn kit_refs(&self) -> Vec<String> {
@@ -480,7 +516,6 @@ impl KitPackage {
     }
 }
 
-/// `docker.io/library/name:tag` and `name:tag` designate the same image.
 /// The directory a package is written to before it is renamed into place:
 /// beside the directory it is saved to, under a name no other save shares,
 /// and removed with what it holds unless it was put in place.
@@ -557,6 +592,7 @@ impl Drop for Staging {
     }
 }
 
+/// `docker.io/library/name:tag` and `name:tag` designate the same image.
 fn normalize_reference(reference: &str) -> String {
     reference
         .strip_prefix("docker.io/library/")
@@ -799,6 +835,50 @@ mod tests {
             refused
                 .to_string()
                 .contains("the metadata of a kit package is a JSON object")
+        );
+    }
+
+    #[test]
+    fn packages_suit_the_daemon_they_were_written_for() {
+        let health = |version: &str, api: &str| -> Health {
+            serde_json::from_value(
+                serde_json::json!({ "status": "healthy", "version": version, "api_version": api }),
+            )
+            .unwrap()
+        };
+        let package = |metadata: Value| {
+            KitPackage::in_memory(serde_json::json!({ "name": "{{name}}" }), metadata, []).unwrap()
+        };
+        let compiled = package(
+            serde_json::json!({ "compiled_with": { "sbx": "v0.54.1", "api_version": "0.52.0" } }),
+        );
+        assert!(compiled.suits(&health("v0.54.1", "0.52.0")));
+        assert!(!compiled.suits(&health("v0.55.0", "0.52.0")), "another sbx");
+
+        let forged = |name: &str, version: &str| {
+            package(
+                serde_json::json!({ "forged_by": { "name": name, "version": version },
+                                        "compiled_with": { "api_version": "0.52.0" } }),
+            )
+        };
+        let this = env!("CARGO_PKG_VERSION");
+        let current = forged(FORGE, this);
+        assert!(
+            current.suits(&health("v0.55.0", "0.52.0")),
+            "another sbx, the same API"
+        );
+        assert!(!current.suits(&health("v0.55.0", "0.53.0")), "another API");
+        assert!(
+            !forged(FORGE, "0.0.1").suits(&health("v0.54.1", "0.52.0")),
+            "another forge"
+        );
+        assert!(
+            !forged("audit", this).suits(&health("v0.54.1", "0.52.0")),
+            "another forger"
+        );
+        assert!(
+            !package(Value::Null).suits(&health("v0.54.1", "0.52.0")),
+            "nothing recorded"
         );
     }
 
