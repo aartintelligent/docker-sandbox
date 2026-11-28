@@ -30,17 +30,22 @@ pub enum Error {
 
     /// A launch failed once its sandbox existed: the sandbox was removed,
     /// unless `kept` says it stays, kept by the spec or because it could not
-    /// be removed.
+    /// be removed; its `id` then removes it, and no other sandbox of its
+    /// name.
     #[error("launching the sandbox {sandbox} failed {step}{}: {source}", kept_note(*.kept))]
+    #[non_exhaustive]
     Launch {
         /// Name of the sandbox.
         sandbox: String,
+        /// Identifier of the sandbox, which the daemon gave it at its
+        /// creation.
+        id: String,
         /// The step that failed.
         step: LaunchStep,
         /// Whether the sandbox stays.
         kept: bool,
-        /// The error of the client.
-        source: docker_sandbox::Error,
+        /// The error of the client, boxed to keep this error small.
+        source: Box<docker_sandbox::Error>,
     },
 }
 

@@ -45,6 +45,9 @@ docker-sandbox-kit = { workspace = true }
 serde              = { workspace = true }
 serde_json         = { workspace = true }
 thiserror          = { workspace = true }
+# The task that runs a launch once its sandbox exists, and the channel it
+# answers on.
+tokio = { workspace = true, features = ["rt", "sync"] }
 # The warning of a lease dropped without being shut down.
 tracing = { workspace = true }
 
@@ -54,5 +57,6 @@ percent-encoding = { workspace = true }
 tempfile         = { workspace = true }
 # The archives of file transfers the fake daemon of the tests reads and writes.
 tar = { workspace = true }
-# `#[tokio::test]` on a multi-threaded runtime, and the in-memory fake daemon.
-tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread", "sync"] }
+# `#[tokio::test]` on a multi-threaded runtime, the in-memory fake daemon, and
+# the launches the tests give up on a deadline.
+tokio = { workspace = true, features = ["io-util", "macros", "rt-multi-thread", "sync", "time"] }

@@ -10,10 +10,13 @@
 //! the image of the base kit in its cache.
 //!
 //! A failure once the sandbox exists removes it, unless the spec keeps it
-//! for a look inside, and the error names the step. An install command that
-//! fails already fails the creation, and the daemon removes the sandbox
-//! itself. A launch abandoned on the way, its future dropped, cannot remove
-//! anything: the sandbox bears the name the caller chose, who can remove it.
+//! for a look inside, and the error names the sandbox, its id and the step.
+//! An install command that fails already fails the creation, and the daemon
+//! removes the sandbox itself. Once the sandbox exists, the rest of the
+//! launch runs in a task of its own: a launch abandoned on the way, its
+//! future dropped by a timeout, a `select!` or Ctrl-C, still removes the
+//! sandbox it created, by its id, kept by the spec or not, as nobody is left
+//! to look inside. Before, the creation does the same for itself.
 
 mod lease;
 mod report;
@@ -23,11 +26,10 @@ pub use self::report::Report;
 
 use docker_sandbox::Client;
 use docker_sandbox::kit::KitPackage;
-use docker_sandbox::sandbox::{
-    CreateRequest, Created, DeleteOptions, ProxiedKey, Sandbox, SessionGuard,
-};
+use docker_sandbox::sandbox::{CreateRequest, DeleteOptions, ProxiedKey, Sandbox, SessionGuard};
 
 use docker_sandbox_kit::KitCache;
+use tokio::sync::oneshot;
 
 use crate::error::{Error, LaunchStep, Result};
 use crate::key::Keys;
@@ -139,10 +141,22 @@ impl SandboxSpec {
         let request = self.request(&package, &name, &tokens, &proxied)?;
         let created = package.create_with(client, &request).await?;
         let sandbox = client.sandbox(&name);
-        let session = match start(&sandbox, &proxied).await {
-            Ok(session) => session,
-            Err((step, source)) => return Err(self.failed(&sandbox, &created, step, source).await),
-        };
+        // The sandbox exists: the rest runs in a task of its own, which
+        // removes the sandbox when nobody waits for the launch any longer.
+        let (answer, answered) = oneshot::channel();
+        tokio::spawn(finish(Finish {
+            sandbox: sandbox.clone(),
+            id: created.id.clone(),
+            keep: self.keep_on_failure,
+            proxied: proxied.clone(),
+            answer,
+        }));
+        // Only a task that panicked, or a runtime shutting down, sends nothing.
+        let gone = Error::Client(docker_sandbox::Error::Failed {
+            operation: "sandbox launch",
+            message: "the task of the launch ended without an answer".to_owned(),
+        });
+        let session = answered.await.unwrap_or(Err(gone))?;
         let report = self.report(&package, &created, &proxied, network);
         let tokens = tokens
             .into_iter()
@@ -191,27 +205,62 @@ impl SandboxSpec {
         }
         Ok(request)
     }
+}
 
-    /// The error of a launch that failed at `step` once `sandbox` existed,
-    /// which is removed unless the spec keeps it.
-    async fn failed(
-        &self,
-        sandbox: &Sandbox,
-        created: &Created,
-        step: LaunchStep,
-        source: docker_sandbox::Error,
-    ) -> Error {
-        let options = DeleteOptions::default()
-            .forced()
-            .with_expected_id(created.id.clone());
-        let kept = self.keep_on_failure || sandbox.delete_with(&options).await.is_err();
-        Error::Launch {
-            sandbox: sandbox.name().to_owned(),
-            step,
-            kept,
-            source,
+/// The steps of a launch once its sandbox exists, run by [`finish`].
+struct Finish {
+    /// The sandbox.
+    sandbox: Sandbox,
+    /// Its identifier, so that no other sandbox of its name is removed.
+    id: String,
+    /// Whether the spec keeps a sandbox whose launch failed.
+    keep: bool,
+    /// The keys to push.
+    proxied: Vec<ProxiedKey>,
+    /// Where the launch waits for the session, or for its error.
+    answer: oneshot::Sender<Result<SessionGuard>>,
+}
+
+/// Starts the sandbox and pushes its keys, then answers the launch. A
+/// failure removes the sandbox unless the spec keeps it; a launch nobody
+/// waits for any longer was abandoned, and its sandbox is removed, kept by
+/// the spec or not.
+async fn finish(task: Finish) {
+    let Finish {
+        sandbox,
+        id,
+        keep,
+        proxied,
+        answer,
+    } = task;
+    match start(&sandbox, &proxied).await {
+        Ok(session) => {
+            // Refused, the session comes back and closes as it is dropped.
+            if answer.send(Ok(session)).is_err() {
+                remove(&sandbox, &id).await;
+            }
+        }
+        Err((step, source)) => {
+            let kept = keep || !remove(&sandbox, &id).await;
+            let error = Error::Launch {
+                sandbox: sandbox.name().to_owned(),
+                id: id.clone(),
+                step,
+                kept,
+                source: Box::new(source),
+            };
+            if answer.send(Err(error)).is_err() && kept {
+                remove(&sandbox, &id).await;
+            }
         }
     }
+}
+
+/// Removes the sandbox `sandbox` of identifier `id`, and says whether it is
+/// gone.
+async fn remove(sandbox: &Sandbox, id: &str) -> bool {
+    let options = DeleteOptions::default().forced().with_expected_id(id);
+    sandbox.delete_with(&options).await.is_ok()
 }
 
 /// Starts `sandbox` and pushes its keys, holding its session.

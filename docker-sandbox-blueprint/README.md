@@ -121,7 +121,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Nothing is written on the host at any step. A failure once the sandbox
 exists (steps 6 and 7) removes it, unless the spec says `keep_on_failure`, and
-the `Error::Launch` names the sandbox, the step and whether it stays.
+the `Error::Launch` names the sandbox, its id, the step and whether it stays.
+A launch given up on the way, its future dropped by a timeout, a `select!` or
+Ctrl-C, removes the sandbox it created all the same, by its id, kept by the
+spec or not: once the sandbox exists, the rest of the launch runs in a task of
+its own, as the creation does before it.
 
 Forging a kit costs about a second, its base image exported again.
 `spec.launch_with(&client, name, &keys, &cache)` takes it from a `KitCache`
