@@ -114,9 +114,10 @@ msrv:
 # Examples — one crate per example, in a workspace of their own (examples/).
 # ------------------------------------------------------------------------------
 
-# Lint every example, treating warnings as errors.
+# Lint every example, treating warnings as errors, against the lockfile of the examples as CI
+# does: a change to the dependencies of a crate that leaves `examples/Cargo.lock` behind fails here.
 examples-clippy:
-    cargo clippy --manifest-path examples/Cargo.toml --workspace --all-targets -- -D warnings
+    cargo clippy --locked --manifest-path examples/Cargo.toml --workspace --all-targets -- -D warnings
 
 # Run one example against the real daemon, e.g. `just example shell-exec` or
 # `just example agent-claude-mcp`. Extra arguments go to the example.
