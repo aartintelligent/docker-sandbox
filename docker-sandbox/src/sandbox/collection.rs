@@ -1,9 +1,23 @@
 //! The collection of sandboxes: listing and creation.
+//!
+//! The daemon gives a creation up when its connection closes before the
+//! result, as a dropped future closes it, but keeps the network rules of its
+//! kits, which no route removes and which the next sandbox of that name gets
+//! (`audit/assets/notes.md`, "Creation"). A creation is therefore read to its
+//! end in a task of its own, and the sandbox it made is deleted, its rules
+//! with it, when nobody took its result.
 
-use super::{CreateEvent, CreateRequest, CreateStream, Created, SandboxInfo, sandbox_path};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use tokio::sync::{mpsc, oneshot};
+
+use super::{
+    CreateEvent, CreateRequest, CreateStream, Created, DeleteOptions, SandboxInfo, sandbox_path,
+};
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::transport::Request;
+use crate::transport::{NdjsonStream, Request};
 
 /// Operations on the collection of sandboxes. Obtained with
 /// [`Client::sandboxes`].
@@ -60,6 +74,13 @@ impl Sandboxes {
     /// line into [`Error::Failed`]. Progress messages are logged at the debug
     /// level.
     ///
+    /// Dropping the future, on a timeout or a cancellation, does not give the
+    /// creation up halfway, which would leave the network rules of its kits to
+    /// the next sandbox of that name: the creation goes on to its end, then
+    /// the sandbox it made is deleted, its rules with it. A sandbox of that
+    /// name the request did not make (`409`) is never touched. A program that
+    /// ends before the creation does still leaves those rules.
+    ///
     /// # Errors
     ///
     /// Fails with [`Error::Failed`] when the daemon reports a failure, or with
@@ -91,8 +112,11 @@ impl Sandboxes {
     /// (`POST /sandbox`).
     ///
     /// The stream yields [`CreateEvent::Progress`] items, then exactly one
-    /// [`CreateEvent::Result`] or [`CreateEvent::Error`]. Dropping the stream
-    /// does not cancel the creation on the daemon side.
+    /// [`CreateEvent::Result`] or [`CreateEvent::Error`]. A task of the
+    /// library reads it to its end whatever the caller does: dropping the
+    /// stream, or the future that returns it, before taking the result lets
+    /// the creation finish, then deletes the sandbox it made, as
+    /// [`Sandboxes::create`] does.
     ///
     /// ```no_run
     /// use docker_sandbox::sandbox::{CreateEvent, CreateRequest, Created};
@@ -117,12 +141,95 @@ impl Sandboxes {
     /// Fails with [`Error::Api`] if the daemon rejects the request before
     /// streaming.
     pub async fn create_stream(&self, request: &CreateRequest) -> Result<CreateStream> {
+        let name = request.name.clone();
         let request = Request::post("sandbox creation", "/sandbox")
             .json(request)?
             .long_running();
-        self.client
-            .transport()
-            .ndjson(request, CreateEvent::parse_line)
-            .await
+        let (head, answered) = oneshot::channel();
+        let (items, received) = mpsc::unbounded_channel();
+        let taken = Arc::new(AtomicUsize::new(0));
+        let stream = NdjsonStream::relayed(received, Arc::clone(&taken));
+        tokio::spawn(relay_creation(Relay {
+            client: self.client.clone(),
+            name,
+            request,
+            head,
+            items,
+            taken,
+        }));
+        // Only a task that panicked, or a runtime shutting down, sends nothing.
+        let gone = Error::Failed {
+            operation: "sandbox creation",
+            message: "the task of the creation ended without an answer".to_owned(),
+        };
+        answered.await.unwrap_or(Err(gone)).map(|()| stream)
+    }
+}
+
+/// A creation read to its end by [`relay_creation`].
+struct Relay {
+    /// Client the requests go through.
+    client: Client,
+    /// Name of the sandbox to create.
+    name: String,
+    /// The creation request, ready to send.
+    request: Request,
+    /// Where the answer to the request goes: the stream begins, or an error.
+    head: oneshot::Sender<Result<()>>,
+    /// Where the items of the stream go, then `None` at its end.
+    items: mpsc::UnboundedSender<Option<Result<CreateEvent>>>,
+    /// How many items the reader took.
+    taken: Arc<AtomicUsize>,
+}
+
+/// Sends the creation request of `relay` and relays its stream to its end.
+/// Once the reader is gone, deletes the sandbox the creation made if the
+/// reader did not take its result.
+async fn relay_creation(relay: Relay) {
+    let Relay {
+        client,
+        name,
+        request,
+        head,
+        items,
+        taken,
+    } = relay;
+    let mut stream = match client
+        .transport()
+        .ndjson(request, CreateEvent::parse_line)
+        .await
+    {
+        Ok(stream) => stream,
+        Err(error) => {
+            let _ = head.send(Err(error));
+            return;
+        }
+    };
+    let _ = head.send(Ok(()));
+    // The position of the result in the stream, and the sandbox it names.
+    let mut created = None;
+    let mut sent = 0;
+    while let Some(item) = stream.next().await {
+        if let Ok(CreateEvent::Result(result)) = &item {
+            created = Some((sent, result.id.clone()));
+        }
+        sent += 1;
+        let _ = items.send(Some(item));
+    }
+    let _ = items.send(None);
+    let Some((position, id)) = created else {
+        return;
+    };
+    // The reader takes the result, or gives it up with the stream.
+    items.closed().await;
+    if taken.load(Ordering::Acquire) <= position {
+        tracing::info!(
+            sandbox = name,
+            "deleting the sandbox of a creation given up before its result"
+        );
+        let options = DeleteOptions::default().forced().with_expected_id(id);
+        if let Err(error) = client.sandbox(&name).delete_with(&options).await {
+            tracing::warn!(sandbox = name, %error, "cannot delete the sandbox of a creation given up");
+        }
     }
 }

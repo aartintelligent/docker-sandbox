@@ -61,10 +61,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # Async runtime. Default features are off: each member enables only what it
-# uses (`net` and `io-util` for the socket client, `fs` for kit images,
-# `process` and `sync` for the kit compiler of `docker-sandbox-kit`, `full` for
-# the audit tool, `rt` and `net` for live-probe); the test suites add
-# `rt-multi-thread` and `sync`.
+# uses (`net` and `io-util` for the socket client, `fs` for kit images, `sync`
+# for the creations it reads to their end, `process` and `sync` for the kit
+# compiler of `docker-sandbox-kit`, `full` for the audit tool, `rt` and `net`
+# for live-probe); the test suites add `rt-multi-thread` and `sync`.
 tokio = { version = "1", default-features = false }
 
 # HTTP/1.1 over the `sandboxd` Unix socket in the library, the capture proxy of

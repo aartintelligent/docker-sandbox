@@ -1,13 +1,13 @@
 {
   "api_version": "0.52.0",
-  "audited_on": "2026-11-27",
+  "audited_on": "2026-11-28",
   "contract": {
-    "exchanges": 1921,
+    "exchanges": 2038,
     "observed": 63,
     "operations": 64,
     "unmatched": 0
   },
-  "events": 502,
+  "events": 597,
   "routes": 53,
   "sbx_version": "v0.54.1",
   "suites": [
@@ -29,7 +29,7 @@
     },
     {
       "name": "kits",
-      "scenarios": 174
+      "scenarios": 198
     },
     {
       "name": "errors",
@@ -44,5 +44,5 @@
       "scenarios": 16
     }
   ],
-  "tool_version": "0.2.0"
+  "tool_version": "0.3.1"
 }

@@ -233,6 +233,7 @@ async fn create_stream_yields_progress_then_outcome() {
     while let Some(event) = stream.next().await {
         events.push(event.unwrap());
     }
+    assert!(stream.next().await.is_none(), "the stream stays ended");
 
     assert_eq!(events.len(), 3);
     assert_eq!(
@@ -240,6 +241,139 @@ async fn create_stream_yields_progress_then_outcome() {
         CreateEvent::Progress("   → assembling kit image from 2 kits".into())
     );
     assert!(matches!(&events[2], CreateEvent::Result(created) if created.id == "abc"));
+}
+
+/// The stream of a creation that ends with the sandbox `job-42`, whose
+/// identifier is `abc`.
+fn creation_stream() -> Reply {
+    Reply::ndjson(&[
+        json!({ "progress": "   → assembling kit image from 2 kits\n" }),
+        json!({ "result": { "id": "abc", "name": "job-42", "agent": "shell", "status": "running" } }),
+    ])
+}
+
+/// Waits until the fake daemon received `method path`, and returns it.
+async fn received(daemon: &FakeDaemon, method: &str, path: &str) -> support::Recorded {
+    for _ in 0..100 {
+        if let Some(request) = daemon
+            .requests()
+            .into_iter()
+            .find(|r| r.method == method && r.path() == path)
+        {
+            return request;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    panic!("the daemon never received {method} {path}");
+}
+
+/// Checks that the sandbox of the creation was deleted, as made by this
+/// request and whatever its state.
+async fn assert_deleted(daemon: &FakeDaemon) {
+    let deleted = received(daemon, "DELETE", "/sandbox/job-42").await;
+    assert_eq!(deleted.query()["expected_id"], "abc");
+    assert_eq!(deleted.query()["force"], "true");
+}
+
+#[tokio::test]
+async fn a_creation_given_up_before_its_result_deletes_its_sandbox() {
+    // The result comes once the caller has given up.
+    let daemon = FakeDaemon::builder()
+        .route(
+            "POST",
+            "/sandbox",
+            creation_stream().with_body_after(Duration::from_millis(300)),
+        )
+        .route("DELETE", "/sandbox/job-42", Reply::empty(204))
+        .start();
+    let client = connect(&daemon).await;
+    let sandboxes = client.sandboxes();
+    let given_up =
+        tokio::time::timeout(Duration::from_millis(100), sandboxes.create(&request())).await;
+    assert!(given_up.is_err(), "the creation was still running");
+    assert_deleted(&daemon).await;
+}
+
+#[tokio::test]
+async fn a_creation_given_up_before_its_answer_deletes_its_sandbox() {
+    // The daemon answers once the caller has given up, and the deletion it
+    // sends then fails: it is only logged.
+    let daemon = FakeDaemon::builder()
+        .route(
+            "POST",
+            "/sandbox",
+            creation_stream().delayed(Duration::from_millis(300)),
+        )
+        .start();
+    let client = connect(&daemon).await;
+    let sandboxes = client.sandboxes();
+    let given_up =
+        tokio::time::timeout(Duration::from_millis(100), sandboxes.create(&request())).await;
+    assert!(given_up.is_err(), "the creation was still running");
+    assert_deleted(&daemon).await;
+}
+
+#[tokio::test]
+async fn a_creation_stream_dropped_before_its_result_deletes_its_sandbox() {
+    let daemon = FakeDaemon::builder()
+        .route(
+            "POST",
+            "/sandbox",
+            creation_stream().with_body_after(Duration::from_millis(100)),
+        )
+        .route("DELETE", "/sandbox/job-42", Reply::empty(204))
+        .start();
+    let client = connect(&daemon).await;
+    let stream = client.sandboxes().create_stream(&request()).await.unwrap();
+    assert!(format!("{stream:?}").contains("relayed"), "{stream:?}");
+    drop(stream);
+    assert_deleted(&daemon).await;
+}
+
+#[tokio::test]
+async fn a_creation_read_to_its_result_or_refused_deletes_nothing() {
+    let daemon = FakeDaemon::builder()
+        .route("POST", "/sandbox", creation_stream())
+        .route("DELETE", "/sandbox/job-42", Reply::empty(204))
+        .start();
+    let client = connect(&daemon).await;
+    let created = client.sandboxes().create(&request()).await.unwrap();
+    assert_eq!(created.id, "abc");
+
+    // A name another sandbox holds: refused before any stream, whether the
+    // caller waits for the answer or gives it up.
+    let taken = FakeDaemon::builder()
+        .route(
+            "POST",
+            "/sandbox",
+            Reply::json(
+                409,
+                &json!({ "code": "sandbox_name_conflict", "message": "sandbox \"job-42\" already exists" }),
+            )
+            .delayed(Duration::from_millis(100)),
+        )
+        .route("DELETE", "/sandbox/job-42", Reply::empty(204))
+        .start();
+    let taken_client = connect(&taken).await;
+    let refused = taken_client.sandboxes().create(&request()).await;
+    assert!(matches!(refused, Err(Error::Api { .. })), "{refused:?}");
+    let sandboxes = taken_client.sandboxes();
+    let given_up =
+        tokio::time::timeout(Duration::from_millis(20), sandboxes.create(&request())).await;
+    assert!(given_up.is_err(), "the creation was still running");
+
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    for daemon in [&daemon, &taken] {
+        let deletions = daemon
+            .requests()
+            .into_iter()
+            .filter(|r| r.method == "DELETE")
+            .count();
+        assert_eq!(
+            deletions, 0,
+            "a sandbox this request did not leave was deleted"
+        );
+    }
 }
 
 #[tokio::test]

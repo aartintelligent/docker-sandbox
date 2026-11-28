@@ -46,6 +46,23 @@ every `sbx` upgrade.
   invalid. Both fields are optional.
 - A sandbox does not mix kit formats: a v3 kit (`# syntax=docker/sandbox-kit:3`,
   built by BuildKit) only accepts v3 mixins.
+- Without `Accept: application/x-ndjson`, `POST /sandbox` answers `201` and
+  the sandbox once it is created, with no stream.
+- **A creation whose connection closes before its result** (`create-ab1-abandoned`,
+  `create-ab2-abandoned`, `create-ab3-abandoned`: the stream cut 300 ms and
+  1 s after the request, as a dropped future of the library cuts it; the same
+  without the stream, and through `docker-sandbox` itself) is given up by the
+  daemon: no sandbox is left (`inspect-ab1-after`, `404`). The network rules of
+  its kits are left, scoped to its name (`kit:<name>`, `kit:<name>:deny`,
+  `rules-ab-orphaned`), and `policy rm` refuses them ("managed by a kit and is
+  recreated at sandbox create"). The next sandbox of that name gets them,
+  whatever its kits: one created with the `shell` kit alone has the deny of the
+  abandoned mixin applied by its proxy (`probe-ab3-orphan-deny`: `403` for the
+  denied host, `502` for another). They go when that sandbox is removed
+  (`rules-ab-after-rm`). A creation the daemon gives up itself, an install
+  command that fails, leaves no rule (`rules-ifn-after`).
+- A creation under the name of a sandbox that exists is refused with `409
+  {"code":"sandbox_name_conflict"}` before any stream (`create-abc-taken`).
 
 ### Custom kits (mixins)
 
@@ -526,20 +543,20 @@ policy, and the proxy answers `502` for a host the policy lets through.
 | daemon | GET | `/daemon/debug/state` | yes | 200 | inspect-a, inspect-c, inspect-s, inspect-w, inspect-w-json |
 | daemon | GET | `/daemon/diagnostics` | yes | 200 | diagnose, diagnose-with-sandbox |
 | daemon | GET | `/daemon/disk-usage` | yes | 200 | df |
-| daemon | GET | `/daemon/health` | yes | 200 | cp-from-a, cp-to-a, create-a, create-a-plain, create-b-from-template, create-b-static-mcp |
+| daemon | GET | `/daemon/health` | yes | 200 | cp-from-a, cp-to-a, create-a, create-a-plain, create-ab1-plain, create-ab3-plain |
 | daemon | GET | `/daemon/info` | yes | 200 | daemon-info |
 | daemon | GET | `/daemon/loglevel` | yes | 200 | daemon-loglevel |
 | daemon | POST | `/daemon/loglevel/{target}` | yes | 204, 400 | loglevel-invalid-level, loglevel-restore, loglevel-set-same, loglevel-unknown-target |
-| daemon | GET | `/daemon/settings` | yes | 200 | cp-from-a, cp-to-a, create-a, create-a-plain, create-b-from-template, create-b-static-mcp |
+| daemon | GET | `/daemon/settings` | yes | 200 | cp-from-a, cp-to-a, create-a, create-a-plain, create-ab1-plain, create-ab3-plain |
 | daemon | DELETE | `/daemon/settings/{key}` | yes | 204, 404 | setting-unset-unknown, settings-unset |
 | daemon | GET | `/daemon/settings/{key}` | yes | 200, 404 | create-c-clone, kit-forge-library, kit-forge-library-shell, setting-get-unknown, settings-get, settings-unset |
 | daemon | POST | `/daemon/settings/{key}` | yes | 200, 404 | setting-set-unknown, settings-set-default, settings-set-override |
 | docker | GET | `/docker/images` | yes | 200 | kit-compile, kit-compile-caps, kit-compile-cred-echo, kit-compile-json, kit-compile-net, template-ls |
-| docker | POST | `/docker/images/create` | yes | 200, 403 | create-a, image-pull, image-pull-unknown, kit-forge-agent, kit-forge-base, kit-forge-base-eff |
+| docker | POST | `/docker/images/create` | yes | 200, 403 | image-pull, image-pull-unknown, kit-forge-agent, kit-forge-base, kit-forge-base-eff, kit-forge-base-min |
 | docker | GET | `/docker/images/export` | yes | 200, 404 | image-export-unknown, kit-forge-agent, kit-forge-base, kit-forge-base-eff, kit-forge-base-min, kit-forge-base-sel |
-| docker | GET | `/docker/images/inspect` | yes | 200, 404 | create-a, create-a-plain, create-b-from-template, create-b-static-mcp, create-c-clone, create-cq-cred-required |
-| docker | POST | `/docker/images/load` | yes | 200, 500 | create-cq-cred-required, create-cr-cred, create-if-install-fail, create-m-mcp, create-n-net, create-ni-net-install |
-| docker | GET | `/docker/images/local-metadata` | yes | 200 | create-a, create-a-plain, create-b-static-mcp, create-c-clone, create-cq-cred-required, create-cr-cred |
+| docker | GET | `/docker/images/inspect` | yes | 200, 404 | create-a, create-a-plain, create-ab1-plain, create-ab3-plain, create-b-from-template, create-b-static-mcp |
+| docker | POST | `/docker/images/load` | yes | 200, 500 | create-cq-cred-required, create-cr-cred, create-if-install-fail, create-ifn-install-fail, create-m-mcp, create-n-net |
+| docker | GET | `/docker/images/local-metadata` | yes | 200 | create-a, create-a-plain, create-ab1-plain, create-ab3-plain, create-b-static-mcp, create-c-clone |
 | docker | DELETE | `/docker/images/remove` | yes | 200, 404 | image-remove-unknown, kit-compile-caps, kit-compile-cred-echo, kit-compile-json, template-rm, template-rm-2 |
 | events | GET | `/events` | yes | 200 | events-stream |
 | mcp | GET | `/mcp/gateway-mode` | yes | 200 | mcp-auth-status, mcp-ls |
@@ -550,13 +567,13 @@ policy, and the proxy answers `502` for a host the policy lets through.
 | policy | GET | `/policy/network/profiles` | yes | 200 | ls-json, policy-profile-ls |
 | policy | GET | `/policy/network/rules` | yes | 200 | mcp-ls, policy-inspect, policy-ls, policy-ls-after, policy-ls-after-rm, policy-ls-ck |
 | policy | POST | `/policy/network/rules` | yes | 200, 400 | allow-nq-host, allow-nq-http, create-s-options, deny-np-forms, deny-nq-all, policy-allow-global |
-| policy | GET | `/policy/network/setup` | yes | 200 | cp-from-a, cp-to-a, create-a, create-a-plain, create-b-from-template, create-b-static-mcp |
+| policy | GET | `/policy/network/setup` | yes | 200 | cp-from-a, cp-to-a, create-a, create-a-plain, create-ab1-plain, create-ab3-plain |
 | policy | POST | `/policy/network/setup` | **no** |  |  |
 | policy | POST | `/policy/refresh` | yes | 204 | policy-refresh |
 | sandbox | GET | `/sandbox` | yes | 200 | ls, ls-json, prune-dry |
-| sandbox | POST | `/sandbox` | yes | 200, 201, 400 | create-a, create-a-plain, create-ag, create-b-from-template, create-b-static-mcp, create-c-clone |
+| sandbox | POST | `/sandbox` | yes | 200, 201, 400, 409 | create-a, create-a-plain, create-ab1-abandoned, create-ab1-plain, create-ab2-abandoned, create-ab2-again |
 | sandbox | DELETE | `/sandbox/{name}` | yes | 200, 404, 409 | delete-wrong-id, env-rm, kit-compile, kit-compile-caps, kit-compile-cred-echo, kit-compile-json |
-| sandbox | GET | `/sandbox/{name}` | yes | 200, 404 | cp-from-a, cp-to-a, create-a, create-a-plain, create-b-from-template, create-b-static-mcp |
+| sandbox | GET | `/sandbox/{name}` | yes | 200, 404 | cp-from-a, cp-to-a, create-a, create-a-plain, create-ab1-plain, create-ab3-plain |
 | sandbox | POST | `/sandbox/{name}/agent/session` | yes | 101 | agent-session-sized, agent-session-stopped, run-a, run-r-command-args, run-r-env-workdir, run-r-flag-args |
 | sandbox | POST | `/sandbox/{name}/credentials` | yes | 200, 404 | cp-from-a, cp-to-a, credentials-ag-empty, credentials-ck, credentials-f, credentials-g |
 | sandbox | DELETE | `/sandbox/{name}/debug/vm` | yes | 400 | debug-vm-delete-metrics |
@@ -564,7 +581,7 @@ policy, and the proxy answers `502` for a host the policy lets through.
 | sandbox | POST | `/sandbox/{name}/debug/vm` | yes | 400 | debug-vm-post-empty, debug-vm-post-metrics |
 | exec | POST | `/sandbox/{name}/exec` | yes | 200, 400, 404, 409 | cp-from-a, cp-to-a, exec-blocked, exec-empty-cmd, exec-env, exec-missing-program |
 | exec | GET | `/sandbox/{name}/exec/{exec_id}` | yes | 200, 404 | create-c-clone, exec-a, exec-a-mark, exec-a-opts, exec-a-stdin, exec-b-saved |
-| exec | POST | `/sandbox/{name}/exec/{exec_id}/resize` | yes | 200, 404, 409 | exec-tty, exec-tty-sized, resize-unknown-exec, run-r-tty |
+| exec | POST | `/sandbox/{name}/exec/{exec_id}/resize` | yes | 404, 409 | exec-tty, exec-tty-sized, resize-unknown-exec, run-r-tty |
 | exec | POST | `/sandbox/{name}/exec/attach` | yes | 101, 409 | attach-stopped, create-c-clone, exec-a, exec-a-mark, exec-a-opts, exec-a-stdin |
 | sandbox | GET | `/sandbox/{name}/files` | yes | 404, 409 | cp-from-a, files-get-missing, files-get-stopped |
 | sandbox | PUT | `/sandbox/{name}/files` | yes | 200, 409, 500 | cp-to-a, files-put-missing-dir, files-put-stopped |
@@ -579,9 +596,9 @@ policy, and the proxy answers `502` for a host the policy lets through.
 | ports | POST | `/sandbox/{name}/ports/replace-desired` | yes | 200, 400, 404 | ports-replace-desired, replace-desired-empty, replace-desired-unknown |
 | ports | POST | `/sandbox/{name}/ports/unpublish` | yes | 200 | port-unpublish, port-unpublish-multi, ports-unpublish-raw, ports-unpublish-unknown |
 | sandbox | POST | `/sandbox/{name}/save` | yes | 201, 404 | sandbox-save-unknown, template-save |
-| sandbox | GET | `/sandbox/{name}/session` | yes | 404 | cp-from-a, cp-to-a, create-a, create-a-plain, create-b-from-template, create-b-static-mcp |
+| sandbox | GET | `/sandbox/{name}/session` | yes | 404 | cp-from-a, cp-to-a, create-a, create-a-plain, create-ab1-plain, create-ab3-plain |
 | sandbox | POST | `/sandbox/{name}/ssh` | yes | 101, 400 | ssh-empty, ssh-stopped, ssh-upgrade |
-| sandbox | POST | `/sandbox/{name}/start` | yes | 200, 404 | cp-from-a, cp-to-a, create-a, create-a-plain, create-b-from-template, create-b-static-mcp |
+| sandbox | POST | `/sandbox/{name}/start` | yes | 200, 404 | cp-from-a, cp-to-a, create-a, create-a-plain, create-ab1-plain, create-ab3-plain |
 | sandbox | POST | `/sandbox/{name}/stop` | yes | 200, 404 | sandbox-stop-unknown, stop-a, stop-aw, stop-e |
 | sandbox | POST | `/sandbox/{name}/swap-container` | yes | 201, 400, 409 | kit-add, swap-container-empty, swap-y-caps, swap-y-net |
 | sandbox | PUT | `/sandbox/{name}/working-directory` | yes | 200, 400 | working-dir, working-dir-empty, working-dir-stopped |
@@ -825,12 +842,10 @@ Background requests omitted: `GET /daemon/health`, `GET /daemon/settings`, `GET 
 1. `GET /sandbox/{name}`
 2. `GET /docker/images/local-metadata`
 3. `GET /docker/images/inspect`
-4. `POST /docker/images/create`
-5. `GET /docker/images/inspect`
-6. `POST /sandbox`
-7. `GET /sandbox/{name}`
-8. `POST /sandbox/{name}/start`
-9. `GET /sandbox/{name}/session`
+4. `POST /sandbox`
+5. `GET /sandbox/{name}`
+6. `POST /sandbox/{name}/start`
+7. `GET /sandbox/{name}/session`
 
 **create-w**
 
@@ -1808,6 +1823,130 @@ Background requests omitted: `GET /daemon/health`, `GET /daemon/settings`, `GET 
 1. `GET /sandbox/{name}`
 2. `DELETE /sandbox/{name}`
 
+**load-abandoned-source**
+
+1. `POST /docker/images/load`
+
+**create-ab1-abandoned**
+
+1. `POST /sandbox`
+
+**create-ab2-abandoned**
+
+1. `POST /sandbox`
+
+**load-ab3-net-source**
+
+1. `POST /docker/images/load`
+
+**create-ab3-abandoned**
+
+1. `POST /sandbox`
+
+**inspect-ab1-after**
+
+1. `GET /sandbox/{name}`
+
+**inspect-ab2-after**
+
+1. `GET /sandbox/{name}`
+
+**rules-ab-orphaned**
+
+1. `GET /policy/network/rules`
+
+**remove-ab1-orphan-rule**
+
+1. `POST /policy/network/rules`
+
+**create-ab1-plain**
+
+1. `GET /sandbox/{name}`
+2. `GET /docker/images/local-metadata`
+3. `GET /docker/images/inspect`
+4. `POST /sandbox`
+5. `GET /sandbox/{name}`
+6. `POST /sandbox/{name}/start`
+7. `GET /sandbox/{name}/session`
+
+**rules-ab1-plain**
+
+1. `GET /policy/network/rules`
+
+**create-ab3-plain**
+
+1. `GET /sandbox/{name}`
+2. `GET /docker/images/local-metadata`
+3. `GET /docker/images/inspect`
+4. `POST /sandbox`
+5. `GET /sandbox/{name}`
+6. `POST /sandbox/{name}/start`
+7. `GET /sandbox/{name}/session`
+
+**probe-ab3-orphan-deny**
+
+1. `GET /sandbox/{name}/session`
+2. `GET /sandbox/{name}`
+3. `POST /sandbox/{name}/credentials`
+4. `GET /sandbox/{name}`
+5. `POST /sandbox/{name}/start`
+6. `GET /sandbox/{name}/mcp/gateway`
+7. `POST /sandbox/{name}/exec/attach`
+8. `GET /sandbox/{name}/exec/{exec_id}`
+
+**create-ab2-again**
+
+1. `POST /sandbox`
+
+**rm-ab**
+
+1. `GET /sandbox/{name}`
+2. `DELETE /sandbox/{name}`
+
+**create-ifn-install-fail**
+
+1. `POST /docker/images/load`
+2. `GET /sandbox/{name}`
+3. `GET /docker/images/local-metadata`
+4. `GET /docker/images/inspect`
+5. `POST /sandbox`
+
+**rules-ifn-after**
+
+1. `GET /policy/network/rules`
+
+**create-ifn-plain**
+
+1. `GET /sandbox/{name}`
+2. `GET /docker/images/local-metadata`
+3. `GET /docker/images/inspect`
+4. `POST /sandbox`
+5. `GET /sandbox/{name}`
+6. `POST /sandbox/{name}/start`
+7. `GET /sandbox/{name}/session`
+
+**rm-ifn**
+
+1. `GET /sandbox/{name}`
+2. `DELETE /sandbox/{name}`
+
+**rules-ab-after-rm**
+
+1. `GET /policy/network/rules`
+
+**create-abc**
+
+1. `POST /sandbox`
+
+**create-abc-taken**
+
+1. `POST /sandbox`
+
+**rm-abc**
+
+1. `GET /sandbox/{name}`
+2. `DELETE /sandbox/{name}`
+
 **kit-forge-claude**
 
 1. `POST /docker/images/create`
@@ -2134,11 +2273,6 @@ Background requests omitted: `GET /daemon/health`, `GET /daemon/settings`, `GET 
 
 1. `POST /sandbox/{name}/stop`
 2. `GET /sandbox/{name}`
-
-**rm-ab**
-
-1. `GET /sandbox/{name}`
-2. `DELETE /sandbox/{name}`
 
 **create-np**
 
@@ -2550,13 +2684,13 @@ Endless ndjson stream (`Transfer-Encoding: chunked`). On connection, the daemon 
 
 | type | action | seen | fields |
 |---|---|---|---|
-| `policy.network` | `allowed` | 120 | action, data, id, sandbox_name, seq, timestamp, type |
-| `policy.network` | `blocked` | 54 | action, data, id, sandbox_name, seq, timestamp, type |
-| `sandbox.lifecycle` | `created` | 53 | action, id, sandbox_id, sandbox_name, seq, timestamp, type |
-| `sandbox.lifecycle` | `deleted` | 53 | action, created_at, id, sandbox_id, sandbox_name, seq, timestamp, type |
-| `sandbox.lifecycle` | `started` | 53 | action, created_at, id, sandbox_id, sandbox_name, seq, timestamp, type |
-| `sandbox.lifecycle` | `stopped` | 53 | action, created_at, id, sandbox_id, sandbox_name, seq, timestamp, type |
-| `sandbox.ports` | `published` | 115 | action, data, id, sandbox_name, seq, timestamp, type |
+| `policy.network` | `allowed` | 121 | action, data, id, sandbox_name, seq, timestamp, type |
+| `policy.network` | `blocked` | 110 | action, data, id, sandbox_name, seq, timestamp, type |
+| `sandbox.lifecycle` | `created` | 62 | action, id, sandbox_id, sandbox_name, seq, timestamp, type |
+| `sandbox.lifecycle` | `deleted` | 62 | action, created_at, id, sandbox_id, sandbox_name, seq, timestamp, type |
+| `sandbox.lifecycle` | `started` | 58 | action, created_at, id, sandbox_id, sandbox_name, seq, timestamp, type |
+| `sandbox.lifecycle` | `stopped` | 58 | action, created_at, id, sandbox_id, sandbox_name, seq, timestamp, type |
+| `sandbox.ports` | `published` | 125 | action, data, id, sandbox_name, seq, timestamp, type |
 | `sync` | `complete` | 1 | action, id, timestamp, type |
 
 `policy.network` / `allowed`:
@@ -2565,16 +2699,16 @@ Endless ndjson stream (`Transfer-Encoding: chunked`). On connection, the daemon 
 {
   "action": "allowed",
   "data": {
-    "count": 2,
-    "host": "audit-net-path.example.invalid:80",
-    "last_seen": "2026-11-27T16:44:57.042960256+01:00",
+    "count": 1,
+    "host": "audit-orphan-control.example.invalid:80",
+    "last_seen": "2026-11-28T12:38:43.942299094+01:00",
     "proxy_type": "forward",
     "rule": "<dial failed>",
-    "since": "2026-11-27T16:44:54.694642836+01:00"
+    "since": "2026-11-28T12:38:43.942299094+01:00"
   },
-  "id": "f0f7bdd0-a756-414c-a995-7ec58e81d567",
-  "sandbox_name": "audit-np",
-  "timestamp": "2026-11-27T16:47:03.132155962+01:00",
+  "id": "a7840808-1d39-4de7-bc23-39b0cde4fbbd",
+  "sandbox_name": "audit-ab3",
+  "timestamp": "2026-11-28T12:41:09.679986133+01:00",
   "type": "policy.network"
 }
 ```
@@ -2586,16 +2720,16 @@ Endless ndjson stream (`Transfer-Encoding: chunked`). On connection, the daemon 
   "action": "blocked",
   "data": {
     "count": 1,
-    "host": "audit-net-other.example.invalid:80",
-    "last_seen": "2026-11-27T16:45:12.923146373+01:00",
+    "host": "audit-kit-deny.example.com:80",
+    "last_seen": "2026-11-28T12:38:43.93451347+01:00",
     "proxy_type": "forward",
     "reason": "Denied by local rule",
-    "rule": "denied: rule \"kit:audit-nk:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-net-other.example.invalid:80)",
-    "since": "2026-11-27T16:45:12.923146373+01:00"
+    "rule": "denied: rule \"kit:audit-ab3:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-kit-deny.example.com:80)",
+    "since": "2026-11-28T12:38:43.93451347+01:00"
   },
-  "id": "0d5e8f0a-cde6-4d35-89b2-87a5f44487e6",
-  "sandbox_name": "audit-nk",
-  "timestamp": "2026-11-27T16:47:03.132838818+01:00",
+  "id": "93a71a3e-a551-49b2-a971-b6816aae0e25",
+  "sandbox_name": "audit-ab3",
+  "timestamp": "2026-11-28T12:41:09.680508842+01:00",
   "type": "policy.network"
 }
 ```
@@ -2605,11 +2739,11 @@ Endless ndjson stream (`Transfer-Encoding: chunked`). On connection, the daemon 
 ```json
 {
   "action": "created",
-  "id": "9d87b32b-4ba5-4720-bc4c-9cebc5f77d97",
-  "sandbox_id": "02707201-4599-4a1f-b5c7-cc1a5be6f7de",
+  "id": "020bf66e-54f9-4268-8823-bf9bcf1a89c2",
+  "sandbox_id": "08ea2363-3782-4e56-9062-479d91d49318",
   "sandbox_name": "audit-a",
   "seq": 1,
-  "timestamp": "2026-11-27T16:47:21.09602175+01:00",
+  "timestamp": "2026-11-28T12:41:17.354365945+01:00",
   "type": "sandbox.lifecycle"
 }
 ```
@@ -2619,12 +2753,12 @@ Endless ndjson stream (`Transfer-Encoding: chunked`). On connection, the daemon 
 ```json
 {
   "action": "deleted",
-  "created_at": "2026-11-27T16:47:50+01:00",
-  "id": "d298968f-1285-437d-b780-8a53df99aa30",
-  "sandbox_id": "8860bb53-6649-489c-a1ed-efc3ee7b22c1",
+  "created_at": "2026-11-28T12:41:43+01:00",
+  "id": "5c57fe64-122e-4221-9262-f292a06dee14",
+  "sandbox_id": "ed249621-8ca5-4f09-8c9c-3562d78e87f5",
   "sandbox_name": "audit-env",
   "seq": 14,
-  "timestamp": "2026-11-27T16:47:52.417651442+01:00",
+  "timestamp": "2026-11-28T12:41:45.66686115+01:00",
   "type": "sandbox.lifecycle"
 }
 ```
@@ -2634,12 +2768,12 @@ Endless ndjson stream (`Transfer-Encoding: chunked`). On connection, the daemon 
 ```json
 {
   "action": "started",
-  "created_at": "2026-11-27T16:47:21+01:00",
-  "id": "27c4605b-92b6-4fd9-af16-11cb0b946587",
-  "sandbox_id": "02707201-4599-4a1f-b5c7-cc1a5be6f7de",
+  "created_at": "2026-11-28T12:41:17+01:00",
+  "id": "6ab0ffc5-91ce-4e6c-88fc-6e8037ce8165",
+  "sandbox_id": "08ea2363-3782-4e56-9062-479d91d49318",
   "sandbox_name": "audit-a",
   "seq": 2,
-  "timestamp": "2026-11-27T16:47:22.54908733+01:00",
+  "timestamp": "2026-11-28T12:41:18.818590789+01:00",
   "type": "sandbox.lifecycle"
 }
 ```
@@ -2649,12 +2783,12 @@ Endless ndjson stream (`Transfer-Encoding: chunked`). On connection, the daemon 
 ```json
 {
   "action": "stopped",
-  "created_at": "2026-11-27T16:47:50+01:00",
-  "id": "6af8b257-9195-46dd-ba3d-784e6629dfbb",
-  "sandbox_id": "8860bb53-6649-489c-a1ed-efc3ee7b22c1",
+  "created_at": "2026-11-28T12:41:43+01:00",
+  "id": "c4a5df9f-247f-49aa-8bb6-6d6a89e21160",
+  "sandbox_id": "ed249621-8ca5-4f09-8c9c-3562d78e87f5",
   "sandbox_name": "audit-env",
   "seq": 12,
-  "timestamp": "2026-11-27T16:47:52.304863987+01:00",
+  "timestamp": "2026-11-28T12:41:45.597232802+01:00",
   "type": "sandbox.lifecycle"
 }
 ```
@@ -2667,10 +2801,10 @@ Endless ndjson stream (`Transfer-Encoding: chunked`). On connection, the daemon 
   "data": {
     "ports": []
   },
-  "id": "6fd002c9-df49-4508-a015-b1a4e9db5f77",
+  "id": "d7cccf4d-ae39-46ff-93b9-77113425de62",
   "sandbox_name": "audit-a",
   "seq": 3,
-  "timestamp": "2026-11-27T16:47:22.549095602+01:00",
+  "timestamp": "2026-11-28T12:41:18.818600185+01:00",
   "type": "sandbox.ports"
 }
 ```
@@ -2680,8 +2814,8 @@ Endless ndjson stream (`Transfer-Encoding: chunked`). On connection, the daemon 
 ```json
 {
   "action": "complete",
-  "id": "8d78e0b5-84f8-4b43-865e-c99b50a274bf",
-  "timestamp": "2026-11-27T16:47:03.133045746+01:00",
+  "id": "5a6c3bbb-9a07-4516-8281-e6f8a1c51e71",
+  "timestamp": "2026-11-28T12:41:09.688765592+01:00",
   "type": "sync"
 }
 ```
@@ -2694,22 +2828,22 @@ Response 200 `application/json`:
 
 ```json
 {
-  "daemon_uptime_seconds": 228909.448733761,
+  "daemon_uptime_seconds": 300549.10989942,
   "daemon_version": "v0.54.1",
   "docker": {
     "containers": [
       {
-        "created": "2026-11-27T15:54:24Z",
-        "id": "99a72749cf035893a5a80bbd9074fd70072e0e06c485d6f10a74906989907062",
+        "created": "2026-11-28T11:48:24Z",
+        "id": "70304460fac369dfbd2556d11c02978ff35e8cce35397daa951aaaf2cdd8ea94",
         "name": "audit-w",
         "tracked": true
       }
     ],
     "networks": [
       {
-        "created": "2026-11-27T15:54:24.59567501Z",
+        "created": "2026-11-28T11:48:24.309367485Z",
         "driver": "gvisor",
-        "id": "2e0f77262e6e5e33b2fbab60f11c2f2d7c64373fdf5a10c4bf848b2d5161b14e",
+        "id": "bf06514fb12a9c7d8fcac254cd7f322123783824ecc9c033d965e1d8aa4eaad4",
         "name": "audit-w",
         "sandbox_managed": true
       }
@@ -2739,11 +2873,11 @@ Response 200 `application/json`:
       "agent_name": "shell",
       "custom_secrets": [],
       "has_proxy_state": true,
-      "id": "0e69f8f3-1852-4383-af79-5410d0980a56",
-      "image": "sandbox-kit-assembled:821cf15df4202c4f",
-      "image_digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+      "id": "ad9dce3f-753a-4010-8786-881b523c6eac",
+      "image": "sandbox-kit-assembled:7ed1ba819f4b7b6e",
+      "image_digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
       "kits": [
-        "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959e
+        "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b
 … (truncated)
 ```
 
@@ -2754,11 +2888,11 @@ Response 200 `application/json`:
 ```json
 {
   "disk": {
-    "free_bytes": 288569204736,
+    "free_bytes": 264573865984,
     "total_bytes": 982240026624
   },
   "info": {
-    "CapturedAt": "2026-11-27T15:47:56.400584406Z",
+    "CapturedAt": "2026-11-28T11:41:49.649842052Z",
     "ContainerdConfig": {
       "DisabledPlugins": [
         "io.containerd.server.v1.grpc",
@@ -2813,27 +2947,14 @@ Response 200 `application/json`:
   "images": [
     {
       "containers": 0,
-      "created_at": "2026-11-27T02:24:32.503373223Z",
-      "id": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
+      "created_at": "2026-11-27T02:45:19.063365449Z",
+      "id": "sha256:bd4f4c5355ac4c95d538e25839ad49997641bc4566288bda060699101da7af9f",
       "names": [
-        "docker.io/library/sandbox-kit-assembled:a17f21961034ae91",
-        "docker.io/sbx/claude@sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783"
-      ],
-      "shared_size": 0,
-      "size": 1578855587,
-      "unique_size": 1578855587
-    },
-    {
-      "containers": 0,
-      "created_at": "2026-11-27T02:45:21.374703202Z",
-      "id": "sha256:ce985e32b6a93628c6b67c866e1b2d55513ba4c7ee6e29de805aabe088109c5c",
-      "names": [
-        "docker.io/library/sandbox-kit-assembled:b8ac0e203ed3c470",
         "docker.io/sbx/claude:latest"
       ],
       "shared_size": 0,
-      "size": 1584057165,
-      "unique_size": 1584057165
+      "size": 1583157059,
+      "unique_size": 1583157059
     },
     {
       "containers": 0,
@@ -2846,19 +2967,38 @@ Response 200 `application/json`:
       "size": 1553528920,
       "unique_size": 1553502561
     },
-    "… +5 more items"
+    {
+      "containers": 0,
+      "created_at": "2026-11-25T01:53:08.194463963Z",
+      "id": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
+      "names": [
+        "docker.io/sbx/claude@sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783"
+      ],
+      "shared_size": 0,
+      "size": 1578855587,
+      "unique_size": 1578855587
+    },
+    "… +8 more items"
   ],
   "summaries": [
     {
       "active": 0,
-      "reclaimable": 10979221619,
-      "size": 10979221619,
-      "total_count": 8,
+      "reclaimable": 14612340406,
+      "size": 14612340406,
+      "total_count": 11,
       "type": "Images"
     },
     {
       "active": 0,
-      "reclaimab
+      "reclaimable": 0,
+      "size": 0,
+      "total_count": 0,
+      "type": "Containers"
+    },
+    {
+      "active": 0,
+      "reclaimable": 0,
+   
 … (truncated)
 ```
 
@@ -3033,29 +3173,28 @@ Response 200 `application/json`:
   {
     "agent": "shell",
     "created_at": "2026-11-19T17:01:03Z",
-    "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
-    "id": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+    "digest": "sha256:aa2a111941c99992d59c64946f8c56855a242943264dd993251851d055c06ddf",
+    "id": "sha256:aa2a111941c99992d59c64946f8c56855a242943264dd993251851d055c06ddf",
     "repository": "docker.io/library/sandbox-kit-assembled",
-    "size": 229929015,
-    "tag": "821cf15df4202c4f"
+    "size": 229714952,
+    "tag": "10c58844be7f40fc"
   },
   {
     "agent": "shell",
-    "created_at": "2026-11-27T15:48:40Z",
-    "digest": "sha256:58c7d2aac263ea884a985ada79bc73e77605460bd5ad09d22d21434297935dfd",
-    "id": "sha256:58c7d2aac263ea884a985ada79bc73e77605460bd5ad09d22d21434297935dfd",
+    "created_at": "2026-11-19T17:01:03Z",
+    "digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
+    "id": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
     "repository": "docker.io/library/sandbox-kit-assembled",
-    "size": 230301823,
-    "tag": "88da6bcc400b5455"
+    "size": 229810346,
+    "tag": "10c58844be7f40fc-kit-0"
   },
   {
-    "agent": "claude",
-    "created_at": "2026-11-24T05:25:46Z",
-    "digest": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
-    "id": "sha256:8e4b1de5aa2cf597e981820f94fd610b0ce9297ac54325911cad9e473233d783",
+    "created_at": "2026-11-28T11:43:11Z",
+    "digest": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
+    "id": "sha256:26ab1ac51d6c7b4caa4294bfff85133fef1443f8065ef35c3c4ed17a5514927d",
     "repository": "docker.io/library/sandbox-kit-assembled",
-    "size": 389469081,
-    "tag": "a17f21961034ae91"
+    "size": 6077,
+    "tag": "10c58844be7f40fc-kit-1"
   },
   "… +16 more items"
 ]
@@ -3072,21 +3211,21 @@ Response 200 `application/x-ndjson`:
 ```json
 [
   {
-    "id": "12acfa76ac88",
+    "id": "5dd9f443d108",
     "progressDetail": {
       "hidecounts": true
     },
     "status": "Already exists"
   },
   {
-    "id": "e53759f691d2",
+    "id": "ef0aef407b96",
     "progressDetail": {
       "hidecounts": true
     },
     "status": "Already exists"
   },
   {
-    "id": "67c1d5a2503e",
+    "id": "5d3467ee6c4e",
     "progressDetail": {
       "hidecounts": true
     },
@@ -3144,7 +3283,7 @@ Response 200 `application/json`:
     "exec \"$@\"",
     "… +1 more items"
   ],
-  "id": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+  "id": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
   "user": "1000"
 }
 ```
@@ -3153,7 +3292,7 @@ Response 404 `application/json`:
 
 ```json
 {
-  "message": "no image \"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\""
+  "message": "no image \"zz-audit-none:latest\""
 }
 ```
 
@@ -3203,7 +3342,7 @@ Response 200 `application/json`:
 
 ```json
 {
-  "message": "removed image \"docker.io/library/sandbox-kit-assembled:d1e1c32b46271063-template\""
+  "message": "removed image \"docker.io/library/sandbox-kit-assembled:3aa0410f74947781-template\""
 }
 ```
 
@@ -3224,46 +3363,46 @@ Response 200 `application/x-ndjson`:
   {
     "action": "allowed",
     "data": {
-      "count": 2,
-      "host": "audit-net-path.example.invalid:80",
-      "last_seen": "2026-11-27T16:44:57.042960256+01:00",
+      "count": 1,
+      "host": "audit-orphan-control.example.invalid:80",
+      "last_seen": "2026-11-28T12:38:43.942299094+01:00",
       "proxy_type": "forward",
       "rule": "<dial failed>",
-      "since": "2026-11-27T16:44:54.694642836+01:00"
+      "since": "2026-11-28T12:38:43.942299094+01:00"
     },
-    "id": "f0f7bdd0-a756-414c-a995-7ec58e81d567",
-    "sandbox_name": "audit-np",
-    "timestamp": "2026-11-27T16:47:03.132155962+01:00",
-    "type": "policy.network"
-  },
-  {
-    "action": "allowed",
-    "data": {
-      "count": 2,
-      "host": "audit-net-scheme.example.invalid:80",
-      "last_seen": "2026-11-27T16:44:57.033515619+01:00",
-      "proxy_type": "forward",
-      "rule": "<dial failed>",
-      "since": "2026-11-27T16:44:54.683582037+01:00"
-    },
-    "id": "d8ced441-e934-44fe-9d45-d04f1d8ace9f",
-    "sandbox_name": "audit-np",
-    "timestamp": "2026-11-27T16:47:03.132194837+01:00",
+    "id": "a7840808-1d39-4de7-bc23-39b0cde4fbbd",
+    "sandbox_name": "audit-ab3",
+    "timestamp": "2026-11-28T12:41:09.679986133+01:00",
     "type": "policy.network"
   },
   {
     "action": "allowed",
     "data": {
       "count": 1,
-      "host": "audit-net-port.example.invalid:80",
-      "last_seen": "2026-11-27T16:44:54.668688997+01:00",
+      "host": "postman-echo.com:80",
+      "last_seen": "2026-11-28T12:11:24.006391762+01:00",
       "proxy_type": "forward",
-      "rule": "<dial failed>",
-      "since": "2026-11-27T16:44:54.668688997+01:00"
+      "rule": "",
+      "since": "2026-11-28T12:11:24.006391762+01:00"
     },
-    "id": "48fc2fbb-b6cc-4926-9ef0-8e013fb5e703",
-    "sandbox_name": "audit-np",
-    "timestamp": "2026-11-27T16:47:03.132204547+01:00",
+    "id": "86b52b72-38c9-498d-880c-e7a39c0bf8e5",
+    "sandbox_name": "docker-sandbox-proxied-key-1162914",
+    "timestamp": "2026-11-28T12:41:09.680034311+01:00",
+    "type": "policy.network"
+  },
+  {
+    "action": "allowed",
+    "data": {
+      "count": 1,
+      "host": "dhi.io:80",
+      "last_seen": "2026-11-28T12:11:13.22160448+01:00",
+      "proxy_type": "forward",
+      "rule": "",
+      "since": "2026-11-28T12:11:13.22160448+01:00"
+    },
+    "id": "f9c9c8db-bf39-49d0-bbe5-6603a46cfcb6",
+    "sandbox_name": "docker-sandbox-forged-claude-1162914",
+    "timestamp": "2026-11-28T12:41:09.680041018+01:00",
     "type": "policy.network"
   }
 ]
@@ -3414,49 +3553,50 @@ Response 200 `application/json`:
 {
   "allowed_hosts": [
     {
-      "count_since": 2,
-      "host": "audit-net-path.example.invalid:80",
-      "last_seen": "2026-11-27T16:44:57.042960256+01:00",
+      "count_since": 1,
+      "host": "audit-orphan-control.example.invalid:80",
+      "last_seen": "2026-11-28T12:38:43.942299094+01:00",
       "proxy_type": "forward",
       "rule": "<dial failed>",
-      "since": "2026-11-27T16:44:54.694642836+01:00",
-      "vm_name": "audit-np"
-    },
-    {
-      "count_since": 2,
-      "host": "audit-net-scheme.example.invalid:80",
-      "last_seen": "2026-11-27T16:44:57.033515619+01:00",
-      "proxy_type": "forward",
-      "rule": "<dial failed>",
-      "since": "2026-11-27T16:44:54.683582037+01:00",
-      "vm_name": "audit-np"
+      "since": "2026-11-28T12:38:43.942299094+01:00",
+      "vm_name": "audit-ab3"
     },
     {
       "count_since": 1,
-      "host": "audit-net-port.example.invalid:80",
-      "last_seen": "2026-11-27T16:44:54.668688997+01:00",
+      "host": "postman-echo.com:80",
+      "last_seen": "2026-11-28T12:11:24.006391762+01:00",
       "proxy_type": "forward",
-      "rule": "<dial failed>",
-      "since": "2026-11-27T16:44:54.668688997+01:00",
-      "vm_name": "audit-np"
+      "rule": "",
+      "since": "2026-11-28T12:11:24.006391762+01:00",
+      "vm_name": "docker-sandbox-proxied-key-1162914"
+    },
+    {
+      "count_since": 1,
+      "host": "dhi.io:80",
+      "last_seen": "2026-11-28T12:11:13.22160448+01:00",
+      "proxy_type": "forward",
+      "rule": "",
+      "since": "2026-11-28T12:11:13.22160448+01:00",
+      "vm_name": "docker-sandbox-forged-claude-1162914"
     },
     "… +97 more items"
   ],
   "blocked_hosts": [
     {
       "count_since": 1,
-      "host": "audit-net-other.example.invalid:80",
-      "last_seen": "2026-11-27T16:45:12.923146373+01:00",
+      "host": "audit-kit-deny.example.com:80",
+      "last_seen": "2026-11-28T12:38:43.93451347+01:00",
       "proxy_type": "forward",
       "reason": "Denied by local rule",
-      "rule": "denied: rule \"kit:audit-nk:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-net-other.example.invalid:80)",
-      "since": "2026-11-27T16:45:12.923146373+01:00",
-      "vm_name": "audit-nk"
+      "rule": "denied: rule \"kit:audit-ab3:deny\" matched op(action=net:connect:tcp, resource=net:domain:audit-kit-deny.example.com:80)",
+      "since": "2026-11-28T12:38:43.93451347+01:00",
+      "vm_name": "audit-ab3"
     },
     {
-      "count_since": 1,
-      "host": "audit-net-extra.example.invalid:80",
-      "last_seen": "2026-11-27T
+      "count_since": 2,
+      "host": "172.17.0.0:3128",
+      "last_seen": "2026-11-28T12:11:13.458043699+01:00",
+      "pr
 … (truncated)
 ```
 
@@ -3583,7 +3723,7 @@ Response 200 `application/json`:
             "udp"
           ],
           "resource": "audit-deny.example.com",
-          "rule_id": "96816e00-3166-49fa-9fa5-64103258334c"
+          "rule_id": "f063b1fd-f6db-4011-89ae-bbdea2227387"
         }
       ],
       "resources": [
@@ -3654,7 +3794,7 @@ Request `application/json`:
     {
       "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of it…",
       "kitHubPublication": {
-        "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+        "digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
         "repository": "sbx/shell"
       },
       "kitUsage": {
@@ -3688,16 +3828,16 @@ Response 200 `application/x-ndjson`:
   {
     "result": {
       "agent": "shell",
-      "id": "d253886d-f32c-4ce8-9e39-4d475403253c",
+      "id": "aaeb7848-0a21-4d36-888e-2b45fd94bbce",
       "mcp": {
-        "port": 41573,
+        "port": 46403,
         "state": "ready",
         "static": false,
         "url": "http://mcp-gateway.docker.internal/mcp"
       },
-      "name": "audit-k",
+      "name": "audit-c",
       "status": "running",
-      "workspace": ""
+      "workspace": "/tmp/docker-sandbox-audit-work/repo"
     }
   }
 ]
@@ -3708,9 +3848,9 @@ Response 201 `application/json`:
 ```json
 {
   "agent": "shell",
-  "id": "40a18359-9754-42e3-985b-a42a9a862347",
+  "id": "a57c9c64-3246-483f-963e-a7edc4abad8e",
   "mcp": {
-    "port": 33521,
+    "port": 45215,
     "state": "ready",
     "static": false,
     "url": "http://mcp-gateway.docker.internal/mcp"
@@ -3726,6 +3866,15 @@ Response 400 `application/json`:
 ```json
 {
   "message": "profile \"zz-audit-none\" not found. Use an existing profile (sbx policy profile ls) or omit --profile"
+}
+```
+
+Response 409 `application/json`:
+
+```json
+{
+  "code": "sandbox_name_conflict",
+  "message": "sandbox \"audit-abc\" already exists"
 }
 ```
 
@@ -3781,7 +3930,7 @@ Response 200 `application/json`:
     }
   ],
   "agent": "shell",
-  "created_at": "2026-11-27T16:54:24+01:00",
+  "created_at": "2026-11-28T12:48:24+01:00",
   "effective_working_dir": "/tmp/docker-sandbox-audit-work/fixtures/mountdir",
   "host_mounts": [
     {
@@ -3801,14 +3950,14 @@ Response 200 `application/json`:
     },
     "… +1 more items"
   ],
-  "id": "0e69f8f3-1852-4383-af79-5410d0980a56",
+  "id": "ad9dce3f-753a-4010-8786-881b523c6eac",
   "labels": {
     "com.docker.container.etc-hosts": "disabled",
     "com.docker.container.fuse": "true",
     "com.docker.sandbox.agent": "shell",
     "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
     "com.docker.sandbox.createdVersion": "v0.54.1",
-    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:821cf15df420
+    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:7ed1ba819f4b
 … (truncated)
 ```
 
@@ -3981,7 +4130,7 @@ Response 200 `application/json`:
 ```json
 {
   "exit_code": 0,
-  "id": "58f244c33db27dfc014086649be3c09c8fb4986ccb281d84b435db79e00a747c",
+  "id": "5f86ba6de1aea94968a9a76b8b5333378e4e97d7b6fc837ae1c10ea8d52213fe",
   "running": false
 }
 ```
@@ -3998,14 +4147,6 @@ Response 404 `application/json`:
 
 Query: `h`, `w`
 
-Response 200 `application/json`:
-
-```json
-{
-  "message": "resize applied"
-}
-```
-
 Response 404 `application/json`:
 
 ```json
@@ -4019,7 +4160,7 @@ Response 409 `application/json`:
 ```json
 {
   "code": "exec_not_running",
-  "message": "exec \"6ac96fea959f02c14cfc04ec6b8935324f2d563e6ae2a7e9fd907b3843640d0b\" is no longer running"
+  "message": "exec \"dbd746cf86fa301ecddda4e201fe349272591714e5e8e3b61972c35aa2f21efe\" is no longer running"
 }
 ```
 
@@ -4189,7 +4330,7 @@ Response 200 `application/json`:
 
 ```json
 {
-  "port": 39025,
+  "port": 39305,
   "state": "ready",
   "static": false,
   "url": "http://mcp-gateway.docker.internal/mcp"
@@ -4451,7 +4592,7 @@ Response 201 `application/json`:
 
 ```json
 {
-  "image_id": "sha256:58c7d2aac263ea884a985ada79bc73e77605460bd5ad09d22d21434297935dfd",
+  "image_id": "sha256:a83508f59a653ef03d9eac1a6baf3c823a3b27e17d9cd21d51af44ba622dbaa0",
   "tag": "docker.io/library/audit-snap:v1"
 }
 ```
@@ -4526,7 +4667,7 @@ Response 200 `application/json`:
     }
   ],
   "agent": "shell",
-  "created_at": "2026-11-27T16:54:24+01:00",
+  "created_at": "2026-11-28T12:48:24+01:00",
   "effective_working_dir": "/tmp/docker-sandbox-audit-work/fixtures/mountdir",
   "host_mounts": [
     {
@@ -4546,14 +4687,14 @@ Response 200 `application/json`:
     },
     "… +1 more items"
   ],
-  "id": "0e69f8f3-1852-4383-af79-5410d0980a56",
+  "id": "ad9dce3f-753a-4010-8786-881b523c6eac",
   "labels": {
     "com.docker.container.etc-hosts": "disabled",
     "com.docker.container.fuse": "true",
     "com.docker.sandbox.agent": "shell",
     "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
     "com.docker.sandbox.createdVersion": "v0.54.1",
-    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:821cf15df420
+    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:7ed1ba819f4b
 … (truncated)
 ```
 
@@ -4580,21 +4721,21 @@ Response 200 `application/json`:
 ```json
 {
   "agent": "shell",
-  "created_at": "2026-11-27T16:48:06+01:00",
+  "created_at": "2026-11-28T12:41:59+01:00",
   "effective_working_dir": "/home/agent/workspace",
   "host_mounts": [],
-  "id": "b54bd14c-f495-4b97-9afc-29b6ceef1de2",
+  "id": "f8c82c2c-6701-4dbf-99c6-0ef000371e3f",
   "labels": {
     "com.docker.container.etc-hosts": "disabled",
     "com.docker.container.fuse": "true",
     "com.docker.sandbox.agent": "shell",
     "com.docker.sandbox.agent-start-script": "sha256:dfb0220b00df4817e9fcd3281ce32c31732d2f19a3cca126ac25f8246184a04a",
     "com.docker.sandbox.createdVersion": "v0.54.1",
-    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:821cf15df4202c4f",
-    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
-    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\",\"digest\":\"sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a…",
+    "com.docker.sandbox.kit-base-image": "sandbox-kit-assembled:7ed1ba819f4b7b6e",
+    "com.docker.sandbox.kit-base-template": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
+    "com.docker.sandbox.kit-lock": "{\"version\":1,\"kits\":[{\"reference\":\"docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80\",\"digest\":\"sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056…",
     "com.docker.sandbox.kit-workspace-dir": "false",
-    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\"]",
+    "com.docker.sandbox.kits": "[\"docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80\"]",
     "com.docker.sandbox.mount-snapshot": "v1:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "com.docker.sandbox.name": "audit-a",
     "com.docker.sandbox.skillsReserved": "true",
@@ -4621,12 +4762,12 @@ Request `application/json`:
 
 ```json
 {
-  "docker_name_override": "audit-a-swap-a5ee1b83",
+  "docker_name_override": "audit-a-swap-a9171d2c",
   "kit_artifacts": [
     {
       "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of it…",
       "kitHubPublication": {
-        "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+        "digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
         "repository": "sbx/shell"
       },
       "kitUsage": {
@@ -4651,9 +4792,9 @@ Request `application/json`:
         ],
         "schemaVersion": "3",
         "sourceURL": "https://github.com/docker-hardened-images/definitions",
-        "template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
+        "template": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80"
       },
-      "storageSource": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+      "storageSource": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
       "v3": {
   
 … (truncated)
@@ -4663,9 +4804,9 @@ Response 201 `application/json`:
 
 ```json
 {
-  "committed_image_id": "sha256:1778eb1e38019e231d453216be821c99bec820cffe421f95544e090e10619f20",
-  "container_id": "b749f9a5c68582d88a35fee79354dcbad0fd7508d6184fb46a189eaef7087c68",
-  "docker_name": "audit-a-swap-a5ee1b83"
+  "committed_image_id": "sha256:aee338c40b03d1ff4577afb4e56376a90e8c9a29bfcf688baf4e42d8239cfb5d",
+  "container_id": "565381d8df2e8b474c5ac0c728311128f2759d001f5aaf02213a41dcfca1b578",
+  "docker_name": "audit-a-swap-a9171d2c"
 }
 ```
 

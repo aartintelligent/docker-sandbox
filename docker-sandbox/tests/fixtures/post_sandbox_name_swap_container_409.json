@@ -8,7 +8,7 @@
       {
         "agentContext": "This is a plain shell sandbox on DHI: bash, git, apt, a Docker\nengine (compose/buildx) that sbx starts for you, curl, gh, jq,\nmake, and Python 3 with pip and uv. This kit ships no network\npolicy of its own: outbound access, including the apt sources\n(deb.debian.org, dhi.io), is whatever the sandbox policy and\ncomposed kits allow. Install more with apt where that permits;\ncomposed kits list their own capabilities below.\n",
         "kitHubPublication": {
-          "digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+          "digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
           "repository": "sbx/shell"
         },
         "kitUsage": {
@@ -34,7 +34,7 @@
           ],
           "schemaVersion": "3",
           "sourceURL": "https://github.com/docker-hardened-images/definitions",
-          "template": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
+          "template": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80"
         },
         "storageSource": "oci://docker.io/sbx/shell:latest",
         "v3": {
@@ -70,7 +70,7 @@
             "bash@5.2.37",
             "curl@8.14.1",
             "docker-buildx@0.39.1",
-            "docker-compose@5.8.0",
+            "docker-compose@5.8.1",
             "docker-engine@29.10.1",
             "docker@29.10.1",
             "git@2.47.3",
@@ -106,7 +106,7 @@
             "deb/docker-buildx-plugin@0.39.1",
             "deb/docker-ce-cli@29.10.1",
             "deb/docker-ce@29.10.1",
-            "deb/docker-compose-plugin@5.8.0",
+            "deb/docker-compose-plugin@5.8.1",
             "deb/dpkg@1.22.22",
             "deb/findutils@4.10.0",
             "deb/gcc-14-base@14.2.0",
@@ -297,7 +297,7 @@
           "sourceUrl": "https://github.com/docker-hardened-images/definitions",
           "version": "1.1.0"
         },
-        "v3Digest": "sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+        "v3Digest": "sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
         "v3Effective": {
           "author": "Docker, Inc. https://docker.com",
           "capabilities": [
@@ -323,7 +323,7 @@
             "bash@5.2.37",
             "curl@8.14.1",
             "docker-buildx@0.39.1",
-            "docker-compose@5.8.0",
+            "docker-compose@5.8.1",
             "docker-engine@29.10.1",
             "docker@29.10.1",
             "git@2.47.3",
@@ -359,7 +359,7 @@
             "deb/docker-buildx-plugin@0.39.1",
             "deb/docker-ce-cli@29.10.1",
             "deb/docker-ce@29.10.1",
-            "deb/docker-compose-plugin@5.8.0",
+            "deb/docker-compose-plugin@5.8.1",
             "deb/dpkg@1.22.22",
             "deb/findutils@4.10.0",
             "deb/gcc-14-base@14.2.0",
@@ -556,7 +556,7 @@
           "exec \"$@\"",
           "bash"
         ],
-        "v3Reference": "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+        "v3Reference": "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
         "v3Selection": {
           "capabilities": [
             {
@@ -1147,7 +1147,7 @@
       }
     ],
     "kit_refs": [
-      "docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38",
+      "docker.io/sbx/shell@sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80",
       "/tmp/docker-sandbox-audit-work/kits/audit-mixin-net",
       "/tmp/docker-sandbox-audit-work/kits/audit-mixin-cred",
       "/tmp/docker-sandbox-audit-work/kits/audit-mixin-mcp"

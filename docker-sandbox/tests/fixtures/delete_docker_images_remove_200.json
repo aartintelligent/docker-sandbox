@@ -2,7 +2,7 @@
   "method": "DELETE",
   "request": null,
   "response": {
-    "message": "removed image \"docker.io/library/sandbox-kit-assembled:d1e1c32b46271063-template\""
+    "message": "removed image \"docker.io/library/sandbox-kit-assembled:3aa0410f74947781-template\""
   },
   "route": "/docker/images/remove",
   "status": 200

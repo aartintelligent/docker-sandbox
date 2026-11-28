@@ -4,56 +4,56 @@
   "response": {
     "ndjson": [
       {
-        "id": "12acfa76ac88",
+        "id": "5dd9f443d108",
         "progressDetail": {
           "hidecounts": true
         },
         "status": "Already exists"
       },
       {
-        "id": "e53759f691d2",
+        "id": "ef0aef407b96",
         "progressDetail": {
           "hidecounts": true
         },
         "status": "Already exists"
       },
       {
-        "id": "67c1d5a2503e",
+        "id": "5d3467ee6c4e",
         "progressDetail": {
           "hidecounts": true
         },
         "status": "Already exists"
       },
       {
-        "id": "b7e38fcac308",
+        "id": "67bc58d4c309",
         "progressDetail": {
           "hidecounts": true
         },
         "status": "Already exists"
       },
       {
-        "id": "7fd5d080fdc7",
+        "id": "16b6fc7235fe",
         "progressDetail": {
           "hidecounts": true
         },
         "status": "Already exists"
       },
       {
-        "id": "a7fb79327ed0",
+        "id": "5073f2ec9493",
         "progressDetail": {
           "hidecounts": true
         },
         "status": "Already exists"
       },
       {
-        "id": "f5b9bb770d47",
+        "id": "447a690e63ea",
         "progressDetail": {
           "hidecounts": true
         },
         "status": "Already exists"
       },
       {
-        "status": "Digest: sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38"
+        "status": "Digest: sha256:5dd9f443d1089a2296d2c73b18998225d49efd7651732de39f22056c62548a80"
       },
       {
         "status": "Status: Image is up to date for sbx/shell:latest"

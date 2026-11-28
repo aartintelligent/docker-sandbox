@@ -35,6 +35,23 @@ every `sbx` upgrade.
   invalid. Both fields are optional.
 - A sandbox does not mix kit formats: a v3 kit (`# syntax=docker/sandbox-kit:3`,
   built by BuildKit) only accepts v3 mixins.
+- Without `Accept: application/x-ndjson`, `POST /sandbox` answers `201` and
+  the sandbox once it is created, with no stream.
+- **A creation whose connection closes before its result** (`create-ab1-abandoned`,
+  `create-ab2-abandoned`, `create-ab3-abandoned`: the stream cut 300 ms and
+  1 s after the request, as a dropped future of the library cuts it; the same
+  without the stream, and through `docker-sandbox` itself) is given up by the
+  daemon: no sandbox is left (`inspect-ab1-after`, `404`). The network rules of
+  its kits are left, scoped to its name (`kit:<name>`, `kit:<name>:deny`,
+  `rules-ab-orphaned`), and `policy rm` refuses them ("managed by a kit and is
+  recreated at sandbox create"). The next sandbox of that name gets them,
+  whatever its kits: one created with the `shell` kit alone has the deny of the
+  abandoned mixin applied by its proxy (`probe-ab3-orphan-deny`: `403` for the
+  denied host, `502` for another). They go when that sandbox is removed
+  (`rules-ab-after-rm`). A creation the daemon gives up itself, an install
+  command that fails, leaves no rule (`rules-ifn-after`).
+- A creation under the name of a sandbox that exists is refused with `409
+  {"code":"sandbox_name_conflict"}` before any stream (`create-abc-taken`).
 
 ### Custom kits (mixins)
 

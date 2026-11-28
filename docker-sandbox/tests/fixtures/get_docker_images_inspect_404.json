@@ -2,7 +2,7 @@
   "method": "GET",
   "request": null,
   "response": {
-    "message": "no image \"docker.io/sbx/shell@sha256:12acfa76ac88f2edfc02959ebf7f34c2c8033b668581faeb5c0322a50adc1e38\""
+    "message": "no image \"zz-audit-none:latest\""
   },
   "route": "/docker/images/inspect",
   "status": 404
