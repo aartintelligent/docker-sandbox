@@ -50,6 +50,12 @@ pub struct CompileJob {
     pub base: String,
     /// Mixins, as accepted by `sbx create --kit`.
     pub mixins: Vec<String>,
+    /// Mixins described in code (feature `forge`), composed after
+    /// [`CompileJob::mixins`]: each is written into a directory of the work
+    /// directory of the compiler, given to the CLI, and removed with it.
+    #[cfg(feature = "forge")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "forge")))]
+    pub mixin_specs: Vec<crate::Mixin>,
     /// Kit arguments (`name=value` for all kits, `kit.name=value` for one).
     pub args: BTreeMap<String, String>,
     /// Directory to write the package to. Replaced when it exists.
@@ -71,6 +77,8 @@ impl CompileJob {
         Self {
             base: base.into(),
             mixins: Vec::new(),
+            #[cfg(feature = "forge")]
+            mixin_specs: Vec::new(),
             args: BTreeMap::new(),
             output: output.into(),
         }
@@ -80,6 +88,30 @@ impl CompileJob {
     #[must_use]
     pub fn with_mixin(mut self, mixin: impl Into<String>) -> Self {
         self.mixins.push(mixin.into());
+        self
+    }
+
+    /// Appends a mixin described in code (feature `forge`), composed after
+    /// the mixins given by reference. The compiler writes it into a directory
+    /// of its work directory named after the mixin, gives that directory to
+    /// the CLI, and removes it once the package is written: no directory of
+    /// the program is needed.
+    ///
+    /// ```
+    /// use docker_sandbox_kit::{CompileJob, KitDescriptor, LifecycleStep, Mixin};
+    ///
+    /// let tools = KitDescriptor::mixin("Acme tools")
+    ///     .with_install(LifecycleStep::new("pip install acme-cli").as_user("agent"));
+    /// let job = CompileJob::new("git+https://github.com/acme/kit.git", "/var/lib/kits/acme")
+    ///     .with_mixin_spec(Mixin::new("/kits/acme-tools", tools)?);
+    /// assert_eq!(job.mixin_specs[0].name(), "acme-tools");
+    /// # Ok::<(), docker_sandbox_kit::Error>(())
+    /// ```
+    #[cfg(feature = "forge")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "forge")))]
+    #[must_use]
+    pub fn with_mixin_spec(mut self, mixin: crate::Mixin) -> Self {
+        self.mixin_specs.push(mixin);
         self
     }
 
@@ -168,8 +200,16 @@ impl KitCompiler {
             CAPTURE_RULES,
         )
         .map_err(|e| package_error(&socket, e))?;
-        let ran = self.run_cli(job, &sandbox, proxy.socket()).await;
+        #[cfg(feature = "forge")]
+        let written = write_mixins(&self.work_dir, job, n)?;
+        // Without the forge, a job describes no mixin in code.
+        #[cfg(not(feature = "forge"))]
+        let written = Vec::new();
+        let ran = self.run_cli(job, &written, &sandbox, proxy.socket()).await;
         let captured = proxy.finish();
+        for dir in &written {
+            let _ = std::fs::remove_dir_all(dir.parent().unwrap_or(dir));
+        }
 
         let throw_away = self.client.sandbox(&sandbox);
         if let Ok(true) = throw_away.exists().await
@@ -188,13 +228,22 @@ impl KitCompiler {
         package.save(&job.output).map_err(Error::from)
     }
 
-    /// Runs `sbx create` for `job` on the throw-away `sandbox`, pointed at the
-    /// `proxy` socket.
-    async fn run_cli(&self, job: &CompileJob, sandbox: &str, proxy: &Path) -> Result<()> {
+    /// Runs `sbx create` for `job` and the mixins written into `written`, on
+    /// the throw-away `sandbox`, pointed at the `proxy` socket.
+    async fn run_cli(
+        &self,
+        job: &CompileJob,
+        written: &[PathBuf],
+        sandbox: &str,
+        proxy: &Path,
+    ) -> Result<()> {
         let mut command = Command::new(&self.sbx);
         command.args(["--no-input", "create", "--name", sandbox, "--no-progress"]);
         for mixin in &job.mixins {
             command.args(["--kit", mixin]);
+        }
+        for dir in written {
+            command.arg("--kit").arg(dir);
         }
         for (key, value) in &job.args {
             command.arg("--kit-arg").arg(format!("{key}={value}"));
@@ -224,6 +273,23 @@ impl KitCompiler {
             "sbx could not build the kit composition: {tail}"
         )))
     }
+}
+
+/// Writes the mixins described in code of `job`, for the compilation `n`,
+/// each into a directory of `work_dir` named after it, and returns those
+/// directories.
+#[cfg(feature = "forge")]
+fn write_mixins(work_dir: &Path, job: &CompileJob, n: u64) -> Result<Vec<PathBuf>> {
+    job.mixin_specs
+        .iter()
+        .enumerate()
+        .map(|(index, mixin)| {
+            let dir = work_dir
+                .join(format!("kc{n}-mixin-{index}"))
+                .join(mixin.name());
+            mixin.save(&dir).map(|_| dir)
+        })
+        .collect()
 }
 
 /// The package of `job`, built in memory from the captured requests: it is
