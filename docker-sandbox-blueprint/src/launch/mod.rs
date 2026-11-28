@@ -27,10 +27,12 @@ use docker_sandbox::sandbox::{
     CreateRequest, Created, DeleteOptions, ProxiedKey, Sandbox, SessionGuard,
 };
 
+use docker_sandbox_kit::KitCache;
+
 use crate::error::{Error, LaunchStep, Result};
 use crate::key::Keys;
 use crate::mcp::Tokens;
-use crate::spec::{SandboxSpec, WorkspaceSpec};
+use crate::spec::{Kit, SandboxSpec, WorkspaceSpec};
 
 impl SandboxSpec {
     /// Launches the sandbox `name` from the spec, its keys given `keys`, and
@@ -79,9 +81,58 @@ impl SandboxSpec {
         name: impl Into<String>,
         keys: &Keys,
     ) -> Result<Lease> {
-        let name = name.into();
+        self.launch_from(client, name.into(), keys, None).await
+    }
+
+    /// Launches the sandbox `name` as [`SandboxSpec::launch`] does, its kit
+    /// taken from `cache`: forged once per composition, then reused while it
+    /// suits the daemon. The sandboxes of a job, launched from one spec,
+    /// forge their kit once.
+    ///
+    /// ```no_run
+    /// # async fn run(client: docker_sandbox::Client) -> docker_sandbox_blueprint::Result<()> {
+    /// use docker_sandbox_blueprint::prelude::*;
+    ///
+    /// let cache = KitCache::new();
+    /// let spec = SandboxSpec::agent(Agent::Shell).with_network_deny(["*.pastebin.com"]);
+    /// for job in ["job-1", "job-2"] {
+    ///     // Forged for the first job, taken from the cache for the second.
+    ///     let lease = spec.launch_with(&client, job, &Keys::new(), &cache).await?;
+    ///     lease.shutdown().await?;
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// As [`SandboxSpec::launch`].
+    pub async fn launch_with(
+        &self,
+        client: &Client,
+        name: impl Into<String>,
+        keys: &Keys,
+        cache: &KitCache,
+    ) -> Result<Lease> {
+        self.launch_from(client, name.into(), keys, Some(cache))
+            .await
+    }
+
+    /// The launch of [`SandboxSpec::launch`], its kit taken from `cache`
+    /// when there is one.
+    async fn launch_from(
+        &self,
+        client: &Client,
+        name: String,
+        keys: &Keys,
+        cache: Option<&KitCache>,
+    ) -> Result<Lease> {
         self.check_keys(keys)?;
-        let package = self.forge(client)?.build().await?;
+        let package = match (self.kit(client)?, cache) {
+            (Kit::Package(package), _) => package,
+            (Kit::Forge(forge), Some(cache)) => cache.package(&forge).await?,
+            (Kit::Forge(forge), None) => forge.build().await?,
+        };
         let tokens = self.draw_tokens()?;
         let proxied = self.proxied_keys(&package, keys)?;
         let network = self.network_report(client).await?;

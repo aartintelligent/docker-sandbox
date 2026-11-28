@@ -13,7 +13,7 @@ mod token;
 
 pub(crate) use self::token::Tokens;
 
-use docker_sandbox_kit::{McpServer, Mixin};
+use docker_sandbox_kit::{Agent, McpServer, Mixin};
 use serde::Serialize;
 
 use crate::error::{Error, Result, invalid};
@@ -40,14 +40,17 @@ impl SandboxSpec {
         self
     }
 
-    /// The mixin of the MCP servers of the spec, if it has any.
-    pub(crate) fn mcp_mixin(&self) -> Result<Option<Mixin>> {
+    /// The mixin of the MCP servers of the spec for `agent`, the agent of
+    /// its base kit when it is known before the kit is forged: named by
+    /// `agent`, or declared by its package.
+    pub(crate) fn mcp_mixin(&self, agent: Option<Agent>) -> Result<Option<Mixin>> {
         if self.mcp.is_empty() {
             return Ok(None);
         }
-        let Some(agent) = self.agent else {
+        let Some(agent) = agent else {
             return Err(invalid(
-                "mcp: MCP servers are registered in an agent, named by agent rather than base",
+                "mcp: MCP servers are registered in an agent, named by agent or declared by the \
+                 package, not known for a published base kit",
             ));
         };
         Mixin::mcp(agent, self.mcp.clone())
@@ -85,18 +88,15 @@ impl SandboxSpec {
         Ok(())
     }
 
-    /// The MCP servers of the spec, as the report of a launch shows them.
-    pub(crate) fn server_reports(&self) -> Vec<ServerReport> {
-        let agent = self
-            .agent
-            .map(|agent| agent.name().to_owned())
-            .unwrap_or_default();
+    /// The MCP servers of the spec, registered in `agent`, as the report of
+    /// a launch shows them.
+    pub(crate) fn server_reports(&self, agent: &str) -> Vec<ServerReport> {
         self.mcp
             .iter()
             .map(|server| ServerReport {
                 name: server.name().to_owned(),
                 kind: server_kind(server),
-                agent: agent.clone(),
+                agent: agent.to_owned(),
             })
             .collect()
     }
@@ -113,8 +113,6 @@ pub(crate) fn server_kind(server: &McpServer) -> String {
 
 #[cfg(test)]
 mod tests {
-    use docker_sandbox_kit::Agent;
-
     use super::*;
     use crate::spec::broken;
 
@@ -128,10 +126,10 @@ mod tests {
         let base = SandboxSpec::base("docker.io/sbx/claude:latest")
             .with_mcp(McpServer::host("tools", 47813));
         assert!(broken(&base).starts_with("mcp: MCP servers are registered in an agent"));
+        assert!(claude().mcp_mixin(None).is_ok_and(|mixin| mixin.is_none()));
         let shell = SandboxSpec::agent(Agent::Shell).with_mcp(McpServer::host("tools", 47813));
         let error = shell.prepare().unwrap_err().to_string();
         assert!(error.contains("shell has no MCP adapter"), "{error}");
-        assert!(claude().mcp_mixin().unwrap().is_none());
     }
 
     #[test]

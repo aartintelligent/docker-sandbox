@@ -19,4 +19,4 @@ pub use crate::{Error, KeySpec, Keys, Lease, Report, Result, SandboxSpec};
 pub use docker_sandbox::Client;
 pub use docker_sandbox::exec::{AttachSpec, ExecSpec};
 pub use docker_sandbox::sandbox::{Secret, Workspace};
-pub use docker_sandbox_kit::{Agent, KitDescriptor, LifecycleStep, McpServer, Mixin};
+pub use docker_sandbox_kit::{Agent, KitCache, KitDescriptor, LifecycleStep, McpServer, Mixin};

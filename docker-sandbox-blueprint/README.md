@@ -41,7 +41,7 @@ crate adds no call to the daemon of its own:
 
 | Method | Becomes |
 |---|---|
-| `agent` or `base` | `KitForge::agent` or `KitForge::with_base` |
+| `agent`, `base` or `package` | `KitForge::agent`, `KitForge::with_base`, or a compiled package, as it is or with `KitForge::with_base_package` |
 | `with_arg` | `KitForge::with_arg` |
 | `with_mixin`, `with_mixin_dir` | `Mixin::new`, `Mixin::read` |
 | `with_workspace`, `with_cloned_workspace` | `with_workspace`, `with_cloned_workspace` |
@@ -68,7 +68,8 @@ mixins of a directory are read. A spec breaking a rule is an
 
 | Rule | Why |
 |---|---|
-| exactly one of `agent` and `base` | there is no kit otherwise |
+| exactly one of `agent`, `base` and `package` | there is no kit otherwise |
+| a package that suits the daemon, without `args`, and without mixins of its own when the spec adds some | a package keeps the arguments it was compiled with, and the forge takes its base kit alone |
 | MCP servers named with `agent`, claude, copilot or opencode | they are registered in an agent that has an adapter |
 | every host of `network` a host pattern | the daemon stores `https://host` and `host/path` and never applies them |
 | no refusal covering the host of a key or of an MCP server | a refusal wins: the connection would never go through |
@@ -121,6 +122,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Nothing is written on the host at any step. A failure once the sandbox
 exists (steps 6 and 7) removes it, unless the spec says `keep_on_failure`, and
 the `Error::Launch` names the sandbox, the step and whether it stays.
+
+Forging a kit costs about a second, its base image exported again.
+`spec.launch_with(&client, name, &keys, &cache)` takes it from a `KitCache`
+instead: the sandboxes of a job, launched from one spec, forge their kit once.
+A kit the forge does not cover, a local or Git base kit for instance, is
+compiled once by the `sbx` CLI (`KitCompiler` of `docker-sandbox-kit`) and
+launched from its package, `SandboxSpec::package(dir)`: as it is, or with the
+mixins, network rules and MCP servers of the spec composed on its base kit.
 
 ```rust,no_run
 use docker_sandbox_blueprint::prelude::*;
@@ -184,7 +193,8 @@ are those of the methods, and an unknown one is refused:
 
 A mixin is `{"dir"}` or `{"reference", "descriptor"}`, the workspace
 `{"mount"}` or `{"clone"}`, a key `{"env", "service"}` or `{"env", "hosts"}`,
-an MCP server its JSON form by kind.
+an MCP server its JSON form by kind. A compiled package as base kit is
+`{"package": dir}`, in place of `agent` or `base`.
 
 ## Scope
 
