@@ -628,7 +628,11 @@ async fn arguments_and_mixins_compose_on_a_published_base() {
             "it's",
             "does not match the pattern of the argument model",
         ),
-        ("effort", "high", "declares no argument effort"),
+        (
+            "effort",
+            "high",
+            "declares no argument effort: it declares model",
+        ),
     ] {
         let error = KitForge::new(client.clone())
             .with_base("ghcr.io/acme/agent:2")
@@ -642,6 +646,79 @@ async fn arguments_and_mixins_compose_on_a_published_base() {
         );
     }
     assert!(!dir.path().join("refused").exists());
+}
+
+/// A daemon allowing the kits of `ghcr.io/acme/`, which serves the agent kit
+/// `ghcr.io/acme/agent:2`.
+fn acme_agent() -> FakeDaemonBuilder {
+    serving(
+        permissive().route(
+            "GET",
+            "/daemon/settings/kit.allowedSources",
+            setting("kit.allowedSources", json!(["ghcr.io/acme/"])),
+        ),
+        image_export(
+            "sha256:a9e7",
+            &agent_descriptor(),
+            &json!(["agent"]),
+            &json!([]),
+        ),
+    )
+}
+
+#[tokio::test]
+async fn arguments_are_named_by_their_kit_as_the_cli_takes_them() {
+    let daemon = acme_agent().start();
+    let client = connect(&daemon).await;
+    let forge = || {
+        KitForge::new(client.clone())
+            .with_base("ghcr.io/acme/agent:2")
+            .with_mixin(tools())
+    };
+    let plain = forge().with_arg("model", "small-1").build().await.unwrap();
+    let base = &plain.kit_artifacts()[0];
+
+    // The argument named by its kit, as the CLI takes it: the same artifact,
+    // and the request keeps the name as given.
+    let qualified = forge()
+        .with_arg("agent.model", "small-1")
+        .build()
+        .await
+        .unwrap();
+    assert_eq!(qualified.kit_artifacts()[0], *base);
+    assert_eq!(
+        qualified.request("job-42").unwrap().extra["kit_args"],
+        json!({ "agent.model": "small-1" })
+    );
+    let twice = forge()
+        .with_arg("agent.model", "small-1")
+        .with_arg("model", "small-2")
+        .build()
+        .await
+        .unwrap_err();
+    assert!(
+        twice
+            .to_string()
+            .contains("the argument model is given twice, as model and agent.model"),
+        "{twice}"
+    );
+
+    for (name, expected) in [
+        (
+            "acme-tools.model",
+            "declares no argument model: a mixin declares none",
+        ),
+        (
+            "other.model",
+            "no kit named other is composed (kits: acme-tools, agent), for the argument other.model",
+        ),
+    ] {
+        let error = forge().with_arg(name, "small-1").build().await.unwrap_err();
+        assert!(
+            matches!(error, Error::InvalidKit { ref message, .. } if message.contains(expected)),
+            "{error}"
+        );
+    }
 }
 
 #[tokio::test]

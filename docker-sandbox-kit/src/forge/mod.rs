@@ -354,7 +354,9 @@ impl KitForge {
     /// in place of its default. The value is checked against the values or
     /// the pattern the kit declares, substituted for its
     /// `${{ kit.args.<name> }}` placeholders, and set in the variable the kit
-    /// names, as the CLI does with `--kit-arg`.
+    /// names, as the CLI does with `--kit-arg`. As the CLI, `name` may name
+    /// its kit, `claude.model` for the base kit `claude`; a mixin declares
+    /// no argument.
     #[must_use]
     pub fn with_arg(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.args.insert(name.into(), value.into());
@@ -515,7 +517,8 @@ impl KitForge {
     async fn published(&self, requested: &str) -> Result<ResolvedBase> {
         let reference = base::Reference::parse(requested)?;
         self.check_policy(Some(&reference)).await?;
-        let kit = base::rebuild(&self.client, &reference, &self.args).await?;
+        let args = self.base_args(reference.name())?;
+        let kit = base::rebuild(&self.client, &reference, &args).await?;
         let mut request = CreateRequest::for_agent(NAME_PLACEHOLDER, kit.name);
         if !self.args.is_empty() {
             request
@@ -528,6 +531,48 @@ impl KitForge {
             artifact: kit.artifact.into_json(),
             image: Some(requested.to_owned()),
         })
+    }
+
+    /// The arguments of the base kit `base`, from the values given: one named
+    /// `<kit>.<name>`, as the CLI takes it, is the argument `name` of the kit
+    /// `kit` of the composition, and the mixins declare none.
+    fn base_args(&self, base: &str) -> Result<BTreeMap<String, String>> {
+        let invalid = |kit: &str, message: String| Error::InvalidKit {
+            kit: kit.to_owned(),
+            message,
+        };
+        let mut args = BTreeMap::new();
+        for (given, value) in &self.args {
+            let name = match given.split_once('.') {
+                None => given.as_str(),
+                Some((kit, name)) if kit == base => name,
+                Some((kit, name)) if self.mixins.iter().any(|mixin| mixin.name == kit) => {
+                    return Err(invalid(
+                        kit,
+                        format!("the kit declares no argument {name}: a mixin declares none"),
+                    ));
+                }
+                Some((kit, _)) => {
+                    let mut kits: Vec<&str> = self.mixins.iter().map(|m| m.name.as_str()).collect();
+                    kits.push(base);
+                    kits.sort_unstable();
+                    return Err(invalid(
+                        base,
+                        format!(
+                            "no kit named {kit} is composed (kits: {}), for the argument {given}",
+                            kits.join(", ")
+                        ),
+                    ));
+                }
+            };
+            if args.insert(name.to_owned(), value.clone()).is_some() {
+                return Err(invalid(
+                    base,
+                    format!("the argument {name} is given twice, as {name} and {base}.{name}"),
+                ));
+            }
+        }
+        Ok(args)
     }
 
     /// The kit `agent` resolves to: the one its shortcut on the daemon

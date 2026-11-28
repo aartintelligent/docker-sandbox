@@ -103,7 +103,18 @@ pub(super) fn resolve(
             .is_some_and(|(read, _)| read.build_arg.is_none())
     };
     if let Some(name) = provided.keys().find(|name| !takes_value(name)) {
-        return Err(invalid(format!("the kit declares no argument {name}")));
+        let declared: Vec<&str> = declarations
+            .keys()
+            .copied()
+            .filter(|name| takes_value(name))
+            .collect();
+        let declared = match declared.as_slice() {
+            [] => "it declares none".to_owned(),
+            names => format!("it declares {}", names.join(", ")),
+        };
+        return Err(invalid(format!(
+            "the kit declares no argument {name}: {declared}"
+        )));
     }
     let mut resolved = ResolvedArgs::default();
     for (name, (read, declaration)) in declarations {
@@ -278,6 +289,11 @@ mod tests {
         assert!(refusal(&anchored, &[("n", "12a")]).contains("does not match"));
         assert!(refusal(&kit, &[("token", "t"), ("version", "1")]).contains("no argument version"));
         assert!(refusal(&kit, &[("token", "t"), ("other", "x")]).contains("no argument other"));
+        let none = json!({ "capabilities": [] });
+        assert!(
+            refusal(&none, &[("model", "m")])
+                .ends_with("the kit declares no argument model: it declares none")
+        );
         let broken = json!({ "args": { "n": { "pattern": "(" } } });
         assert!(refusal(&broken, &[("n", "1")]).contains("pattern of the argument n is invalid"));
         let unread = json!({ "args": { "n": { "required": "yes" } } });
