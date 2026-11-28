@@ -174,6 +174,15 @@ Tested end to end with `assets/kits/audit-mixin-v3` (a v3 mixin with a
   `caps` can be left out. **Without `commands` the sandbox is created and no
   install command runs, without any error.** Startup commands run on `POST
   /sandbox/{name}/start`, as for a compiled package.
+- **An argument named by its kit** (measured by hand with `audit
+  kit-compile --base claude --kit-arg`): `--kit-arg claude.model=…` gives the
+  argument `model` of the kit `claude`, the artifact being the one of
+  `--kit-arg model=…`, and the creation request keeps the name as written
+  (`kit_args: {"claude.model": …}`). The CLI refuses the argument of a kit
+  that does not declare it (`kit "audit-mixin-json" declares no argument
+  "model"`), of a kit outside the composition (`no kit named "other" was
+  resolved (kits: audit-mixin-json, claude)`), and an argument no kit declares
+  (`no kit declares this argument (available: model, reasoningEffort)`).
 - **The kit an agent resolves to** (`kit-compile-shortcut`, measured by hand
   on more forms with `audit kit-compile --base`): `sbx create <agent>` uses
   the kit the setting `kit.shortcuts.<agent>` names, when it names one, in

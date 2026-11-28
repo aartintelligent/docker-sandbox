@@ -148,7 +148,7 @@ impl Reference {
     }
 
     /// Name of the kit, the last part of its repository, e.g. `claude`.
-    fn name(&self) -> &str {
+    pub(super) fn name(&self) -> &str {
         self.repository
             .rsplit('/')
             .next()
