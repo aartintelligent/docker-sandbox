@@ -157,6 +157,10 @@ pub(crate) struct RequestStep {
     /// `application/octet-stream`, e.g. `application/x-tar`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content_type: Option<String>,
+    /// Other headers, by name, e.g. `accept` for the ndjson stream the CLI
+    /// asks `POST /sandbox` for.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub headers: BTreeMap<String, String>,
     /// Upgrades the connection with this protocol (`tcp`, `ssh`) and reads
     /// the stream for `wait_ms`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -676,6 +680,7 @@ impl StepRunner<'_> {
         if let Some(protocol) = &step.upgrade {
             headers.push(("upgrade".to_owned(), protocol.clone()));
         }
+        headers.extend(step.headers.clone());
         SockClient::build(&step.method, path, &headers, body)
     }
 

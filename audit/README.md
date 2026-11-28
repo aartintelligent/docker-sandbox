@@ -220,7 +220,7 @@ this way.
 | `coverage` | The remaining CLI commands: log level, diagnostics, policy profiles, skills, prune, workspaces, agent sessions, exec options, a local MCP server, a dummy service secret |
 | `templates` | Saving a stopped sandbox as a template, loading and removing it |
 | `sessions` | Routes and fields the CLI rarely or never sends: VM debug actions, terminal and agent sessions, exec environment, raw ports, working directory, host mounts, held sessions, SSH, image pull failures, and the error answers (validation, unknown resources, stopped sandbox) |
-| `kits` | Local kits: validation, creation with a mixin, `kit add`, a compiled package replayed through the socket, and its mixin artifact sent to `POST /sandbox/{name}/kits`; mixins that declare network rules, credentials and MCP commands, created by the CLI, replayed through the socket and swapped into a running sandbox; mixins forged without the CLI (`kit-forge`) on base kits taken from a compiled package or rebuilt from their image through the socket (shell, and claude with kit arguments), with fields left out to find what the daemon requires; an install command that fails |
+| `kits` | Creations cut short and under a name taken, and the network rules they leave; local kits: validation, creation with a mixin, `kit add`, a compiled package replayed through the socket, and its mixin artifact sent to `POST /sandbox/{name}/kits`; mixins that declare network rules, credentials and MCP commands, created by the CLI, replayed through the socket and swapped into a running sandbox; mixins forged without the CLI (`kit-forge`) on base kits taken from a compiled package or rebuilt from their image through the socket (shell, and claude with kit arguments), with fields left out to find what the daemon requires; an install command that fails |
 | `errors` | The error answers the library documents: unknown settings, images, rules and prompts, a sandbox that does not exist, a stopped sandbox, invalid paths, programs and identifiers |
 | `agents` | What `sbx create` and `sbx run` send for an agent beyond its kit: several, read-only and relocated workspaces, clone mode and the Git remote it adds on the host, agent arguments, the environment and working directory of a session, skills, environment, ports and deny rules at creation, a governance profile |
 | `network` | The network policy as the proxy of a sandbox applies it: the forms of a host a rule applies (and those it accepts without applying), deny against allow for the rules of a sandbox and of its kits, two mixins composed, and the check of the policy, which ignores the rules of a sandbox; dummy hosts under `example.invalid` only |
@@ -241,9 +241,10 @@ A scenario is one JSON object. Its action is recognized by its field:
   and `tty` runs it in a pseudo-terminal.
 - `request` is sent straight to the socket through the spy: `body` (JSON) or
   `body_file` (with `replace`, and `pointer` and `wrap` to send part of a JSON
-  file under a key), `upgrade` and `stdin` for upgraded streams, `wait_ms` for
-  bodies that never end, `hold` to keep the connection open until a `release`
-  step.
+  file under a key), `headers` (e.g. the `accept` of the ndjson stream the CLI
+  asks for), `upgrade` and `stdin` for upgraded streams, `wait_ms` for bodies
+  that never end or a request cut short, `hold` to keep the connection open
+  until a `release` step.
 - `mutates` marks steps that change daemon state; `expect_error` marks steps that
   document an error, so that an unexpected success is reported.
 - Placeholders: `{work}`, `{fixtures}`, `{kits}`, `{spy}`, `{audit}`.

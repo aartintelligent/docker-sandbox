@@ -1,6 +1,6 @@
 {
   "name": "kits",
-  "description": "Local kits: validation, creation with a mixin, adding a mixin to a running sandbox by container swap and in place, and replaying a compiled kit package through the socket.",
+  "description": "Local kits: validation, creation with a mixin, adding a mixin to a running sandbox by container swap and in place, and replaying a compiled kit package through the socket; creations cut short and under a name taken, and the network rules they leave.",
   "scenarios": [
     {
       "name": "kit-validate",
@@ -1553,6 +1553,307 @@
         "-f"
       ],
       "note": "a replay of part of the block finds only its own sandboxes: the others are reported missing"
+    },
+    {
+      "name": "load-abandoned-source",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-forged-base/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-ab1-abandoned",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-base/create-body.json",
+        "replace": {
+          "{{name}}": "audit-ab1"
+        },
+        "headers": {
+          "accept": "application/x-ndjson"
+        },
+        "wait_ms": 300
+      },
+      "note": "the ndjson stream the CLI asks for, its connection closed 300 ms after the request, as a dropped future of the library closes it"
+    },
+    {
+      "name": "create-ab2-abandoned",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-base/create-body.json",
+        "replace": {
+          "{{name}}": "audit-ab2"
+        },
+        "headers": {
+          "accept": "application/x-ndjson"
+        },
+        "wait_ms": 1000
+      },
+      "note": "closed 1 s after the request, before the result of the stream"
+    },
+    {
+      "name": "load-ab3-net-source",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/docker/images/load",
+        "body_file": "{work}/kit-package-net/images/00.oci.tar"
+      }
+    },
+    {
+      "name": "create-ab3-abandoned",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-package-net/create-body.json",
+        "replace": {
+          "{{name}}": "audit-ab3"
+        },
+        "headers": {
+          "accept": "application/x-ndjson"
+        },
+        "wait_ms": 300
+      },
+      "note": "the network mixin, which denies audit-kit-deny.example.com, abandoned 300 ms after the request"
+    },
+    {
+      "name": "wait-ab",
+      "category": "creation-abandoned",
+      "program": "sleep",
+      "args": [
+        "15"
+      ]
+    },
+    {
+      "name": "inspect-ab1-after",
+      "category": "creation-abandoned",
+      "expect_error": true,
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-ab1"
+      },
+      "note": "the daemon cancelled the creation: no sandbox"
+    },
+    {
+      "name": "inspect-ab2-after",
+      "category": "creation-abandoned",
+      "expect_error": true,
+      "request": {
+        "method": "GET",
+        "path": "/sandbox/audit-ab2"
+      }
+    },
+    {
+      "name": "rules-ab-orphaned",
+      "category": "creation-abandoned",
+      "request": {
+        "method": "GET",
+        "path": "/policy/network/rules?type=all"
+      },
+      "note": "the rules kit:audit-ab1 and kit:audit-ab2 of the mixin stay, scoped to sandboxes that do not exist"
+    },
+    {
+      "name": "remove-ab1-orphan-rule",
+      "category": "creation-abandoned",
+      "expect_error": true,
+      "args": [
+        "policy",
+        "rm",
+        "network",
+        "--sandbox",
+        "audit-ab1",
+        "--id",
+        "kit:audit-ab1",
+        "--force"
+      ],
+      "note": "a rule of a kit cannot be removed with policy rm"
+    },
+    {
+      "name": "create-ab1-plain",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-ab1",
+        "shell"
+      ],
+      "note": "the name of the abandoned creation, on the shell kit alone"
+    },
+    {
+      "name": "rules-ab1-plain",
+      "category": "creation-abandoned",
+      "request": {
+        "method": "GET",
+        "path": "/policy/network/rules?type=all"
+      },
+      "note": "the rule of the abandoned mixin, still scoped to the name, now on a sandbox of another kit"
+    },
+    {
+      "name": "create-ab3-plain",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-ab3",
+        "shell"
+      ],
+      "note": "the name of the abandoned creation of the network mixin, on the shell kit alone"
+    },
+    {
+      "name": "probe-ab3-orphan-deny",
+      "category": "creation-abandoned",
+      "args": [
+        "exec",
+        "audit-ab3",
+        "--",
+        "sh",
+        "-c",
+        "for h in audit-kit-deny.example.com audit-orphan-control.example.invalid; do printf '%s %s\\n' \"$h\" \"$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \"http://$h/\")\"; done"
+      ],
+      "note": "whether the proxy applies the deny of the abandoned mixin to a sandbox of another kit that took its name: 403 for the denied host only if it does"
+    },
+    {
+      "name": "create-ab2-again",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-base/create-body.json",
+        "replace": {
+          "{{name}}": "audit-ab2"
+        },
+        "headers": {
+          "accept": "application/x-ndjson"
+        }
+      },
+      "note": "the same package under the same name, to its end"
+    },
+    {
+      "name": "rm-ab",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-ab1",
+        "audit-ab2",
+        "audit-ab3",
+        "-f"
+      ]
+    },
+    {
+      "name": "create-ifn-install-fail",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "expect_error": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-ifn",
+        "--kit",
+        "{kits}/audit-mixin-install-fail",
+        "--kit",
+        "{kits}/audit-mixin-net",
+        "shell"
+      ],
+      "note": "an install command that fails, beside the network mixin: the daemon gives the creation up itself"
+    },
+    {
+      "name": "rules-ifn-after",
+      "category": "creation-abandoned",
+      "request": {
+        "method": "GET",
+        "path": "/policy/network/rules?type=all"
+      },
+      "note": "whether the rules of the network mixin outlive the creation the daemon gave up"
+    },
+    {
+      "name": "create-ifn-plain",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "args": [
+        "create",
+        "--name",
+        "audit-ifn",
+        "shell"
+      ]
+    },
+    {
+      "name": "rm-ifn",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-ifn",
+        "-f"
+      ]
+    },
+    {
+      "name": "rules-ab-after-rm",
+      "category": "creation-abandoned",
+      "request": {
+        "method": "GET",
+        "path": "/policy/network/rules?type=all"
+      },
+      "note": "the rules go with the sandboxes of their name"
+    },
+    {
+      "name": "create-abc",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-base/create-body.json",
+        "replace": {
+          "{{name}}": "audit-abc"
+        },
+        "headers": {
+          "accept": "application/x-ndjson"
+        }
+      }
+    },
+    {
+      "name": "create-abc-taken",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "expect_error": true,
+      "request": {
+        "method": "POST",
+        "path": "/sandbox",
+        "body_file": "{work}/kit-forged-base/create-body.json",
+        "replace": {
+          "{{name}}": "audit-abc"
+        },
+        "headers": {
+          "accept": "application/x-ndjson"
+        }
+      },
+      "note": "a second creation under the name of a sandbox that exists: 409 sandbox_name_conflict before any stream"
+    },
+    {
+      "name": "rm-abc",
+      "category": "creation-abandoned",
+      "mutates": true,
+      "args": [
+        "rm",
+        "audit-abc",
+        "-f"
+      ]
     },
     {
       "name": "kit-forge-claude",
