@@ -40,7 +40,7 @@ pub const DEFAULT_PROMPT: &str = "The test suite of this project fails: run `sh 
      `sh test.sh` again to confirm, and summarize the fix in one sentence.";
 
 /// How long the agent may work on the task.
-const AGENT_DEADLINE: Duration = Duration::from_secs(15 * 60);
+pub const AGENT_DEADLINE: Duration = Duration::from_secs(15 * 60);
 
 /// How long the exit code of the agent is awaited once its output has ended.
 const EXIT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -106,15 +106,7 @@ pub async fn run(agent: &Agent, headless: Headless) -> Result<()> {
         .context("the kit declares no agent program")?;
     let name = sandbox::unique_name(&format!("{}-auto", agent.kit));
 
-    // The task lives on the host, mounted as the workspace of the sandbox at
-    // its own path: the agent changes the files of the host. A pristine copy,
-    // mounted read-only, gives the diff without the agent being able to alter
-    // it.
-    let run_dir = PathBuf::from(RESULTS).join(&name);
-    let (project, original) = (run_dir.join("calc"), run_dir.join("calc.orig"));
-    write_task(&project)?;
-    write_task(&original)?;
-    let (project, original) = (canonical(&project)?, canonical(&original)?);
+    let (project, original) = write_project(&name)?;
     let keys = credentials::proxied_keys(&package, agent.credentials);
     let request = keys.iter().fold(
         package
@@ -176,6 +168,26 @@ fn prompt_from_args() -> String {
     }
 }
 
+/// Writes the default task for the run `name` under
+/// `examples/target/automation/<name>/`, and returns the real paths of the
+/// project and of its pristine copy.
+///
+/// The task lives on the host, mounted as the workspace of the sandbox at
+/// its own path: the agent changes the files of the host. The pristine copy,
+/// mounted read-only, gives the diff without the agent being able to alter
+/// it.
+///
+/// # Errors
+///
+/// Fails when the files cannot be written.
+pub fn write_project(name: &str) -> Result<(String, String)> {
+    let run_dir = PathBuf::from(RESULTS).join(name);
+    let (project, original) = (run_dir.join("calc"), run_dir.join("calc.orig"));
+    write_task(&project)?;
+    write_task(&original)?;
+    Ok((canonical(&project)?, canonical(&original)?))
+}
+
 /// Writes the default task into the host directory `dir`, created when
 /// missing.
 fn write_task(dir: &Path) -> Result<()> {
@@ -196,8 +208,12 @@ fn canonical(path: &Path) -> Result<String> {
     Ok(real.display().to_string())
 }
 
-/// Runs the test suite of the task.
-async fn tests(sandbox: &Sandbox, project: &str) -> Result<ExecOutput> {
+/// Runs the test suite of the task in `project`, inside `sandbox`.
+///
+/// # Errors
+///
+/// Fails when the command cannot be run; a failing suite is the output.
+pub async fn tests(sandbox: &Sandbox, project: &str) -> Result<ExecOutput> {
     Ok(sandbox
         .exec(&ExecSpec::new(["sh", "test.sh"]).with_working_dir(project))
         .await?)
@@ -205,7 +221,11 @@ async fn tests(sandbox: &Sandbox, project: &str) -> Result<ExecOutput> {
 
 /// Runs `spec` without a terminal, relaying its output as it comes, and
 /// returns its exit code.
-async fn run_agent(sandbox: &Sandbox, spec: &AttachSpec, format: Output) -> Result<i32> {
+///
+/// # Errors
+///
+/// Fails when the command cannot be attached or its output breaks off.
+pub async fn run_agent(sandbox: &Sandbox, spec: &AttachSpec, format: Output) -> Result<i32> {
     let (mut input, mut output, control) = sandbox.attach(spec).await?.split();
     // Nothing is typed: closing the input keeps the agent from waiting for it.
     input.shutdown().await?;
@@ -279,7 +299,11 @@ fn summarize(line: &[u8]) -> Option<String> {
 
 /// Prints the hosts the sandbox reached or was refused, as the proxy logged
 /// them.
-async fn report_network(sandbox: &Sandbox) -> Result<()> {
+///
+/// # Errors
+///
+/// Fails when the log of the proxy cannot be read.
+pub async fn report_network(sandbox: &Sandbox) -> Result<()> {
     let log = sandbox
         .client()
         .policy()

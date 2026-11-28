@@ -17,8 +17,9 @@ the user owning the daemon, with the `sbx` CLI installed: the first run of a
 kit compiles it once with the CLI (see [`common/src/kit.rs`](common/src/kit.rs))
 and caches the package under `examples/target/kits/`. The kit images pulled on
 that occasion stay on the daemon, as the cache of the next sandboxes.
-The agent examples, [`shell-forge`](shell-forge/src/main.rs) and
-[`agent-kit-forge`](agent-kit-forge/src/main.rs) need no CLI for their kits:
+The agent examples, [`shell-forge`](shell-forge/src/main.rs),
+[`agent-kit-forge`](agent-kit-forge/src/main.rs) and
+[`blueprint`](blueprint/src/main.rs) need no CLI for their kits:
 they forge their packages through the socket alone (`KitForge`, from
 `docker-sandbox-kit`), under `examples/target/forged/`, at every run. The `-mcp`
 variants still register their MCP server with `sbx mcp add`.
@@ -183,6 +184,22 @@ Code from inside the sandbox, to the URL and with the header it registered.
 The mixin also registers a stdio server, which the example starts as Claude
 Code would, and the example prints the servers in their JSON form. It starts
 no agent either.
+
+### An agentic task launched from a spec
+
+[`blueprint`](blueprint/src/main.rs) runs the same task as the `automation`
+examples, the `calc` project whose tests fail, from a `SandboxSpec` of
+`docker-sandbox-blueprint`: the `claude` kit, the project as its workspace and
+a pristine copy read-only, the key of the agent when the environment holds
+`ANTHROPIC_API_KEY`, the MCP tools of the examples served by the program with
+`rmcp` on the host, and a network refusal. `SandboxSpec::launch` does the rest
+in one call (kit, token of the tool server, key, creation, start) and returns
+the `Lease` that owns the sandbox. The task is then one command: the agent the
+kit declares (`Lease::agent`), in its non-interactive mode, with the prompt,
+which also asks it to call a tool of the program. The example runs the tests
+before and after, shows the diff, checks that the tools received the requests
+of the agent with the token drawn for the sandbox (`Lease::mcp_token`), prints
+the report of the launch and shuts the lease down.
 
 ### The MCP variants
 
