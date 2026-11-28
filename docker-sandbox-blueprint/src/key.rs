@@ -238,6 +238,31 @@ impl Keys {
         Self::default()
     }
 
+    /// The values the environment of the program holds for the keys of
+    /// `spec`, each read from the variable of its key; a variable unset or
+    /// empty gives no value, which an optional key does without.
+    ///
+    /// ```
+    /// use docker_sandbox_blueprint::prelude::*;
+    ///
+    /// let spec = SandboxSpec::agent(Agent::Claude).with_agent_keys();
+    /// let keys = Keys::from_env(&spec);
+    /// // Whether `ANTHROPIC_API_KEY` is set or not, the launch takes it.
+    /// assert!(spec.check_keys(&keys).is_ok());
+    /// ```
+    #[must_use]
+    pub fn from_env(spec: &SandboxSpec) -> Self {
+        spec.keys
+            .iter()
+            .filter_map(|key| {
+                std::env::var(key.env())
+                    .ok()
+                    .filter(|value| !value.is_empty())
+                    .map(|value| (key.env().to_owned(), value))
+            })
+            .collect()
+    }
+
     /// Gives `value` to the key read from the variable `env`.
     #[must_use]
     pub fn with_key(mut self, env: impl Into<String>, value: impl Into<Secret>) -> Self {
@@ -266,6 +291,39 @@ impl SandboxSpec {
     #[must_use]
     pub fn with_key(mut self, key: KeySpec) -> Self {
         self.keys.push(key);
+        self
+    }
+
+    /// Gives the sandbox every API key its agent takes, as its profile says
+    /// (`Agent::keys`): an optional key of its service for each variable the
+    /// agent reads it from, so that whichever the program has goes to the
+    /// proxy and the others are left out. [`Keys::from_env`] then reads their
+    /// values. Nothing for a published base kit or a package, whose agent is
+    /// known once its kit is forged, nor for the variables the agent reads in
+    /// clear (`Agent::forwarded_env`), which the program sets with
+    /// [`SandboxSpec::with_env`] if it wants them visible in the sandbox.
+    ///
+    /// ```
+    /// use docker_sandbox_blueprint::prelude::*;
+    ///
+    /// let spec = SandboxSpec::agent(Agent::Codex).with_agent_keys();
+    /// let json = serde_json::to_value(&spec)?;
+    /// assert_eq!(json["keys"][1], serde_json::json!({ "env": "CODEX_API_KEY", "service": "openai", "optional": true }));
+    /// # Ok::<(), serde_json::Error>(())
+    /// ```
+    #[must_use]
+    pub fn with_agent_keys(mut self) -> Self {
+        let Some(agent) = self.agent else {
+            return self;
+        };
+        for key in agent.keys() {
+            for env in key.env {
+                if !self.keys.iter().any(|known| known.env() == *env) {
+                    self.keys
+                        .push(KeySpec::for_service(*env, key.service).optional());
+                }
+            }
+        }
         self
     }
 
@@ -495,5 +553,55 @@ mod tests {
         optional
             .check_keys(&Keys::new().with_key("GROQ_API_KEY", "a dummy key"))
             .unwrap();
+    }
+
+    #[test]
+    fn the_keys_of_an_agent_come_from_its_profile() {
+        let claude = SandboxSpec::agent(Agent::Claude).with_agent_keys();
+        assert_eq!(
+            claude.keys,
+            [KeySpec::for_service("ANTHROPIC_API_KEY", "anthropic").optional()]
+        );
+        // Each variable of a key, once, and a key the spec has kept as it is.
+        let codex = SandboxSpec::agent(Agent::Codex)
+            .with_key(KeySpec::for_service("OPENAI_API_KEY", "openai"))
+            .with_agent_keys()
+            .with_agent_keys();
+        let envs: Vec<&str> = codex.keys.iter().map(KeySpec::env).collect();
+        assert_eq!(envs, ["OPENAI_API_KEY", "CODEX_API_KEY"]);
+        assert!(!codex.keys[0].is_optional() && codex.keys[1].is_optional());
+        assert_eq!(
+            SandboxSpec::agent(Agent::OpenCode)
+                .with_agent_keys()
+                .keys
+                .len(),
+            9
+        );
+        assert!(
+            SandboxSpec::agent(Agent::Shell)
+                .with_agent_keys()
+                .keys
+                .is_empty()
+        );
+        assert!(
+            SandboxSpec::base("docker.io/sbx/claude:latest")
+                .with_agent_keys()
+                .keys
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn values_are_read_from_the_environment_of_the_program() {
+        // `PATH` is set wherever the tests run; the other one nowhere.
+        let spec = SandboxSpec::agent(Agent::Shell)
+            .with_key(KeySpec::for_hosts("PATH", ["api.example.com"]))
+            .with_key(
+                KeySpec::for_hosts("DOCKER_SANDBOX_BLUEPRINT_UNSET_KEY", ["api.example.com"])
+                    .optional(),
+            );
+        let keys = Keys::from_env(&spec);
+        assert_eq!(keys.envs().collect::<Vec<_>>(), ["PATH"]);
+        spec.check_keys(&keys).unwrap();
     }
 }

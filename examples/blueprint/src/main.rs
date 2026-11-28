@@ -50,9 +50,10 @@
 //! just example blueprint
 //! ```
 //!
-//! With `ANTHROPIC_API_KEY` in the environment, the agent uses that key,
-//! through the proxy. Without it, the agent relies on the credential the
-//! daemon holds for its kit, a subscription for instance.
+//! With `ANTHROPIC_API_KEY` in the environment, the key the profile of
+//! Claude Code names, the agent uses that key, through the proxy. Without
+//! it, the agent relies on the credential the daemon holds for its kit, a
+//! subscription for instance.
 
 use anyhow::{Context, Result, anyhow, ensure};
 // One import for the whole example: the prelude holds the types of this
@@ -65,13 +66,6 @@ use example_common::{connect, sandbox};
 
 /// The name the agent knows the tools of this program under.
 const TOOLS: &str = "example-tools";
-
-/// The variable the agent reads its API key from.
-const KEY_ENV: &str = "ANTHROPIC_API_KEY";
-
-/// The service of the claude kit the key belongs to: the kit declares the
-/// hosts of its API, so that the spec does not have to write them out.
-const KEY_SERVICE: &str = "anthropic";
 
 /// A host the sandbox may not reach, whatever else allows it.
 const DENIED: &str = "*.pastebin.com";
@@ -127,7 +121,7 @@ async fn main() -> Result<()> {
 /// Each line of the spec is a need of the task; the comments say what the
 /// launch does with it.
 fn describe(project: &str, original: &str, tools_port: u16) -> (SandboxSpec, Keys) {
-    let mut spec = SandboxSpec::agent(Agent::Claude)
+    let spec = SandboxSpec::agent(Agent::Claude)
         // The project, mounted read-write at its own path: the agent changes
         // the files of the host, and nothing has to be copied back.
         .with_workspace(project)
@@ -140,17 +134,19 @@ fn describe(project: &str, original: &str, tools_port: u16) -> (SandboxSpec, Key
         .with_mcp(McpServer::host(TOOLS, tools_port))
         // A host refused from the creation of the sandbox, its install
         // commands included; the rule goes with the sandbox.
-        .with_network_deny([DENIED]);
+        .with_network_deny([DENIED])
+        // The keys the agent takes, as its profile says
+        // (`ANTHROPIC_API_KEY` for claude), each optional: the spec says
+        // where each goes, never its value. The sandbox only ever sees a
+        // placeholder, which the proxy replaces in the requests to the API.
+        .with_agent_keys();
 
-    // The key of the agent is said in the spec, its value only at launch:
-    // the spec holds nothing secret, and the sandbox only ever sees a
-    // placeholder, which the proxy replaces in the requests to the API.
-    let mut keys = Keys::new();
-    if let Ok(key) = std::env::var(KEY_ENV) {
-        spec = spec.with_key(KeySpec::for_service(KEY_ENV, KEY_SERVICE));
-        keys = keys.with_key(KEY_ENV, key);
-    } else {
-        eprintln!("no {KEY_ENV}: the agent relies on the credential the daemon holds for its kit");
+    // The values, from the environment of the program, at launch only. A
+    // key the environment does not hold is left out, and the agent relies
+    // on the credential the daemon holds for its kit.
+    let keys = Keys::from_env(&spec);
+    if keys.envs().next().is_none() {
+        eprintln!("no key in the environment: the agent relies on the credential the daemon holds");
     }
     (spec, keys)
 }
