@@ -10,7 +10,8 @@
 //! The tests launch `shell` with a mixin, a network refusal, a key and a
 //! variable, then shut it down; `claude` with an MCP server of the host, its
 //! token drawn at launch; `shell` again, its lease dropped; `shell` twice
-//! from one cache of kit packages; and, when `DOCKER_SANDBOX_LIVE_PACKAGE`
+//! from one cache of kit packages; `shell` given up three seconds into its
+//! launch, which leaves no sandbox; and, when `DOCKER_SANDBOX_LIVE_PACKAGE`
 //! names it, a package the `sbx` CLI compiled, launched as it is (`just
 //! test-live` compiles the test mixin of `audit` for it). No agent is
 //! ever started, and nothing serves the MCP server: the tests read what the
@@ -216,6 +217,35 @@ async fn a_compiled_package_is_launched_as_it_is() -> Result<()> {
             "audit-mixin-v3 installed\n"
         );
         lease.shutdown().await?;
+        Ok(())
+    })
+    .await
+}
+
+/// A launch given up three seconds in, wherever it is then (forging,
+/// creating or starting the sandbox), leaves no sandbox: the creation and
+/// the launch remove what they made.
+#[tokio::test]
+async fn a_launch_given_up_leaves_no_sandbox() -> Result<()> {
+    run("blueprint-given-up", |client, name, _dir| async move {
+        let spec = SandboxSpec::agent(Agent::Shell).with_network_deny([DENIED]);
+        let given_up = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            spec.launch(&client, &name, &Keys::new()),
+        )
+        .await;
+        if let Ok(lease) = given_up {
+            // Launched within three seconds: nothing was given up.
+            lease?.shutdown().await?;
+        }
+        let sandbox = client.sandbox(&name);
+        for _ in 0..60 {
+            if !sandbox.exists().await? {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
+        assert!(!sandbox.exists().await?, "the launch left its sandbox");
         Ok(())
     })
     .await

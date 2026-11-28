@@ -15,6 +15,8 @@ mod support;
 #[path = "../../docker-sandbox-kit/tests/images/mod.rs"]
 mod images;
 
+use std::time::Duration;
+
 use docker_sandbox::sandbox::Workspace;
 use docker_sandbox_blueprint::{Error, KeySpec, Keys, LaunchStep, SandboxSpec};
 use docker_sandbox_kit::KitCache;
@@ -207,7 +209,8 @@ async fn a_launch_failing_once_the_sandbox_exists_removes_it_unless_kept() {
     assert!(
         matches!(
             error,
-            Error::Launch { ref sandbox, step: LaunchStep::Start, kept: false, .. } if sandbox == "job-42"
+            Error::Launch { ref sandbox, ref id, step: LaunchStep::Start, kept: false, .. }
+                if sandbox == "job-42" && id == "11765de3"
         ),
         "{error}"
     );
@@ -513,4 +516,57 @@ async fn a_compiled_package_is_launched_as_it_is_or_under_the_mixins_of_the_spec
         "{error}"
     );
     assert_eq!(sent(&daemon, "POST", "/sandbox").len(), 2);
+}
+
+/// The requests for `method path` of `daemon`, awaited until there are
+/// `count`, or for five seconds.
+async fn awaited(daemon: &FakeDaemon, method: &str, path: &str, count: usize) -> Vec<Recorded> {
+    for _ in 0..50 {
+        let requests = sent(daemon, method, path);
+        if requests.len() >= count {
+            return requests;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    sent(daemon, method, path)
+}
+
+#[tokio::test]
+async fn a_launch_given_up_once_its_sandbox_exists_removes_it() {
+    // The start answers after the launch is given up, as a timeout, a
+    // `select!` or Ctrl-C gives it up.
+    let slow_start = |reply: Reply| {
+        launching(shell_export())
+            .route(
+                "POST",
+                "/sandbox/job-42/start",
+                reply.delayed(Duration::from_secs(2)),
+            )
+            .start()
+    };
+    for (reply, spec) in [
+        // It started: the lease nobody takes closes its session.
+        (
+            Reply::json(200, &sandbox_json("job-42", "running")),
+            SandboxSpec::agent(Agent::Shell),
+        ),
+        // It failed: kept by the spec, but nobody is left to look inside.
+        (
+            Reply::json(500, &json!({ "message": "the VM did not start" })),
+            SandboxSpec::agent(Agent::Shell).keep_on_failure(),
+        ),
+    ] {
+        let daemon = slow_start(reply);
+        let client = connect(&daemon).await;
+        let given_up = tokio::time::timeout(
+            Duration::from_secs(1),
+            spec.launch(&client, "job-42", &Keys::new()),
+        )
+        .await;
+        assert!(given_up.is_err(), "the launch is given up during the start");
+        assert_eq!(sent(&daemon, "POST", "/sandbox").len(), 1);
+        let deleted = awaited(&daemon, "DELETE", "/sandbox/job-42", 1).await;
+        assert_eq!(deleted.len(), 1, "the sandbox of the launch is removed");
+        assert_eq!(deleted[0].query()["expected_id"], "11765de3");
+    }
 }
